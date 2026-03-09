@@ -45,6 +45,19 @@ vi.mock("./pinata.js", () => ({
   unpinCid: vi.fn().mockResolvedValue(true),
 }));
 
+vi.mock("ethers", () => {
+  const Contract = vi.fn().mockImplementation(() => ({
+    register: vi.fn().mockResolvedValue({
+      hash: "0xmocktx",
+      wait: vi.fn().mockResolvedValue({ status: 1 }),
+    }),
+  }));
+  const JsonRpcProvider = vi.fn();
+  const Wallet = vi.fn().mockImplementation(() => ({}));
+  return { Contract, JsonRpcProvider, Wallet };
+});
+
+import { supabase } from "../supabase.js";
 import { validateTemplateValues, executeIssueCredential } from "./issueCredential.js";
 
 describe("validateTemplateValues", () => {
@@ -113,7 +126,7 @@ describe("executeIssueCredential", () => {
   };
 
   beforeEach(() => {
-    vi.resetModules();
+    supabase.rpc.mockClear();
     process.env.SKIP_CHAIN = "true";
   });
 
@@ -147,5 +160,84 @@ describe("executeIssueCredential", () => {
       ipfs_cid: expect.any(String),
       ipfs_uri: expect.any(String),
     });
+  });
+
+  it("does not call finalize_credential when IPFS pin fails", async () => {
+    const { pinJsonToIpfs } = await import("./pinata.js");
+    pinJsonToIpfs.mockRejectedValueOnce(new Error("pin failed"));
+
+    await expect(executeIssueCredential(validPayload)).rejects.toThrow("pin failed");
+
+    // Supabase RPC should only have been called for prepare_credential, not finalize_credential in this call
+    const calls = supabase.rpc.mock.calls.map((c) => c[0]);
+    expect(calls.filter((name) => name === "prepare_credential").length).toBeGreaterThanOrEqual(1);
+    expect(calls.filter((name) => name === "finalize_credential").length).toBe(0);
+  });
+
+  it("unpins CID and does not finalize when on-chain registration fails", async () => {
+    const { pinJsonToIpfs, unpinCid } = await import("./pinata.js");
+    // Ensure chain path is used
+    process.env.SKIP_CHAIN = "false";
+    process.env.CELO_RPC_URL = "https://rpc.test";
+    process.env.REGISTRY_CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000001";
+    process.env.REGISTRY_PRIVATE_KEY = "0x0000000000000000000000000000000000000000000000000000000000000001";
+
+    pinJsonToIpfs.mockResolvedValueOnce("bafy-mock");
+
+    const { Contract } = await import("ethers");
+    // Make register() reject to simulate revert / RPC failure
+    Contract.mockImplementationOnce(() => ({
+      register: vi.fn().mockRejectedValue(new Error("on-chain failed")),
+    }));
+
+    await expect(executeIssueCredential(validPayload)).rejects.toThrow("on-chain failed");
+
+    expect(unpinCid).toHaveBeenCalledWith("bafy-mock");
+    const calls = supabase.rpc.mock.calls.map((c) => c[0]);
+    expect(calls.filter((name) => name === "finalize_credential").length).toBe(0);
+  });
+
+  it("unpins CID when finalize_credential fails", async () => {
+    const { pinJsonToIpfs, unpinCid } = await import("./pinata.js");
+    process.env.SKIP_CHAIN = "true"; // avoid real chain path
+    pinJsonToIpfs.mockResolvedValueOnce("bafy-finalize-fail");
+
+    // First rpc call: prepare_credential OK, second: finalize_credential error
+    supabase.rpc.mockImplementation(async (fnName) => {
+      if (fnName === "prepare_credential") {
+        return {
+          data: {
+            id: "mock-id",
+            verification_url: "https://example.com/verify/mock-id",
+            prepared: {
+              id: "mock-id",
+              issuer_entity_id: "00000000-0000-0000-0000-000000000001",
+              platform_entity_id: "00000000-0000-0000-0000-000000000002",
+              holder_id: "00000000-0000-0000-0000-000000000003",
+              context_id: "00000000-0000-0000-0000-000000000004",
+              template_id: "00000000-0000-0000-0000-000000000005",
+              credential_type: "attendance",
+              title: "Asistencia",
+              expires_at: null,
+              credential_json: { name: "Test" },
+              chain_name: "celo",
+              chain_id: 42220,
+              contract_address: "0x0000000000000000000000000000000000000000",
+            },
+          },
+          error: null,
+        };
+      }
+      if (fnName === "finalize_credential") {
+        return {
+          data: null,
+          error: { message: "DB insert failed" },
+        };
+      }
+      return { data: null, error: { message: `Unexpected rpc: ${fnName}` } };
+    });
+
+    await expect(executeIssueCredential(validPayload)).rejects.toThrow("DB insert failed");
+    expect(unpinCid).toHaveBeenCalledWith("bafy-finalize-fail");
   });
 });
