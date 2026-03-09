@@ -8,9 +8,10 @@ API for issuing verifiable credentials via x402 payment on Celo.
    - `PAY_TO`: Celo address receiving x402 payments (optional if `SKIP_PAYMENT=true`)
    - `SUPABASE_URL`: Supabase project URL (e.g. `https://xxx.supabase.co`)
    - `SUPABASE_SECRET_KEY`: Service role key (Settings → API in Supabase)
-2. In Supabase SQL Editor, run in order: `database/schema.sql`, `database/seed.sql` (defines base template), `database/functions/issue_credential.sql`
+2. In Supabase SQL Editor, run in order: `database/schema.sql`, `database/seed.sql` (defines base template), `database/functions/issue_credential.sql` (defines `prepare_credential` + `finalize_credential`). If upgrading: run `database/migrations/001_add_ipfs_cid.sql`.
 3. Set `CDP_API_KEY_ID` and `CDP_API_KEY_SECRET` for Coinbase facilitator (or `SKIP_PAYMENT=true` for local dev without x402)
-4. `npm start` or `npm run dev`
+4. (Optional) Set `PINATA_JWT` to upload credential JSON to IPFS via Pinata as decentralized backup. Without it, credentials are stored only in the DB.
+5. `npm start` or `npm run dev`
 
 ## Endpoints
 
@@ -30,7 +31,6 @@ API for issuing verifiable credentials via x402 payment on Celo.
   "template": { "slug": "...", "name": "...", "background_url": "...", "page_width": 595, "page_height": 842, "fields_json": [...] },
   "credential_type": "attendance|completion|achievement|participation|membership|certification",
   "title": "Credential title",
-  "issued_at": "2025-03-08T12:00:00Z",
   "expires_at": null,
   "values": { "holder_name": "...", "event_name": "...", "date": "..." }
 }

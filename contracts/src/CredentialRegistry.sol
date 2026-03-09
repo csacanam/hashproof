@@ -3,19 +3,42 @@ pragma solidity ^0.8.19;
 
 /**
  * @title CredentialRegistry
- * @notice Stores credential hashes on-chain. Only the owner (HashProof) can register.
- * @dev Verifiers can call isRegistered(hash) or read registeredAt[hash] to confirm a credential exists.
+ * @notice Stores credential records on-chain. Only the owner (HashProof) can register and revoke.
+ * @dev Records are keyed by credentialId (UUID string).
+ *
+ * Valid credential: revokedAt == 0 AND (validUntil == 0 OR block.timestamp <= validUntil)
+ * Revoked: revokedAt > 0
+ * Expired: validUntil > 0 AND block.timestamp > validUntil
  */
 contract CredentialRegistry {
     address public owner;
 
-    /// @notice credentialHash => timestamp when registered (0 = not registered)
-    mapping(bytes32 => uint256) public registeredAt;
+    struct CredentialRecord {
+        string cid;          // IPFS CID
+        uint256 issuedAt;
+        uint256 validUntil;  // 0 = no expiration
+        uint256 revokedAt;   // 0 = not revoked
+    }
 
-    event CredentialRegistered(bytes32 indexed credentialHash, uint256 timestamp);
+    /// @notice credentialId (UUID string) => record
+    mapping(string => CredentialRecord) public records;
+
+    event CredentialRegistered(
+        string credentialId,
+        string cid,
+        uint256 issuedAt,
+        uint256 validUntil
+    );
+    event CredentialRevoked(string credentialId, uint256 revokedAt);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
     error OnlyOwner();
     error AlreadyRegistered();
+    error InvalidOwner();
+    error NotRegistered();
+    error AlreadyRevoked();
+    error InvalidCredentialId();
+    error InvalidIssuedAt();
 
     constructor() {
         owner = msg.sender;
@@ -27,27 +50,107 @@ contract CredentialRegistry {
     }
 
     /**
-     * @notice Register a credential hash. Only owner can call.
-     * @param credentialHash SHA256 hash of the credential JSON (32 bytes, hex)
+     * @notice Register a credential. Only owner can call.
+     * @param credentialId UUID string from DB (mapping key)
+     * @param cid IPFS CID
+     * @param issuedAt Unix timestamp when issued
+     * @param validUntil Unix timestamp when it expires (0 = no expiration)
      */
-    function register(bytes32 credentialHash) external onlyOwner {
-        if (registeredAt[credentialHash] != 0) revert AlreadyRegistered();
+    function register(
+        string calldata credentialId,
+        string calldata cid,
+        uint256 issuedAt,
+        uint256 validUntil
+    ) external onlyOwner {
+        if (bytes(credentialId).length == 0) revert InvalidCredentialId();
+        if (issuedAt == 0) revert InvalidIssuedAt();
+        if (records[credentialId].issuedAt != 0) revert AlreadyRegistered();
 
-        registeredAt[credentialHash] = block.timestamp;
-        emit CredentialRegistered(credentialHash, block.timestamp);
+        records[credentialId] = CredentialRecord({
+            cid: cid,
+            issuedAt: issuedAt,
+            validUntil: validUntil,
+            revokedAt: 0
+        });
+
+        emit CredentialRegistered(
+            credentialId,
+            cid,
+            issuedAt,
+            validUntil
+        );
     }
 
     /**
-     * @notice Check if a credential hash is registered
+     * @notice Revoke a credential. Only owner can call.
      */
-    function isRegistered(bytes32 credentialHash) external view returns (bool) {
-        return registeredAt[credentialHash] != 0;
+    function revoke(string calldata credentialId) external onlyOwner {
+        CredentialRecord storage r = records[credentialId];
+        if (r.issuedAt == 0) revert NotRegistered();
+        if (r.revokedAt != 0) revert AlreadyRevoked();
+
+        r.revokedAt = block.timestamp;
+        emit CredentialRevoked(credentialId, block.timestamp);
     }
 
     /**
-     * @notice Get registration timestamp (0 if not registered)
+     * @notice Check if a credential is registered
      */
-    function getRegisteredAt(bytes32 credentialHash) external view returns (uint256) {
-        return registeredAt[credentialHash];
+    function isRegistered(string calldata credentialId) external view returns (bool) {
+        return records[credentialId].issuedAt != 0;
+    }
+
+    /**
+     * @notice Check if credential is revoked (revokedAt > 0)
+     */
+    function isRevoked(string calldata credentialId) external view returns (bool) {
+        return records[credentialId].revokedAt != 0;
+    }
+
+    /**
+     * @notice Check if credential is expired (validUntil > 0 AND block.timestamp > validUntil)
+     */
+    function isExpired(string calldata credentialId) external view returns (bool) {
+        CredentialRecord storage r = records[credentialId];
+        return r.validUntil != 0 && block.timestamp > r.validUntil;
+    }
+
+    /**
+     * @notice Check if credential is valid: not revoked AND (no expiration OR not yet expired)
+     */
+    function isValid(string calldata credentialId) external view returns (bool) {
+        CredentialRecord storage r = records[credentialId];
+        if (r.issuedAt == 0) return false;
+        if (r.revokedAt != 0) return false;
+        if (r.validUntil != 0 && block.timestamp > r.validUntil) return false;
+        return true;
+    }
+
+    /**
+     * @notice Get full record
+     */
+    function getRecord(string calldata credentialId)
+        external
+        view
+        returns (
+            string memory cid,
+            uint256 issuedAt,
+            uint256 validUntil,
+            uint256 revokedAt
+        )
+    {
+        CredentialRecord storage r = records[credentialId];
+        return (r.cid, r.issuedAt, r.validUntil, r.revokedAt);
+    }
+
+    /**
+     * @notice Transfer ownership to a new address.
+     */
+    function transferOwnership(address newOwner) external onlyOwner {
+        if (newOwner == address(0)) revert InvalidOwner();
+
+        address previousOwner = owner;
+        owner = newOwner;
+        emit OwnershipTransferred(previousOwner, newOwner);
     }
 }

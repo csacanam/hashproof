@@ -1,9 +1,10 @@
--- Function: issue_credential(payload jsonb, base_url text)
--- Full credential issuance in one call: issuer, platform, holder, context, template, values.
--- Template: pass template_id/template_slug to use existing, OR template object to create inline.
--- Returns: { id, verification_url, tx_hash, credential_hash }
+-- Function: prepare_credential(payload jsonb, base_url text)
+-- Prepares credential issuance: validates, upserts related records, builds credential_json.
+-- Does NOT insert into credentials. Intended for sync flows where we must pin to IPFS
+-- and register on-chain before writing the credential row.
+-- Returns: { id, verification_url, prepared: { ...fields needed to finalize insert... } }
 
-create or replace function issue_credential(p_payload jsonb, p_base_url text default 'https://hashproof.example.com')
+create or replace function prepare_credential(p_payload jsonb, p_base_url text default 'https://hashproof.example.com')
 returns jsonb
 language plpgsql
 security definer
@@ -28,8 +29,6 @@ declare
   v_context_id uuid;
   v_template_record record;
   v_credential_json jsonb;
-  v_credential_hash text;
-  v_tx_hash text;
   v_credential_id uuid;
   v_issued_ts timestamptz;
   v_expires_ts timestamptz;
@@ -47,7 +46,6 @@ begin
   v_template_slug := p_payload->>'template_slug';
   v_credential_type := p_payload->>'credential_type';
   v_title := p_payload->>'title';
-  v_issued_at := (p_payload->>'issued_at')::timestamptz;
   v_expires_at := (p_payload->>'expires_at')::timestamptz;
   v_values := coalesce(p_payload->'values', '{}'::jsonb);
 
@@ -69,24 +67,24 @@ begin
 
   -- Template: template_id, template_slug, template object, or base template (when none passed)
 
-  v_issued_ts := coalesce(v_issued_at, now());
+  v_issued_ts := now();
   v_expires_ts := v_expires_at;
 
-  -- Get or create issuer
+  -- Get or create issuer (by slug only)
   v_slug_lower := lower(regexp_replace(v_issuer->>'slug', '\s+', '-', 'g'));
-  select id into v_issuer_id from entities where slug = v_slug_lower and role = 'issuer' limit 1;
+  select id into v_issuer_id from entities where slug = v_slug_lower limit 1;
   if v_issuer_id is null then
-    insert into entities (role, display_name, slug, website, logo_url)
-    values ('issuer', v_issuer->>'display_name', v_slug_lower, v_issuer->>'website', v_issuer->>'logo_url')
+    insert into entities (display_name, slug, website, logo_url)
+    values (v_issuer->>'display_name', v_slug_lower, v_issuer->>'website', v_issuer->>'logo_url')
     returning id into v_issuer_id;
   end if;
 
-  -- Get or create platform
+  -- Get or create platform (by slug only)
   v_slug_lower := lower(regexp_replace(v_platform->>'slug', '\s+', '-', 'g'));
-  select id into v_platform_id from entities where slug = v_slug_lower and role = 'platform' limit 1;
+  select id into v_platform_id from entities where slug = v_slug_lower limit 1;
   if v_platform_id is null then
-    insert into entities (role, display_name, slug, website, logo_url)
-    values ('platform', v_platform->>'display_name', v_slug_lower, v_platform->>'website', v_platform->>'logo_url')
+    insert into entities (display_name, slug, website, logo_url)
+    values (v_platform->>'display_name', v_slug_lower, v_platform->>'website', v_platform->>'logo_url')
     returning id into v_platform_id;
   end if;
 
@@ -216,45 +214,98 @@ begin
   end if;
   v_credential_json := v_credential_json || '{"proof":{}}'::jsonb;
 
-  -- Hash (canonical JSON text)
-  v_credential_hash := encode(digest(v_credential_json::text, 'sha256'), 'hex');
-
-  -- TODO: Real blockchain tx — register credential_hash on-chain, get tx_hash
-  -- For now: mock tx_hash
-  v_tx_hash := '0x' || encode(gen_random_bytes(32), 'hex');
-
-  -- Add proof
+  -- Add proof (no txHash; tx is tracked in DB)
   v_credential_json := jsonb_set(
     v_credential_json,
     '{proof}',
     jsonb_build_object(
       'type', 'HashProofBlockchain',
-      'txHash', v_tx_hash,
-      'contractAddress', '0x0000000000000000000000000000000000000000',
-      'credentialHash', v_credential_hash
+      'contractAddress', '0x0000000000000000000000000000000000000000'
     )
   );
 
-  -- Insert credential
-  insert into credentials (
-    issuer_entity_id, platform_entity_id, holder_id, context_id, template_id,
-    credential_type, title, issued_at, expires_at,
-    credential_json, credential_hash,
-    chain_name, chain_id, contract_address, tx_hash, onchain_registered_at
-  ) values (
-    v_issuer_id, v_platform_id, v_holder_id, v_context_id, v_template_record.id,
-    v_credential_type::credential_type, v_title, v_issued_ts, v_expires_ts,
-    v_credential_json, v_credential_hash,
-    'celo', 42220, '0x0000000000000000000000000000000000000000',
-    v_tx_hash, now()
-  )
-  returning id into v_credential_id;
+  v_credential_id := gen_random_uuid();
 
   return jsonb_build_object(
     'id', v_credential_id,
     'verification_url', p_base_url || '/verify/' || v_credential_id,
-    'tx_hash', v_tx_hash,
-    'credential_hash', v_credential_hash
+    'prepared', jsonb_build_object(
+      'id', v_credential_id,
+      'issuer_entity_id', v_issuer_id,
+      'platform_entity_id', v_platform_id,
+      'holder_id', v_holder_id,
+      'context_id', v_context_id,
+      'template_id', v_template_record.id,
+      'credential_type', v_credential_type,
+      'expires_at', v_expires_ts,
+      'credential_json', v_credential_json,
+      'chain_name', 'celo',
+      'chain_id', 42220,
+      'contract_address', '0x0000000000000000000000000000000000000000'
+    )
+  );
+end;
+$$;
+
+-- Function: finalize_credential(prepared jsonb, ipfs_cid text, tx_hash text)
+-- Inserts the credential row ONLY after IPFS pin + on-chain tx are available.
+-- Returns: { id, verification_url, tx_hash, ipfs_cid }
+create or replace function finalize_credential(
+  p_prepared jsonb,
+  p_ipfs_cid text,
+  p_tx_hash text
+)
+returns jsonb
+language plpgsql
+security definer
+as $$
+declare
+  v_id uuid;
+  v_issuer_entity_id uuid;
+  v_platform_entity_id uuid;
+  v_holder_id uuid;
+  v_context_id uuid;
+  v_template_id uuid;
+  v_credential_type text;
+  v_expires_at timestamptz;
+  v_credential_json jsonb;
+  v_chain_name text;
+  v_chain_id int;
+  v_contract_address text;
+begin
+  v_id := (p_prepared->>'id')::uuid;
+  v_issuer_entity_id := (p_prepared->>'issuer_entity_id')::uuid;
+  v_platform_entity_id := (p_prepared->>'platform_entity_id')::uuid;
+  v_holder_id := (p_prepared->>'holder_id')::uuid;
+  v_context_id := (p_prepared->>'context_id')::uuid;
+  v_template_id := (p_prepared->>'template_id')::uuid;
+  v_credential_type := p_prepared->>'credential_type';
+  v_expires_at := (p_prepared->>'expires_at')::timestamptz;
+  v_credential_json := p_prepared->'credential_json';
+  v_chain_name := p_prepared->>'chain_name';
+  v_chain_id := (p_prepared->>'chain_id')::int;
+  v_contract_address := p_prepared->>'contract_address';
+
+  insert into credentials (
+    id,
+    issuer_entity_id, platform_entity_id, holder_id, context_id, template_id,
+    credential_type, expires_at, revoked_at,
+    credential_json,
+    chain_name, chain_id, contract_address, tx_hash,
+    ipfs_cid
+  ) values (
+    v_id,
+    v_issuer_entity_id, v_platform_entity_id, v_holder_id, v_context_id, v_template_id,
+    v_credential_type::credential_type, v_expires_at, null,
+    v_credential_json,
+    v_chain_name, v_chain_id, v_contract_address, p_tx_hash,
+    p_ipfs_cid
+  );
+
+  return jsonb_build_object(
+    'id', v_id,
+    'tx_hash', p_tx_hash,
+    'ipfs_cid', p_ipfs_cid
   );
 end;
 $$;

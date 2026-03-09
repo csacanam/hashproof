@@ -50,6 +50,5 @@ describe.skipIf(!hasSupabase)("executeIssueCredential integration", () => {
     expect(result.id).toBeDefined();
     expect(result.verification_url).toContain(result.id);
     expect(result.tx_hash).toMatch(/^0x[a-f0-9]+$/);
-    expect(result.credential_hash).toHaveLength(64);
   }, 10000);
 });

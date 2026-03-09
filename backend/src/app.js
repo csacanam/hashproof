@@ -13,6 +13,7 @@ import { ExactEvmScheme } from "@x402/evm/exact/server";
 import { ISSUE_CREDENTIAL_PRICE_USD } from "./utils/constants.js";
 import { executeIssueCredential } from "./services/issueCredential.js";
 import { getCredentialById } from "./services/getCredential.js";
+import { getEntityById } from "./services/getEntity.js";
 import { generateCredentialPdf } from "./services/generatePdf.js";
 
 const CELO_NETWORK = "eip155:42220";
@@ -192,25 +193,81 @@ export function createApp(options = {}) {
       const template = Array.isArray(cred.templates) ? cred.templates[0] : cred.templates;
       const context = Array.isArray(cred.contexts) ? cred.contexts[0] : cred.contexts;
       const platformEntity = Array.isArray(cred.platform) ? cred.platform[0] : cred.platform;
+      const issuerEntity = Array.isArray(cred.issuer) ? cred.issuer[0] : cred.issuer;
       const cj = cred.credential_json ?? {};
       const pageWidth = template?.page_width ?? 595;
       const pageHeight = template?.page_height ?? 842;
+      const nowMs = Date.now();
+      const revokedAtMs = cred.revoked_at ? new Date(cred.revoked_at).getTime() : null;
+      const expiresAtMs = cred.expires_at ? new Date(cred.expires_at).getTime() : null;
+      const derivedStatus = revokedAtMs
+        ? "revoked"
+        : expiresAtMs && nowMs > expiresAtMs
+          ? "expired"
+          : "active";
+      const issuerVerified =
+        (issuerEntity?.email_verified || issuerEntity?.domain_verified || issuerEntity?.kyb_verified) === true;
+      const platformVerified =
+        (platformEntity?.email_verified || platformEntity?.domain_verified || platformEntity?.kyb_verified) === true;
       // Prefer self-contained credential JSON; fallback to DB for legacy credentials
       return res.json({
         credential: cred.credential_json,
-        status: cred.status,
+        status: derivedStatus,
         verification_url: `${baseUrl}/verify/${cred.id}`,
         id: cred.id,
-        title: cj.name ?? cred.title,
+        title: cj.name ?? null,
         context_title: cj.context?.title ?? context?.title ?? null,
         credential_type: cred.credential_type ?? null,
-        issued_at: cred.issued_at ?? null,
+        created_at: cred.created_at ?? null,
+        expires_at: cred.expires_at ?? null,
+        revoked_at: cred.revoked_at ?? null,
+        tx_hash: cred.tx_hash ?? null,
+        issuer_verified: issuerVerified,
+        platform_verified: platformVerified,
         platform_name: cj.platform?.display_name ?? platformEntity?.display_name ?? null,
         page_width: pageWidth,
         page_height: pageHeight,
+        ipfs_uri: cred.ipfs_cid ? `https://gateway.pinata.cloud/ipfs/${cred.ipfs_cid}` : null,
       });
     } catch (err) {
       console.error("[verify] error:", err.message);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/entities/:id", readOnlyRateLimit, async (req, res) => {
+    try {
+      const entity = await getEntityById(req.params.id);
+      if (!entity) {
+        return res.status(404).json({ error: "Entity not found" });
+      }
+
+      const verifiedCount =
+        (entity.email_verified ? 1 : 0) +
+        (entity.domain_verified ? 1 : 0) +
+        (entity.kyb_verified ? 1 : 0);
+      const verifiedPercentage = (verifiedCount / 3) * 100;
+
+      return res.json({
+        entity,
+        id: entity.id,
+        role: entity.role,
+        display_name: entity.display_name,
+        slug: entity.slug,
+        website: entity.website,
+        logo_url: entity.logo_url,
+        status: entity.status,
+        email_verified: entity.email_verified,
+        domain_verified: entity.domain_verified,
+        kyb_verified: entity.kyb_verified,
+        last_verified_at: entity.last_verified_at,
+        created_at: entity.created_at,
+        updated_at: entity.updated_at,
+        verified_count: verifiedCount,
+        verified_percentage: verifiedPercentage,
+      });
+    } catch (err) {
+      console.error("[entity] error:", err.message);
       return res.status(500).json({ error: err.message });
     }
   });

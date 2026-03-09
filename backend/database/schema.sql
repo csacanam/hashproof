@@ -2,11 +2,6 @@
 -- ENUMS
 -- =========================================================
 
-create type entity_role as enum (
-  'issuer',
-  'platform'
-);
-
 create type entity_status as enum (
   'active',
   'suspended',
@@ -30,11 +25,6 @@ create type credential_type as enum (
   'participation',
   'membership',
   'certification'
-);
-
-create type credential_status as enum (
-  'active',
-  'revoked'
 );
 
 create type delivery_channel as enum (
@@ -63,8 +53,6 @@ create extension if not exists pgcrypto;
 create table entities (
   id uuid primary key default gen_random_uuid(),
 
-  role entity_role not null,
-
   display_name text not null,
   slug text not null,
 
@@ -85,9 +73,6 @@ create table entities (
 
 create unique index entities_slug_unique_idx
   on entities (slug);
-
-create index entities_role_idx
-  on entities (role);
 
 create index entities_status_idx
   on entities (status);
@@ -193,31 +178,27 @@ create table credentials (
   template_id uuid not null references templates(id),
 
   credential_type credential_type not null,
-  title text not null,
 
-  issued_at timestamptz not null,
   expires_at timestamptz,
-
-  status credential_status not null default 'active',
+  revoked_at timestamptz,
 
   -- Canonical JSON representing the actual credential
   credential_json jsonb not null,
-
-  -- Hash of the canonical JSON
-  credential_hash text not null unique,
 
   -- On-chain data
   chain_name text not null default 'celo',
   chain_id integer not null,
   contract_address text not null,
   tx_hash text not null unique,
-  onchain_registered_at timestamptz,
+
+  -- IPFS backup (Pinata) – CID for decentralized storage
+  ipfs_cid text,
 
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
 
-  constraint credentials_expires_after_issue
-    check (expires_at is null or expires_at > issued_at)
+  constraint credentials_expires_after_create
+    check (expires_at is null or expires_at > created_at)
 );
 
 create index credentials_issuer_entity_id_idx
@@ -234,12 +215,6 @@ create index credentials_context_id_idx
 
 create index credentials_template_id_idx
   on credentials (template_id);
-
-create index credentials_status_idx
-  on credentials (status);
-
-create index credentials_issued_at_idx
-  on credentials (issued_at desc);
 
 create index credentials_chain_name_idx
   on credentials (chain_name);
@@ -311,3 +286,21 @@ for each row execute function set_updated_at();
 create trigger deliveries_set_updated_at
 before update on deliveries
 for each row execute function set_updated_at();
+
+-- =========================================================
+-- IMMUTABILITY: credential_json should never change after issuance
+-- =========================================================
+
+create or replace function prevent_credential_json_update()
+returns trigger as $$
+begin
+  if new.credential_json is distinct from old.credential_json then
+    raise exception 'credential_json is immutable after issuance';
+  end if;
+  return new;
+end;
+$$ language plpgsql;
+
+create trigger credentials_prevent_credential_json_update
+before update on credentials
+for each row execute function prevent_credential_json_update();

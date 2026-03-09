@@ -1,5 +1,13 @@
 # Credential Creation and Verification Flow – Current State
 
+## 0. Credential ID as canonical key
+
+- `credentialId` = `credentials.id` (UUID v4 in the database).
+- **Verification URL**: `GET /verify/:id` uses `credentialId` → `/verify/{credentialId}`.
+- **IPFS**: the pinned JSON filename is `{credentialId}.json` and the contents come from `credentials.credential_json`.
+- **Smart contract**: `CredentialRegistry` stores records keyed by `credentialId` (string) with `{ cid, issuedAt, validUntil, revokedAt }`.
+- All external references (URL, IPFS, contract) use the same `credentialId` from the DB.
+
 ## 1. Creation (POST /issueCredential)
 
 ### 1.1 Input
@@ -16,19 +24,17 @@
 7. Validates that `values` satisfy required template fields
 8. Builds `credential_json` (self-contained):
    - `@context`, `type`, `issuer`, `platform`, `name`, `context`, `credentialSubject`, `issuanceDate`, `expirationDate` (optional)
-9. SHA256 hash of JSON (before proof) → `credential_hash`
-10. **⚠️ tx_hash**: mock (`gen_random_bytes`) – no real on-chain transaction
-11. Adds `proof`: `{ type, txHash, contractAddress, credentialHash }`
+9. **⚠️ tx_hash**: mock (`gen_random_bytes`) – no real on-chain transaction
+10. Adds `proof`: `{ type, txHash, contractAddress }`
 12. Inserts into `credentials`
 
 ### 1.3 Output
-- `id`, `verification_url`, `tx_hash`, `credential_hash`
+- `id`, `verification_url`, `tx_hash`
 
 ### Status
 | Aspect              | Status | Notes                                              |
 |----------------------|--------|----------------------------------------------------|
 | Self-contained cred  | ✅     | Includes issuer, platform, name, context, subject  |
-| Proof / credentialHash | ✅   | SHA256 hash of JSON                                |
 | tx_hash              | ⚠️ Mock | No real on-chain registration                     |
 | On-chain registration | ❌ Pending | TODO in SQL                                     |
 
@@ -41,7 +47,7 @@
 2. Fallback if platform join fails: query `entities` by `platform_entity_id`
 3. Response:
    - `credential` (full JSON)
-   - `status` (from DB: active/revoked)
+   - `status` (derived: revoked/expired/active from `revoked_at` + `expires_at`)
    - `title`, `context_title`, `platform_name` (from JSON or DB for legacy credentials)
    - `id`, `verification_url`, `page_width`, `page_height`, etc.
 
@@ -82,7 +88,7 @@
 ## 4. Pending for VC Standard Compliance
 
 1. **Real on-chain registration**
-   - Register `credential_hash` on Celo
+   - Register credential (by `credentialId`) on Celo
    - Replace `gen_random_bytes` with actual tx_hash
 
 2. **Verification without DB (optional)**

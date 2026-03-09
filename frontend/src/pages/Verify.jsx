@@ -90,7 +90,7 @@ export default function Verify() {
   const subject = cred.credentialSubject ?? {};
   const issuer = cred.issuer ?? {};
   const status = data?.status ?? "unknown";
-  const txHash = proof.txHash ?? null;
+  const txHash = proof.txHash ?? data?.tx_hash ?? null;
   const explorerUrl = txHash ? `https://celoscan.io/tx/${txHash}` : null;
 
   const recipient = subject.holder_name ?? subject.full_name ?? "—";
@@ -98,7 +98,7 @@ export default function Verify() {
   const activity = cred.context?.title ?? data?.context_title ?? "—";
   const issuedBy = issuer.display_name ?? "—";
   const issuedThrough = cred.platform?.display_name ?? data?.platform_name ?? "—";
-  const issuedDateRaw = cred.issuanceDate ?? data?.issued_at;
+  const issuedDateRaw = cred.issuanceDate ?? data?.created_at;
   const issuedDate = issuedDateRaw
     ? new Date(issuedDateRaw).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
     : "—";
@@ -158,11 +158,36 @@ export default function Verify() {
           </p>
           <dl className="verify-details">
             <div className="verify-detail">
-              <dt>Status</dt>
+              <dt>Credential</dt>
               <dd>
-                <span className={`verify-status verify-status--${status}`}>
-                  {status === "active" ? "Verified ✓" : status}
-                </span>
+                <div>{credentialIdDisplay}</div>
+                <div>
+                  <span className={`verify-status verify-status--${status}`}>
+                    {status === "active" ? "Verified ✓" : status}
+                  </span>
+                </div>
+              </dd>
+            </div>
+            <div className="verify-detail">
+              <dt>Issuer</dt>
+              <dd>
+                <div>{issuedBy}</div>
+                <div>
+                  <span className={`entity-flag entity-flag--${data?.issuer_verified ? "verified" : "unverified"}`}>
+                    {data?.issuer_verified ? "verified" : "unverified"}
+                  </span>
+                </div>
+              </dd>
+            </div>
+            <div className="verify-detail">
+              <dt>Platform</dt>
+              <dd>
+                <div>{issuedThrough}</div>
+                <div>
+                  <span className={`entity-flag entity-flag--${data?.platform_verified ? "verified" : "unverified"}`}>
+                    {data?.platform_verified ? "verified" : "unverified"}
+                  </span>
+                </div>
               </dd>
             </div>
             <div className="verify-detail">
@@ -178,20 +203,8 @@ export default function Verify() {
               <dd>{activity}</dd>
             </div>
             <div className="verify-detail">
-              <dt>Issued by</dt>
-              <dd>{issuedBy}</dd>
-            </div>
-            <div className="verify-detail">
-              <dt>Issued through</dt>
-              <dd>{issuedThrough}</dd>
-            </div>
-            <div className="verify-detail">
               <dt>Issued date</dt>
               <dd>{issuedDate}</dd>
-            </div>
-            <div className="verify-detail">
-              <dt>Credential ID</dt>
-              <dd>{credentialIdDisplay}</dd>
             </div>
             <div className="verify-detail">
               <dt>Blockchain Record</dt>
@@ -205,6 +218,16 @@ export default function Verify() {
                 )}
               </dd>
             </div>
+            {data?.ipfs_uri && (
+              <div className="verify-detail">
+                <dt>IPFS Backup</dt>
+                <dd>
+                  <a href={data.ipfs_uri} target="_blank" rel="noopener noreferrer" className="verify-explorer-link">
+                    View on IPFS
+                  </a>
+                </dd>
+              </div>
+            )}
           </dl>
         </div>
       </main>

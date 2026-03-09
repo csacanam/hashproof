@@ -1,17 +1,48 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("../supabase.js", () => ({
-  supabase: {
-    rpc: vi.fn().mockResolvedValue({
-      data: {
-        id: "mock-id",
-        verification_url: "https://example.com/verify/mock-id",
-        tx_hash: "0xmock",
-        credential_hash: "mockhash",
-      },
-      error: null,
-    }),
-  },
+vi.mock("../supabase.js", () => {
+  return {
+    supabase: {
+      rpc: vi.fn().mockImplementation(async (fnName) => {
+        if (fnName === "prepare_credential") {
+          return {
+            data: {
+              id: "mock-id",
+              verification_url: "https://example.com/verify/mock-id",
+              prepared: {
+                id: "mock-id",
+                issuer_entity_id: "00000000-0000-0000-0000-000000000001",
+                platform_entity_id: "00000000-0000-0000-0000-000000000002",
+                holder_id: "00000000-0000-0000-0000-000000000003",
+                context_id: "00000000-0000-0000-0000-000000000004",
+                template_id: "00000000-0000-0000-0000-000000000005",
+                credential_type: "attendance",
+                title: "Asistencia",
+                expires_at: null,
+                credential_json: { name: "Test" },
+                chain_name: "celo",
+                chain_id: 42220,
+                contract_address: "0x0000000000000000000000000000000000000000",
+              },
+            },
+            error: null,
+          };
+        }
+        if (fnName === "finalize_credential") {
+          return {
+            data: { ok: true },
+            error: null,
+          };
+        }
+        return { data: null, error: { message: `Unexpected rpc: ${fnName}` } };
+      }),
+    },
+  };
+});
+
+vi.mock("./pinata.js", () => ({
+  pinJsonToIpfs: vi.fn().mockResolvedValue("bafy-test-cid"),
+  unpinCid: vi.fn().mockResolvedValue(true),
 }));
 
 import { validateTemplateValues, executeIssueCredential } from "./issueCredential.js";
@@ -83,6 +114,7 @@ describe("executeIssueCredential", () => {
 
   beforeEach(() => {
     vi.resetModules();
+    process.env.SKIP_CHAIN = "true";
   });
 
   it("throws when issuer.display_name is missing", async () => {
@@ -112,7 +144,8 @@ describe("executeIssueCredential", () => {
       id: expect.any(String),
       verification_url: expect.any(String),
       tx_hash: expect.stringMatching(/^0x/),
-      credential_hash: expect.any(String),
+      ipfs_cid: expect.any(String),
+      ipfs_uri: expect.any(String),
     });
   });
 });

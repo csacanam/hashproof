@@ -1,10 +1,45 @@
 /**
  * Issue credential service.
- * Calls Supabase RPC issue_credential (Postgres function).
- * Blockchain registration is mocked in the DB function.
+ * Synchronous issuance (option B):
+ * - Prepare credential JSON in Postgres (no insert yet)
+ * - Pin JSON to IPFS (Pinata)
+ * - Register on-chain (wait for mined tx)
+ * - Finalize insert into credentials with ipfs_cid + tx_hash
  */
 
 import { supabase } from "../supabase.js";
+import { pinJsonToIpfs, unpinCid } from "./pinata.js";
+import crypto from "node:crypto";
+import { Contract, JsonRpcProvider, Wallet } from "ethers";
+
+const REGISTRY_ABI = [
+  "function register(string credentialId, string cid, uint256 issuedAt, uint256 validUntil) external",
+];
+
+async function registerOnChain({ credentialId, cid, issuedAt, validUntil }) {
+  if (process.env.SKIP_CHAIN === "true") {
+    return `0x${crypto.randomBytes(32).toString("hex")}`;
+  }
+
+  const rpcUrl = process.env.CELO_RPC_URL;
+  const contractAddress = process.env.REGISTRY_CONTRACT_ADDRESS;
+  const pk = process.env.REGISTRY_PRIVATE_KEY;
+
+  if (!rpcUrl) throw new Error("CELO_RPC_URL missing");
+  if (!contractAddress) throw new Error("REGISTRY_CONTRACT_ADDRESS missing");
+  if (!pk) throw new Error("REGISTRY_PRIVATE_KEY missing");
+
+  const provider = new JsonRpcProvider(rpcUrl);
+  const wallet = new Wallet(pk, provider);
+  const registry = new Contract(contractAddress, REGISTRY_ABI, wallet);
+
+  const tx = await registry.register(credentialId, cid, issuedAt, validUntil);
+  const receipt = await tx.wait(1);
+  if (!receipt || receipt.status !== 1) {
+    throw new Error("On-chain transaction reverted");
+  }
+  return tx.hash;
+}
 
 /**
  * Validate that values satisfy template required keys.
@@ -37,7 +72,6 @@ export async function executeIssueCredential(payload) {
     template_slug,
     credential_type,
     title,
-    issued_at,
     expires_at,
     values = {},
   } = payload;
@@ -52,7 +86,7 @@ export async function executeIssueCredential(payload) {
 
   const baseUrl = process.env.BASE_URL || "https://hashproof.example.com";
 
-  const { data, error } = await supabase.rpc("issue_credential", {
+  const { data, error } = await supabase.rpc("prepare_credential", {
     p_payload: {
       issuer,
       platform,
@@ -63,7 +97,6 @@ export async function executeIssueCredential(payload) {
       template_slug: template_slug || null,
       credential_type,
       title,
-      issued_at: issued_at || null,
       expires_at: expires_at || null,
       values,
     },
@@ -74,5 +107,64 @@ export async function executeIssueCredential(payload) {
     throw new Error(error.message);
   }
 
-  return data;
+  const prepared = data?.prepared;
+  const credentialId = prepared?.id || data?.id;
+  if (!prepared || !credentialId || !prepared.credential_json) {
+    throw new Error("prepare_credential returned invalid payload");
+  }
+
+  const cid = await pinJsonToIpfs(prepared.credential_json, `${credentialId}.json`);
+  if (!cid) {
+    throw new Error("IPFS pin failed or PINATA_JWT not configured");
+  }
+
+  const issuedAtUnix = Math.floor(Date.now() / 1000);
+  const validUntilUnix = prepared.expires_at ? Math.floor(new Date(prepared.expires_at).getTime() / 1000) : 0;
+
+  let txHash;
+  try {
+    txHash = await registerOnChain({
+      credentialId,
+      cid,
+      issuedAt: issuedAtUnix,
+      validUntil: validUntilUnix,
+    });
+  } catch (chainErr) {
+    // Best-effort cleanup: unpin if chain fails so we don't leave orphaned pins
+    try {
+      await unpinCid(cid);
+    } catch (unpinErr) {
+      console.warn("[issueCredential] IPFS unpin failed after chain error:", unpinErr.message);
+    }
+    throw chainErr;
+  }
+
+  // Persist only after IPFS + chain succeeded
+  const contractAddress = process.env.REGISTRY_CONTRACT_ADDRESS || prepared.contract_address;
+  const finalPrepared = { ...prepared, contract_address: contractAddress };
+
+  const { data: finalized, error: finalizeErr } = await supabase.rpc("finalize_credential", {
+    p_prepared: finalPrepared,
+    p_ipfs_cid: cid,
+    p_tx_hash: txHash,
+  });
+
+  if (finalizeErr) {
+    // If DB insert fails, unpin to avoid leaving content behind without a credential row
+    try {
+      await unpinCid(cid);
+    } catch (unpinErr) {
+      console.warn("[issueCredential] IPFS unpin failed after DB error:", unpinErr.message);
+    }
+    throw new Error(finalizeErr.message);
+  }
+
+  return {
+    id: credentialId,
+    verification_url: `${baseUrl}/verify/${credentialId}`,
+    tx_hash: txHash,
+    ipfs_cid: cid,
+    ipfs_uri: `https://gateway.pinata.cloud/ipfs/${cid}`,
+    ...(finalized || {}),
+  };
 }

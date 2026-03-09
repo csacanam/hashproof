@@ -24,7 +24,6 @@ Organizations that issue credentials or platforms that manage issuances.
 | Field | Type | Description |
 |-------|------|-------------|
 | id | uuid | PK |
-| role | enum | `issuer` or `platform` |
 | display_name | text | Display name (e.g. "Universidad Icesi"). Unique at DB level (like slug). |
 | slug | text | URL-safe identifier (e.g. "universidad-icesi"). Unique. |
 | website | text | Website (optional) |
@@ -161,17 +160,14 @@ Central table: each row is one issued credential.
 | context_id | uuid | FK → contexts |
 | template_id | uuid | FK → templates |
 | credential_type | enum | Type of claim: `attendance`, `completion`, `achievement`, `participation`, `membership`, `certification` |
-| title | text | Credential title shown on the certificate (e.g. "Certificate of Completion"). Distinct from context.title (event/course name). |
-| issued_at | timestamptz | Issue date |
 | expires_at | timestamptz | Expiration (optional; null = never expires) |
-| status | enum | `active` or `revoked` |
-| credential_json | jsonb | Canonical credential JSON (source of truth) |
-| credential_hash | text | Hash of JSON (what goes on-chain) |
+| revoked_at | timestamptz | Revocation timestamp (optional; null = not revoked) |
+| credential_json | jsonb | Canonical credential JSON (source of truth; immutable after issuance) |
 | chain_name | text | Blockchain (e.g. Celo) |
 | chain_id | integer | Network ID |
 | contract_address | text | Contract address |
 | tx_hash | text | Transaction hash |
-| onchain_registered_at | timestamptz | When it was registered on-chain |
+| ipfs_cid | text | IPFS CID (Pinata) for decentralized backup |
 | created_at, updated_at | timestamptz | Audit timestamps |
 
 **Note:** `credential_type` = kind of claim (attendance, completion, etc.). `context.type` = kind of context (event, course, etc.). A course (context) can have completion or participation credentials.
