@@ -153,9 +153,38 @@ export default function Verify() {
 
         <div ref={verifyCardRef} className="verify-card">
           <h2>Verification details</h2>
-          <p className="verify-card-description">
-            The details below confirm the information recorded for this credential.
-          </p>
+          {status !== "active" && status !== "revoked" && status !== "expired" && (
+            <p className="verify-warning verify-warning--error">
+              <span className="verify-warning-icon">❌</span>
+              <span>
+                This credential could not be verified.
+              </span>
+            </p>
+          )}
+          {status === "expired" && (
+            <p className="verify-warning">
+              <span className="verify-warning-icon">⚠️</span>
+              <span>
+                This credential has expired.
+              </span>
+            </p>
+          )}
+          {status === "revoked" && (
+            <p className="verify-warning verify-warning--error">
+              <span className="verify-warning-icon">❌</span>
+              <span>
+                This credential has been revoked by the issuer.
+              </span>
+            </p>
+          )}
+          {(!data?.issuer_verified || !data?.platform_verified) && (
+            <p className="verify-warning">
+              <span className="verify-warning-icon">⚠️</span>
+              <span>
+                This credential is authentic, but some entities involved in issuing it have not been verified.
+              </span>
+            </p>
+          )}
           <dl className="verify-details">
             <div className="verify-detail">
               <dt>Credential</dt>

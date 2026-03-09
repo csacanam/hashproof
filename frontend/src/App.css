@@ -410,6 +410,30 @@
   line-height: 1.5;
 }
 
+.verify-warning {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(248, 187, 89, 0.6);
+  background: rgba(248, 187, 89, 0.12);
+  color: #fed7aa;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.verify-warning--error {
+  border-color: rgba(248, 113, 113, 0.7);
+  background: rgba(248, 113, 113, 0.15);
+  color: #fecaca;
+}
+
+.verify-warning-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
 .verify-section h2,
 .verify-section h3 {
   font-size: 0.7rem;
