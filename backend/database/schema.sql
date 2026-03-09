@@ -179,6 +179,7 @@ create table credentials (
 
   credential_type credential_type not null,
 
+  -- Optional expiration timestamp (policy). Actual status comes from the contract.
   expires_at timestamptz,
   revoked_at timestamptz,
 

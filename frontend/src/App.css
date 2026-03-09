@@ -259,9 +259,9 @@
 
 .verify-step {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
   padding: 0.4rem 0;
   font-size: 1rem;
   border-bottom: 1px dashed var(--color-border);
@@ -272,7 +272,6 @@
 }
 
 .verify-step__label {
-  flex: 1;
   color: var(--color-text-muted);
 }
 
@@ -282,9 +281,8 @@
   gap: 0.35rem;
   font-size: 0.9rem;
   color: var(--color-text-muted);
-  min-width: 150px;
-  justify-content: flex-end;
-  text-align: right;
+  justify-content: flex-start;
+  text-align: left;
 }
 
 .verify-step__dot {
@@ -304,6 +302,10 @@
 
 .verify-step__dot--error {
   background: #f87171;
+}
+
+.verify-step__dot--warning {
+  background: #fbbf24;
 }
 
 .verify-pdf-loading {
@@ -381,6 +383,18 @@
   background: rgba(248, 113, 113, 0.15);
   color: #f87171;
   border: 1px solid rgba(248, 113, 113, 0.3);
+}
+
+.verify-status--unregistered {
+  background: rgba(248, 113, 113, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(248, 113, 113, 0.3);
+}
+
+.verify-status--expired {
+  background: rgba(248, 187, 89, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(248, 187, 89, 0.3);
 }
 
 .verify-details {
@@ -480,7 +494,7 @@
   left: 0;
   bottom: calc(100% + 6px);
   transform: translateY(0);
-  max-width: 360px;
+  max-width: 520px;
   padding: 0.65rem 0.85rem;
   border-radius: 8px;
   background: rgba(15, 23, 42, 0.95);

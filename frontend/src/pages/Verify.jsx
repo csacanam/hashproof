@@ -110,7 +110,7 @@ export default function Verify() {
 
   const getStepText = (state) => {
     if (state === "running") return "Checking…";
-    if (state === "success") return "Verified";
+    if (state === "success") return "Done";
     if (state === "error") return "Error";
     return "Waiting…";
   };
@@ -196,6 +196,10 @@ export default function Verify() {
   const issuedDate = issuedDateRaw
     ? new Date(issuedDateRaw).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
     : "—";
+  const expirationDateRaw = cred.expirationDate ?? data?.expires_at ?? null;
+  const expirationDate = expirationDateRaw
+    ? new Date(expirationDateRaw).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    : "No expiration";
   const credentialIdDisplay = id ?? "—";
 
   return (
@@ -271,7 +275,7 @@ export default function Verify() {
               </span>
             </p>
           )}
-          {(!data?.issuer_verified || !data?.platform_verified) && (
+          {status === "active" && (!data?.issuer_verified || !data?.platform_verified) && (
             <p className="verify-warning">
               <span className="verify-warning-icon">⚠️</span>
               <span>
@@ -409,6 +413,10 @@ export default function Verify() {
             <div className="verify-detail">
               <dt>Issued date</dt>
               <dd>{issuedDate}</dd>
+            </div>
+            <div className="verify-detail">
+              <dt>Expiration date</dt>
+              <dd>{expirationDate}</dd>
             </div>
             <div className="verify-detail">
               <dt>Blockchain Record</dt>

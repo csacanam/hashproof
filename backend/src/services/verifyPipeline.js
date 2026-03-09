@@ -150,19 +150,6 @@ export async function runVerificationPipeline({ credentialId, dbCredential }) {
     },
   };
 
-  // 1) Database-derived status (current behavior)
-  if (dbCredential) {
-    const revokedAtMs = dbCredential.revoked_at ? new Date(dbCredential.revoked_at).getTime() : null;
-    const expiresAtMs = dbCredential.expires_at ? new Date(dbCredential.expires_at).getTime() : null;
-    const nowMs = Date.now();
-    const dbStatus = revokedAtMs
-      ? "revoked"
-      : expiresAtMs && nowMs > expiresAtMs
-        ? "expired"
-        : "active";
-    report.database.status = dbStatus;
-  }
-
   // 2) Contract layer (CredentialRegistry)
   report.contract = await checkContractLayer({ credentialId, nowSeconds });
 
@@ -171,9 +158,9 @@ export async function runVerificationPipeline({ credentialId, dbCredential }) {
   report.ipfs = await checkIpfsLayer({ cid: cidForIpfs, dbCredential });
 
   // Decide effective status and source
-  // Prefer contract when available; otherwise fall back to database-derived status.
-  let effectiveStatus = report.database.status || "unknown";
-  let statusSource = "database";
+  // Contract is the only source of truth for status.
+  let effectiveStatus = "unknown";
+  let statusSource = "unknown";
 
   if (report.contract.available && report.contract.status !== "unknown") {
     effectiveStatus = report.contract.status;
