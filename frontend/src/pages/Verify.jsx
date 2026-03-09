@@ -200,7 +200,17 @@ export default function Verify() {
             <div className="verify-detail">
               <dt>Issuer</dt>
               <dd>
-                <div>{issuedBy}</div>
+                <div>
+                  <span>{issuedBy}</span>
+                  {!data?.issuer_verified && data?.issuer_entity_id && (
+                    <span>
+                      {" · "}
+                      <Link to={`/entities/${data.issuer_entity_id}`} className="verify-explorer-link">
+                        Start verification
+                      </Link>
+                    </span>
+                  )}
+                </div>
                 <div>
                   <span className={`entity-flag entity-flag--${data?.issuer_verified ? "verified" : "unverified"}`}>
                     {data?.issuer_verified ? "verified" : "unverified"}
@@ -211,7 +221,17 @@ export default function Verify() {
             <div className="verify-detail">
               <dt>Platform</dt>
               <dd>
-                <div>{issuedThrough}</div>
+                <div>
+                  <span>{issuedThrough}</span>
+                  {!data?.platform_verified && data?.platform_entity_id && (
+                    <span>
+                      {" · "}
+                      <Link to={`/entities/${data.platform_entity_id}`} className="verify-explorer-link">
+                        Start verification
+                      </Link>
+                    </span>
+                  )}
+                </div>
                 <div>
                   <span className={`entity-flag entity-flag--${data?.platform_verified ? "verified" : "unverified"}`}>
                     {data?.platform_verified ? "verified" : "unverified"}

@@ -87,38 +87,7 @@ export default function Entity() {
 
           <dl className="verify-details">
             <div className="verify-detail">
-              <dt>Website</dt>
-              <dd>
-                {e.website ? (
-                  <a href={e.website} target="_blank" rel="noopener noreferrer" className="verify-explorer-link">
-                    {e.website}
-                  </a>
-                ) : (
-                  <span className="entity-flag entity-flag--unverified">undefined</span>
-                )}
-              </dd>
-            </div>
-
-            <div className="verify-detail">
-              <dt>Email verified</dt>
-              <dd>
-                <span className={`entity-flag entity-flag--${e.email_verified ? "verified" : "unverified"}`}>
-                  {e.email_verified ? "verified" : "unverified"}
-                </span>
-              </dd>
-            </div>
-
-            <div className="verify-detail">
-              <dt>Domain verified</dt>
-              <dd>
-                <span className={`entity-flag entity-flag--${e.domain_verified ? "verified" : "unverified"}`}>
-                  {e.domain_verified ? "verified" : "unverified"}
-                </span>
-              </dd>
-            </div>
-
-            <div className="verify-detail">
-              <dt>KYB verified</dt>
+              <dt>Status</dt>
               <dd>
                 <span className={`entity-flag entity-flag--${e.kyb_verified ? "verified" : "unverified"}`}>
                   {e.kyb_verified ? "verified" : "unverified"}
@@ -127,11 +96,15 @@ export default function Entity() {
             </div>
 
             <div className="verify-detail">
-              <dt>Verification strength</dt>
+              <dt>Website</dt>
               <dd>
-                {typeof data?.verified_percentage === "number"
-                  ? `${data.verified_percentage.toFixed(0)}%`
-                  : "—"}
+                {e.website ? (
+                  <a href={e.website} target="_blank" rel="noopener noreferrer" className="verify-explorer-link">
+                    {e.website}
+                  </a>
+                ) : (
+                  "—"
+                )}
               </dd>
             </div>
 
@@ -141,7 +114,7 @@ export default function Entity() {
                 {e.last_verified_at ? (
                   lastVerified
                 ) : (
-                  <span className="entity-flag entity-flag--unverified">unverified</span>
+                  "—"
                 )}
               </dd>
             </div>

@@ -224,6 +224,8 @@ export function createApp(options = {}) {
         tx_hash: cred.tx_hash ?? null,
         issuer_verified: issuerVerified,
         platform_verified: platformVerified,
+        issuer_entity_id: cred.issuer_entity_id ?? null,
+        platform_entity_id: cred.platform_entity_id ?? null,
         platform_name: cj.platform?.display_name ?? platformEntity?.display_name ?? null,
         page_width: pageWidth,
         page_height: pageHeight,
