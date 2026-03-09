@@ -2,6 +2,11 @@
 
 Verifiable credentials issued via x402 on Celo.
 
+## Networks
+
+- **Celo mainnet**  
+  - `CredentialRegistry` address: `0xFD899A0BbdB5378Cb676305e91Ef01939E3B01ba`
+
 ## Project layout
 
 - `backend/` — Credential issuance API

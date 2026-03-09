@@ -1,12 +1,28 @@
 ## HashProof – Next Steps Work Plan
 
+### Recommended execution order
+
+1. **1 – Deploy the smart contract**
+2. **2 – End-to-end issuance tests (including on-chain)**
+3. **6 – x402 integration with a Celo-compatible facilitator**
+4. **3 – Deploy frontend to Vercel**
+5. **4 / 4b – Entity verification flow (Organization / Individual)**
+6. **8 / 8b / 8c – Auth for verified entities, issuer authorization, wallet checks**
+7. **5 – Real verification pipeline on the Verify page**
+8. **9 – Decide on verification levels (email / domain / KYB)**
+9. **7 / 10 – Getting started + issuance documentation**
+10. **11 – Refine the home page**
+11. **12 – Publish to Karma and apply to Agents Hackathon**
+12. **13 – Explore ERC-8004 integration**
+
 ### 1. Deploy the smart contract
 
-- **Goal**: Deploy `CredentialRegistry` to Celo (Alfajores first, then mainnet).
+- **Goal**: Deploy `CredentialRegistry` to Celo (testnet and mainnet, with identical behavior and config apart from network details).
 - **Tasks**:
-  - Configure `REGISTRY_CONTRACT_ADDRESS` and `CELO_RPC_URL` in backend `.env`.
-  - Run deployment script with Foundry and save the deployed address.
-  - Update `contracts/README.md` and this doc with network and address.
+  - In the **contracts** project, configure RPC URL and deployer private key (e.g. via Foundry `.env` env var `DEPLOYER_PRIVATE_KEY`).
+  - Run the deployment script with Foundry (`script/Deploy.s.sol`) and save the deployed address(es) for testnet and mainnet.
+  - Then, in the **backend**, set `REGISTRY_CONTRACT_ADDRESS` and `CELO_RPC_URL` in `.env` to point to the deployed contract.
+  - Update `contracts/README.md` (Deploy + Verify sections) and this doc with the final network and address mapping.
 
 ### 2. End-to-end issuance tests (including on-chain)
 
@@ -240,4 +256,17 @@
   - Complete the Hackathon application, highlighting:
     - IPFS backup, on-chain registry, entity verification.
     - How agents and automated systems can issue and verify credentials.
+
+### 13. Explore ERC-8004 integration
+
+- **Goal**: Align HashProof with emerging on-chain credential standards, specifically ERC‑8004.
+- **Tasks**:
+  - Study ERC‑8004 semantics and data model to understand how our current `CredentialRegistry` and credential JSON map to the standard.
+  - Decide whether to:
+    - Wrap existing registry behavior in an ERC‑8004‑compatible contract, or
+    - Extend / refactor the contract to fully implement ERC‑8004.
+  - Prototype an ERC‑8004‑compatible deployment on testnet and document:
+    - How a HashProof credential corresponds to an ERC‑8004 credential.
+    - How verifiers can use existing ERC‑8004 tooling to read and validate HashProof credentials on-chain.
+  - Update the verification flow doc to include an “ERC‑8004 compatible” pathway once the integration strategy is confirmed.
 
