@@ -10,6 +10,11 @@ export default function Verify() {
   const [pdfBlob, setPdfBlob] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [steps, setSteps] = useState({
+    contract: "pending",
+    ipfs: "pending",
+    db: "pending",
+  });
   const wrapperRef = useRef(null);
   const verifyCardRef = useRef(null);
 
@@ -17,15 +22,65 @@ export default function Verify() {
     if (!id) return;
     setLoading(true);
     setError(null);
+    setSteps({ contract: "pending", ipfs: "pending", db: "pending" });
     setPdfBlob(null);
-    fetch(`${API_URL}/verify/${id}`)
-      .then((res) => {
-        if (!res.ok) throw new Error(res.status === 404 ? "Credential not found" : "Failed to fetch");
-        return res.json();
-      })
-      .then(setData)
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
+
+    let cancelled = false;
+
+    async function runVerification() {
+      try {
+        // Step 1: Smart contract
+        setSteps((s) => ({ ...s, contract: "running" }));
+        const contractRes = await fetch(`${API_URL}/verify/${id}/contract`);
+        if (!contractRes.ok) {
+          throw new Error("Failed to verify on-chain status");
+        }
+        const contractJson = await contractRes.json();
+        if (cancelled) return;
+        setSteps((s) => ({ ...s, contract: "success" }));
+
+        // Step 2: IPFS
+        setSteps((s) => ({ ...s, ipfs: "running" }));
+        const ipfsRes = await fetch(`${API_URL}/verify/${id}/ipfs`);
+        if (!ipfsRes.ok) {
+          throw new Error("Failed to verify IPFS backup");
+        }
+        const ipfsJson = await ipfsRes.json();
+        if (cancelled) return;
+        setSteps((s) => ({ ...s, ipfs: "success" }));
+
+        // Step 3: Full verification (DB + aggregated status)
+        setSteps((s) => ({ ...s, db: "running" }));
+        const finalRes = await fetch(`${API_URL}/verify/${id}`);
+        if (!finalRes.ok) {
+          throw new Error(finalRes.status === 404 ? "Credential not found" : "Failed to fetch credential data");
+        }
+        const finalJson = await finalRes.json();
+        if (cancelled) return;
+        setData({
+          ...finalJson,
+          verification_report: finalJson.verification_report ?? {
+            contract: contractJson.contract,
+            ipfs: ipfsJson.ipfs,
+            database: {},
+          },
+        });
+        setSteps((s) => ({ ...s, db: "success" }));
+      } catch (err) {
+        if (cancelled) return;
+        setError(err.message || "Failed to verify credential");
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    runVerification();
+
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   useEffect(() => {
@@ -53,6 +108,20 @@ export default function Verify() {
     verifyCardRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const getStepText = (state) => {
+    if (state === "running") return "Checking…";
+    if (state === "success") return "Verified";
+    if (state === "error") return "Error";
+    return "Waiting…";
+  };
+
+  const getStepDotClass = (state) => {
+    if (state === "running") return "verify-step__dot verify-step__dot--active";
+    if (state === "success") return "verify-step__dot verify-step__dot--done";
+    if (state === "error") return "verify-step__dot verify-step__dot--error";
+    return "verify-step__dot";
+  };
+
   if (loading) {
     return (
       <div className="page verify-page verify-page--loading">
@@ -60,6 +129,30 @@ export default function Verify() {
           <div className="verify-loader">
             <div className="verify-loader__spinner" />
             <p className="verify-loader__text">Verifying credential…</p>
+            <ul className="verify-steps">
+              <li className="verify-step">
+                <span className="verify-step__label">1. Checking blockchain record</span>
+                <span className="verify-step__status">
+                  <span className={getStepDotClass(steps.contract)} />
+                  {getStepText(steps.contract)}
+                </span>
+              </li>
+              <li className="verify-step">
+                <span className="verify-step__label">2. Retrieving credential data</span>
+                <span className="verify-step__status">
+                  <span className={getStepDotClass(steps.ipfs)} />
+                  {getStepText(steps.ipfs)}
+                </span>
+              </li>
+              <li className="verify-step">
+                <span className="verify-step__label">3. Verifying data integrity</span>
+                <span className="verify-step__status">
+                  <span className={getStepDotClass(steps.db)} />
+                  {getStepText(steps.db)}
+                </span>
+              </li>
+            </ul>
+            <p className="verify-loader__brand">Powered by HashProof</p>
           </div>
         </main>
       </div>
@@ -90,6 +183,7 @@ export default function Verify() {
   const subject = cred.credentialSubject ?? {};
   const issuer = cred.issuer ?? {};
   const status = data?.status ?? "unknown";
+  const statusSource = data?.status_source ?? "unknown";
   const txHash = proof.txHash ?? data?.tx_hash ?? null;
   const explorerUrl = txHash ? `https://celoscan.io/tx/${txHash}` : null;
 
@@ -190,9 +284,36 @@ export default function Verify() {
               <dt>Credential</dt>
               <dd>
                 <div>{credentialIdDisplay}</div>
-                <div>
+                <div className="verify-detail-id">
                   <span className={`verify-status verify-status--${status}`}>
-                    {status === "active" ? "Verified ✓" : status}
+                    {status === "active" ? "Verified" : status}
+                  </span>
+                  <span className="verify-tooltip">
+                    <span className="verify-tooltip__icon" aria-hidden>
+                      ?
+                    </span>
+                    <span className="verify-tooltip__content">
+                      {status === "active" && statusSource === "contract" && (
+                        <>
+                          This credential is valid on the blockchain. The record exists and has not been revoked or expired.
+                        </>
+                      )}
+                      {status === "revoked" && (
+                        <>
+                          This credential was revoked by the issuer on the blockchain.
+                        </>
+                      )}
+                      {status === "expired" && (
+                        <>
+                          This credential has expired based on its validity period.
+                        </>
+                      )}
+                      {status !== "active" && status !== "revoked" && status !== "expired" && (
+                        <>
+                          This credential could not be fully verified. The blockchain record may be missing or temporarily unavailable.
+                        </>
+                      )}
+                    </span>
                   </span>
                 </div>
               </dd>
@@ -211,9 +332,26 @@ export default function Verify() {
                     </span>
                   )}
                 </div>
-                <div>
+                <div className="verify-detail-id">
                   <span className={`entity-flag entity-flag--${data?.issuer_verified ? "verified" : "unverified"}`}>
-                    {data?.issuer_verified ? "verified" : "unverified"}
+                    {data?.issuer_verified ? "Verified" : "Unverified"}
+                  </span>
+                  <span className="verify-tooltip">
+                    <span className="verify-tooltip__icon" aria-hidden>
+                      ?
+                    </span>
+                    <span className="verify-tooltip__content">
+                      {data?.issuer_verified ? (
+                        <>
+                          This issuer has been verified by HashProof as the issuer of this credential.
+                        </>
+                      ) : (
+                        <>
+                          The issuer has not been verified by HashProof. The credential may still be valid if the
+                          blockchain record matches.
+                        </>
+                      )}
+                    </span>
                   </span>
                 </div>
               </dd>
@@ -232,9 +370,26 @@ export default function Verify() {
                     </span>
                   )}
                 </div>
-                <div>
+                <div className="verify-detail-id">
                   <span className={`entity-flag entity-flag--${data?.platform_verified ? "verified" : "unverified"}`}>
-                    {data?.platform_verified ? "verified" : "unverified"}
+                    {data?.platform_verified ? "Verified" : "Unverified"}
+                  </span>
+                  <span className="verify-tooltip">
+                    <span className="verify-tooltip__icon" aria-hidden>
+                      ?
+                    </span>
+                    <span className="verify-tooltip__content">
+                      {data?.platform_verified ? (
+                        <>
+                          This platform has been verified by HashProof as a trusted credential issuer or intermediary.
+                        </>
+                      ) : (
+                        <>
+                          This platform has not been verified by HashProof. Credentials issued through it should be
+                          reviewed carefully.
+                        </>
+                      )}
+                    </span>
                   </span>
                 </div>
               </dd>

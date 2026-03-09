@@ -15,6 +15,11 @@ import { executeIssueCredential } from "./services/issueCredential.js";
 import { getCredentialById } from "./services/getCredential.js";
 import { getEntityById } from "./services/getEntity.js";
 import { generateCredentialPdf } from "./services/generatePdf.js";
+import {
+  runVerificationPipeline,
+  verifyContractOnly,
+  verifyIpfsOnly,
+} from "./services/verifyPipeline.js";
 
 const CELO_NETWORK = "eip155:42220";
 
@@ -197,22 +202,28 @@ export function createApp(options = {}) {
       const cj = cred.credential_json ?? {};
       const pageWidth = template?.page_width ?? 595;
       const pageHeight = template?.page_height ?? 842;
-      const nowMs = Date.now();
-      const revokedAtMs = cred.revoked_at ? new Date(cred.revoked_at).getTime() : null;
-      const expiresAtMs = cred.expires_at ? new Date(cred.expires_at).getTime() : null;
-      const derivedStatus = revokedAtMs
-        ? "revoked"
-        : expiresAtMs && nowMs > expiresAtMs
-          ? "expired"
-          : "active";
       const issuerVerified =
         (issuerEntity?.email_verified || issuerEntity?.domain_verified || issuerEntity?.kyb_verified) === true;
       const platformVerified =
         (platformEntity?.email_verified || platformEntity?.domain_verified || platformEntity?.kyb_verified) === true;
+
+      // Run full verification pipeline: contract → IPFS → DB
+      const pipeline = await runVerificationPipeline({
+        credentialId: cred.id,
+        dbCredential: cred,
+      });
+
+      const effectiveCredentialJson =
+        pipeline.report?.ipfs?.available && pipeline.report.ipfs.matchesDatabaseJson
+          ? pipeline.report.ipfs.json ?? cred.credential_json
+          : cred.credential_json;
+
       // Prefer self-contained credential JSON; fallback to DB for legacy credentials
       return res.json({
-        credential: cred.credential_json,
-        status: derivedStatus,
+        credential: effectiveCredentialJson,
+        status: pipeline.effectiveStatus ?? "unknown",
+        status_source: pipeline.statusSource ?? "unknown",
+        verification_report: pipeline.report,
         verification_url: `${baseUrl}/verify/${cred.id}`,
         id: cred.id,
         title: cj.name ?? null,
@@ -233,6 +244,35 @@ export function createApp(options = {}) {
       });
     } catch (err) {
       console.error("[verify] error:", err.message);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Step 1: Smart contract verification only
+  app.get("/verify/:id/contract", readOnlyRateLimit, async (req, res) => {
+    try {
+      const { contract } = await verifyContractOnly({ credentialId: req.params.id });
+      return res.json({ contract });
+    } catch (err) {
+      console.error("[verify/contract] error:", err.message);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Step 2: IPFS vs DB JSON comparison
+  app.get("/verify/:id/ipfs", readOnlyRateLimit, async (req, res) => {
+    try {
+      const cred = await getCredentialById(req.params.id);
+      if (!cred) {
+        return res.status(404).json({ error: "Credential not found" });
+      }
+      const { contract, ipfs } = await verifyIpfsOnly({
+        credentialId: req.params.id,
+        dbCredential: cred,
+      });
+      return res.json({ contract, ipfs });
+    } catch (err) {
+      console.error("[verify/ipfs] error:", err.message);
       return res.status(500).json({ error: err.message });
     }
   });
