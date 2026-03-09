@@ -85,6 +85,7 @@ export async function executeIssueCredential(payload) {
   // Template optional: base template used when none passed
 
   const baseUrl = process.env.BASE_URL || "https://hashproof.example.com";
+  const contractAddressEnv = process.env.REGISTRY_CONTRACT_ADDRESS || undefined;
 
   const { data, error } = await supabase.rpc("prepare_credential", {
     p_payload: {
@@ -101,6 +102,7 @@ export async function executeIssueCredential(payload) {
       values,
     },
     p_base_url: baseUrl,
+    ...(contractAddressEnv && { p_contract_address: contractAddressEnv }),
   });
 
   if (error) {
@@ -113,7 +115,23 @@ export async function executeIssueCredential(payload) {
     throw new Error("prepare_credential returned invalid payload");
   }
 
-  const cid = await pinJsonToIpfs(prepared.credential_json, `${credentialId}.json`);
+  // Enrich proof with chain info at the edge (not hardcoded in SQL)
+  const chainId = prepared.chain_id;
+  const chainName = prepared.chain_name;
+  const contractAddress = process.env.REGISTRY_CONTRACT_ADDRESS || prepared.contract_address;
+
+  const credentialJsonWithProof = {
+    ...prepared.credential_json,
+    proof: {
+      ...(prepared.credential_json.proof || {}),
+      type: "HashProofBlockchain",
+      contractAddress,
+      ...(chainId && { chainId }),
+      ...(chainName && { chainName }),
+    },
+  };
+
+  const cid = await pinJsonToIpfs(credentialJsonWithProof, `${credentialId}.json`);
   if (!cid) {
     throw new Error("IPFS pin failed or PINATA_JWT not configured");
   }
@@ -140,8 +158,11 @@ export async function executeIssueCredential(payload) {
   }
 
   // Persist only after IPFS + chain succeeded
-  const contractAddress = process.env.REGISTRY_CONTRACT_ADDRESS || prepared.contract_address;
-  const finalPrepared = { ...prepared, contract_address: contractAddress };
+  const finalPrepared = {
+    ...prepared,
+    contract_address: contractAddress,
+    credential_json: credentialJsonWithProof,
+  };
 
   const { data: finalized, error: finalizeErr } = await supabase.rpc("finalize_credential", {
     p_prepared: finalPrepared,

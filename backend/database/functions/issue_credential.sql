@@ -1,10 +1,14 @@
--- Function: prepare_credential(payload jsonb, base_url text)
+-- Function: prepare_credential(payload jsonb, base_url text, contract_address text)
 -- Prepares credential issuance: validates, upserts related records, builds credential_json.
 -- Does NOT insert into credentials. Intended for sync flows where we must pin to IPFS
 -- and register on-chain before writing the credential row.
 -- Returns: { id, verification_url, prepared: { ...fields needed to finalize insert... } }
 
-create or replace function prepare_credential(p_payload jsonb, p_base_url text default 'https://hashproof.example.com')
+create or replace function prepare_credential(
+  p_payload jsonb,
+  p_base_url text default 'https://hashproof.example.com',
+  p_contract_address text default '0x0000000000000000000000000000000000000000'
+)
 returns jsonb
 language plpgsql
 security definer
@@ -220,11 +224,13 @@ begin
     '{proof}',
     jsonb_build_object(
       'type', 'HashProofBlockchain',
-      'contractAddress', '0x0000000000000000000000000000000000000000'
+      'contractAddress', p_contract_address
     )
   );
 
   v_credential_id := gen_random_uuid();
+  -- Include credentialId inside the VC JSON for self-contained verification
+  v_credential_json := v_credential_json || jsonb_build_object('id', v_credential_id);
 
   return jsonb_build_object(
     'id', v_credential_id,
@@ -241,7 +247,7 @@ begin
       'credential_json', v_credential_json,
       'chain_name', 'celo',
       'chain_id', 42220,
-      'contract_address', '0x0000000000000000000000000000000000000000'
+      'contract_address', p_contract_address
     )
   );
 end;
