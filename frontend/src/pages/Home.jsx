@@ -1,44 +1,5 @@
 import { Link } from "react-router-dom";
-
-const JSON_COLORS = {
-  key:         "#7dd3fc", // blue  — keys
-  string:      "#86efac", // green — string values
-  number:      "#fb923c", // orange — numbers
-  literal:     "#c084fc", // purple — true/false/null
-  punctuation: "#52525b", // muted — { } [ ] , :
-  plain:       "#e4e4e7", // default
-};
-
-function JsonHighlight({ code }) {
-  const tokens = [];
-  const re = /("(?:[^"\\]|\\.)*")(\s*:)?|(-?\d+(?:\.\d+)?)|(\btrue\b|\bfalse\b|\bnull\b)|([{}[\],:])/g;
-  let last = 0, m;
-  while ((m = re.exec(code)) !== null) {
-    if (m.index > last) tokens.push({ t: "plain", v: code.slice(last, m.index) });
-    if (m[1] && m[2]) {
-      tokens.push({ t: "key", v: m[1] });
-      tokens.push({ t: "punctuation", v: m[2] });
-    } else if (m[1]) {
-      tokens.push({ t: "string", v: m[1] });
-    } else if (m[3]) {
-      tokens.push({ t: "number", v: m[3] });
-    } else if (m[4]) {
-      tokens.push({ t: "literal", v: m[4] });
-    } else if (m[5]) {
-      tokens.push({ t: "punctuation", v: m[5] });
-    }
-    last = m.index + m[0].length;
-  }
-  if (last < code.length) tokens.push({ t: "plain", v: code.slice(last) });
-
-  return (
-    <pre className="home-code">
-      {tokens.map((tk, i) => (
-        <span key={i} style={{ color: JSON_COLORS[tk.t] }}>{tk.v}</span>
-      ))}
-    </pre>
-  );
-}
+import JsonHighlight from "../components/JsonHighlight.jsx";
 
 const DEMO_CREDENTIAL_ID = "4c9f7420-0d1e-4340-9edb-e612df2ecea6";
 const DEMO_ENTITY_SLUG = "hashproof";
@@ -100,14 +61,7 @@ export default function Home() {
           >
             GitHub
           </a>
-          <a
-            href="https://github.com/csacanam/hashproof/blob/main/docs/API-REFERENCE.md"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="home-nav-link"
-          >
-            Docs
-          </a>
+          <Link to="/docs" className="home-nav-link">Docs</Link>
         </nav>
       </header>
 
@@ -120,14 +74,9 @@ export default function Home() {
             that anyone can verify — backed by IPFS and a public blockchain registry.
           </p>
           <div className="hero-actions">
-            <a
-              href="https://github.com/csacanam/hashproof/blob/main/docs/ISSUING-CREDENTIALS.md"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn btn-primary"
-            >
+            <Link to="/docs" className="btn btn-primary">
               Read the docs
-            </a>
+            </Link>
             <Link
               to={`/verify/${DEMO_CREDENTIAL_ID}`}
               className="btn btn-secondary"
