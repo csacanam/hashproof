@@ -6,7 +6,7 @@ import SiteFooter from "../components/SiteFooter.jsx";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4022";
 
-const DEMO_CREDENTIAL_ID = "4c9f7420-0d1e-4340-9edb-e612df2ecea6";
+const DEMO_CREDENTIAL_ID = "e32183ea-5833-438c-9aae-a2432bcbb53d";
 const DEMO_ENTITY_SLUG = "hashproof";
 
 const PAYLOAD_EXAMPLE = `{
@@ -81,6 +81,8 @@ export default function Home() {
             <Link
               to={`/verify/${DEMO_CREDENTIAL_ID}`}
               className="btn btn-secondary"
+              target="_blank"
+              rel="noopener noreferrer"
             >
               See a live credential →
             </Link>
