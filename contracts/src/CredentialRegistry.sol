@@ -23,6 +23,9 @@ contract CredentialRegistry {
     /// @notice credentialId (UUID string) => record
     mapping(string => CredentialRecord) public records;
 
+    uint256 public totalIssued;
+    uint256 public totalRevoked;
+
     event CredentialRegistered(
         string credentialId,
         string cid,
@@ -73,6 +76,8 @@ contract CredentialRegistry {
             revokedAt: 0
         });
 
+        totalIssued++;
+
         emit CredentialRegistered(
             credentialId,
             cid,
@@ -90,6 +95,7 @@ contract CredentialRegistry {
         if (r.revokedAt != 0) revert AlreadyRevoked();
 
         r.revokedAt = block.timestamp;
+        totalRevoked++;
         emit CredentialRevoked(credentialId, block.timestamp);
     }
 

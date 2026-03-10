@@ -20,6 +20,7 @@ import { getEntityById } from "./services/getEntity.js";
 import { createVerificationRequest } from "./services/createVerificationRequest.js";
 import { approveEntity } from "./services/approveEntity.js";
 import { isPlatformAuthorized, upsertIssuerAuthorization } from "./services/issuerAuthorization.js";
+import { supabase } from "./supabase.js";
 import { CHAIN_CONFIG } from "./utils/chains.js";
 import { Buffer } from "node:buffer";
 import { generateCredentialPdf } from "./services/generatePdf.js";
@@ -182,6 +183,19 @@ export function createApp(options = {}) {
       return res.send(pdf);
     } catch (err) {
       console.error("[verify/pdf] error:", err.message);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/stats", readOnlyRateLimit, async (req, res) => {
+    try {
+      const { count, error } = await supabase
+        .from("credentials")
+        .select("*", { count: "exact", head: true });
+      if (error) throw new Error(error.message);
+      return res.json({ total_credentials: count ?? 0 });
+    } catch (err) {
+      console.error("[stats] error:", err.message);
       return res.status(500).json({ error: err.message });
     }
   });

@@ -1,7 +1,10 @@
 import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
 import JsonHighlight from "../components/JsonHighlight.jsx";
 import SiteHeader from "../components/SiteHeader.jsx";
 import SiteFooter from "../components/SiteFooter.jsx";
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4022";
 
 const DEMO_CREDENTIAL_ID = "4c9f7420-0d1e-4340-9edb-e612df2ecea6";
 const DEMO_ENTITY_SLUG = "hashproof";
@@ -50,6 +53,15 @@ const STEPS = [
 ];
 
 export default function Home() {
+  const [totalCredentials, setTotalCredentials] = useState(null);
+
+  useEffect(() => {
+    fetch(`${API_URL}/stats`)
+      .then((r) => r.json())
+      .then((d) => setTotalCredentials(d.total_credentials ?? null))
+      .catch(() => {});
+  }, []);
+
   return (
     <div className="page">
       <SiteHeader />
@@ -73,6 +85,11 @@ export default function Home() {
               See a live credential →
             </Link>
           </div>
+          {totalCredentials !== null && (
+            <p className="hero-stat">
+              <span className="hero-stat-num">{totalCredentials.toLocaleString()}</span> credentials issued on Celo mainnet
+            </p>
+          )}
         </section>
 
         {/* ── Code snippet ── */}

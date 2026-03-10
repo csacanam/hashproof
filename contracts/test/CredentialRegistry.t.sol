@@ -24,6 +24,30 @@ contract CredentialRegistryTest is Test {
         assertEq(registry.owner(), owner);
     }
 
+    function test_InitialCountersAreZero() public view {
+        assertEq(registry.totalIssued(), 0);
+        assertEq(registry.totalRevoked(), 0);
+    }
+
+    function test_TotalIssuedIncrementsOnRegister() public {
+        vm.startPrank(owner);
+        assertEq(registry.totalIssued(), 0);
+        registry.register(SAMPLE_CREDENTIAL_ID, SAMPLE_CID, SAMPLE_ISSUED_AT, SAMPLE_VALID_UNTIL);
+        assertEq(registry.totalIssued(), 1);
+        registry.register("other-id", SAMPLE_CID, SAMPLE_ISSUED_AT, SAMPLE_VALID_UNTIL);
+        assertEq(registry.totalIssued(), 2);
+        vm.stopPrank();
+    }
+
+    function test_TotalRevokedIncrementsOnRevoke() public {
+        vm.startPrank(owner);
+        registry.register(SAMPLE_CREDENTIAL_ID, SAMPLE_CID, SAMPLE_ISSUED_AT, SAMPLE_VALID_UNTIL);
+        assertEq(registry.totalRevoked(), 0);
+        registry.revoke(SAMPLE_CREDENTIAL_ID);
+        assertEq(registry.totalRevoked(), 1);
+        vm.stopPrank();
+    }
+
     function test_RegisterAsOwner() public {
         vm.prank(owner);
         registry.register(SAMPLE_CREDENTIAL_ID, SAMPLE_CID, SAMPLE_ISSUED_AT, SAMPLE_VALID_UNTIL);
