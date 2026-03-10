@@ -673,17 +673,21 @@ export default function Entity() {
                         <code>
                           {activeAccount.address.slice(0, 6)}…
                           {activeAccount.address.slice(-4)}
-                        </code>{" "}
-                        — {PAYMENT_TOKEN} on {PRIMARY_CHAIN_CONFIG.name}:{" "}
-                        {isBalanceLoading
-                          ? "Loading..."
-                          : usdcBalance?.displayValue ?? "0"}
+                        </code>
+                        {ACTIVE_CHAINS.length === 1 && (
+                          <>
+                            {" "}— {PAYMENT_TOKEN} on {PRIMARY_CHAIN_CONFIG.name}:{" "}
+                            {isBalanceLoading
+                              ? "Loading..."
+                              : usdcBalance?.displayValue ?? "0"}
+                          </>
+                        )}
                       </p>
                     ) : (
                       <>
                         <p className="modal-help">
-                          Connect a wallet on {PRIMARY_CHAIN_CONFIG.name} to pay in{" "}
-                          {PAYMENT_TOKEN}.
+                          Connect a wallet with {PAYMENT_TOKEN} on{" "}
+                          {formatNetworkList(SUPPORTED_PAYMENT_NETWORK_LABELS)} to pay.
                         </p>
                         <ConnectButton client={thirdwebClient} wallets={WALLETS} />
                       </>
