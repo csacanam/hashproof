@@ -396,7 +396,7 @@ export default function Entity() {
             <div className="verify-detail">
               <dt>Status</dt>
               <dd>
-                <span className={`entity-flag entity-flag--${isVerified ? "verified" : "unverified"}`}>
+                <span className={`entity-flag entity-flag--${isVerified ? "verified" : status === "suspended" ? "suspended" : "unverified"}`}>
                   {status.replace(/_/g, " ")}
                 </span>
               </dd>

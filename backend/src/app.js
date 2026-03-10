@@ -83,10 +83,18 @@ export function createApp(options = {}) {
     try {
       const payload = req.body;
 
-      // If the issuer entity has authorized wallets, verify the paying wallet is among them
+      // Enforce issuer access control based on entity status
       if (payload.issuer_entity_id) {
         const issuerEntity = await getEntityById(payload.issuer_entity_id);
-        if (issuerEntity?.authorized_wallets?.length > 0) {
+        const VERIFIED_STATUSES = ["individual_verified", "organization_verified"];
+
+        if (issuerEntity?.status === "suspended") {
+          return res.status(403).json({
+            error: "This entity is suspended and cannot issue credentials.",
+          });
+        }
+
+        if (VERIFIED_STATUSES.includes(issuerEntity?.status)) {
           const paymentHeader = req.get("X-PAYMENT") || req.get("PAYMENT-SIGNATURE");
           let payingWallet = null;
           if (paymentHeader) {
@@ -95,7 +103,8 @@ export function createApp(options = {}) {
               payingWallet = decoded?.payload?.authorization?.from?.toLowerCase();
             } catch { /* ignore decode errors */ }
           }
-          if (!payingWallet || !issuerEntity.authorized_wallets.includes(payingWallet)) {
+          const authorizedWallets = issuerEntity.authorized_wallets ?? [];
+          if (!payingWallet || !authorizedWallets.includes(payingWallet)) {
             return res.status(403).json({
               error: "Wallet not authorized to issue credentials for this entity.",
             });
@@ -182,7 +191,9 @@ export function createApp(options = {}) {
         revoked_at: cred.revoked_at ?? null,
         tx_hash: cred.tx_hash ?? null,
         issuer_verified: issuerVerified,
+        issuer_status: issuerEntity?.status ?? null,
         platform_verified: platformVerified,
+        platform_status: platformEntity?.status ?? null,
         issuer_entity_id: cred.issuer_entity_id ?? null,
         platform_entity_id: cred.platform_entity_id ?? null,
         platform_name: cj.platform?.display_name ?? platformEntity?.display_name ?? null,

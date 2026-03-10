@@ -275,7 +275,15 @@ export default function Verify() {
               </span>
             </p>
           )}
-          {status === "active" && (!data?.issuer_verified || !data?.platform_verified) && (
+          {status === "active" && (data?.issuer_status === "suspended" || data?.platform_status === "suspended") && (
+            <p className="verify-warning verify-warning--error">
+              <span className="verify-warning-icon">🚫</span>
+              <span>
+                One or more entities involved in issuing this credential have been suspended by HashProof. Exercise caution.
+              </span>
+            </p>
+          )}
+          {status === "active" && (!data?.issuer_verified || !data?.platform_verified) && data?.issuer_status !== "suspended" && data?.platform_status !== "suspended" && (
             <p className="verify-warning">
               <span className="verify-warning-icon">⚠️</span>
               <span>
@@ -327,7 +335,7 @@ export default function Verify() {
               <dd>
                 <div>
                   <span>{issuedBy}</span>
-                  {!data?.issuer_verified && data?.issuer_entity_id && (
+                  {!data?.issuer_verified && data?.issuer_entity_id && data?.issuer_status !== "suspended" && (
                     <span>
                       {" · "}
                       <Link to={`/entities/${data.issuer_entity_id}`} className="verify-explorer-link">
@@ -337,8 +345,8 @@ export default function Verify() {
                   )}
                 </div>
                 <div className="verify-detail-id">
-                  <span className={`entity-flag entity-flag--${data?.issuer_verified ? "verified" : "unverified"}`}>
-                    {data?.issuer_verified ? "Verified" : "Unverified"}
+                  <span className={`entity-flag entity-flag--${data?.issuer_verified ? "verified" : data?.issuer_status === "suspended" ? "suspended" : "unverified"}`}>
+                    {data?.issuer_verified ? "Verified" : data?.issuer_status === "suspended" ? "Suspended" : "Unverified"}
                   </span>
                   <span className="verify-tooltip">
                     <span className="verify-tooltip__icon" aria-hidden>
@@ -348,6 +356,10 @@ export default function Verify() {
                       {data?.issuer_verified ? (
                         <>
                           This issuer has been verified by HashProof as the issuer of this credential.
+                        </>
+                      ) : data?.issuer_status === "suspended" ? (
+                        <>
+                          This issuer has been suspended by HashProof. Exercise caution with credentials issued by this entity.
                         </>
                       ) : (
                         <>
@@ -365,7 +377,7 @@ export default function Verify() {
               <dd>
                 <div>
                   <span>{issuedThrough}</span>
-                  {!data?.platform_verified && data?.platform_entity_id && (
+                  {!data?.platform_verified && data?.platform_entity_id && data?.platform_status !== "suspended" && (
                     <span>
                       {" · "}
                       <Link to={`/entities/${data.platform_entity_id}`} className="verify-explorer-link">
@@ -375,8 +387,8 @@ export default function Verify() {
                   )}
                 </div>
                 <div className="verify-detail-id">
-                  <span className={`entity-flag entity-flag--${data?.platform_verified ? "verified" : "unverified"}`}>
-                    {data?.platform_verified ? "Verified" : "Unverified"}
+                  <span className={`entity-flag entity-flag--${data?.platform_verified ? "verified" : data?.platform_status === "suspended" ? "suspended" : "unverified"}`}>
+                    {data?.platform_verified ? "Verified" : data?.platform_status === "suspended" ? "Suspended" : "Unverified"}
                   </span>
                   <span className="verify-tooltip">
                     <span className="verify-tooltip__icon" aria-hidden>
@@ -386,6 +398,10 @@ export default function Verify() {
                       {data?.platform_verified ? (
                         <>
                           This platform has been verified by HashProof as a trusted credential issuer or intermediary.
+                        </>
+                      ) : data?.platform_status === "suspended" ? (
+                        <>
+                          This platform has been suspended by HashProof. Exercise caution with credentials issued through this platform.
                         </>
                       ) : (
                         <>
