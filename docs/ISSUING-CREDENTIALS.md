@@ -6,6 +6,56 @@ This guide shows practical examples from basic to advanced. For the full field s
 
 ---
 
+## Quick curl test (local dev)
+
+Set `SKIP_PAYMENT=true` in `backend/.env` and restart the server to bypass x402 during development.
+
+```bash
+curl -s -X POST http://localhost:4022/issueCredential \
+  -H "Content-Type: application/json" \
+  -d '{
+    "issuer":   { "display_name": "Universidad Icesi", "slug": "universidad-icesi" },
+    "platform": { "display_name": "Universidad Icesi", "slug": "universidad-icesi" },
+    "holder":   { "full_name": "María García" },
+    "context":  { "type": "event", "title": "Blockchain Summit 2025" },
+    "credential_type": "attendance",
+    "title": "Certificate of Attendance — Blockchain Summit 2025",
+    "values": { "holder_name": "María García" }
+  }' | jq .
+```
+
+> Remove `SKIP_PAYMENT=true` before deploying to production.
+
+---
+
+## Verified entity issuance
+
+If the issuer is a verified entity (`individual_verified` or `organization_verified`), include `issuer_entity_id` in the request. The paying wallet must be in that entity's `authorized_wallets` list — otherwise the request is rejected with `403`.
+
+```bash
+# Build X-PAYMENT header: base64 of {"payload":{"authorization":{"from":"0xYOUR_WALLET"}}}
+PAYMENT_HEADER=$(echo -n '{"payload":{"authorization":{"from":"0xyour_wallet_lowercase"}}}' | base64)
+
+curl -s -X POST http://localhost:4022/issueCredential \
+  -H "Content-Type: application/json" \
+  -H "X-PAYMENT: $PAYMENT_HEADER" \
+  -d '{
+    "issuer_entity_id":   "uuid-of-verified-entity",
+    "platform_entity_id": "uuid-of-verified-entity",
+    "issuer":   { "display_name": "Universidad Icesi", "slug": "universidad-icesi" },
+    "platform": { "display_name": "Universidad Icesi", "slug": "universidad-icesi" },
+    "holder":   { "full_name": "María García" },
+    "context":  { "type": "event", "title": "Blockchain Summit 2025" },
+    "credential_type": "attendance",
+    "title": "Certificate of Attendance — Blockchain Summit 2025",
+    "values": { "holder_name": "María García" }
+  }' | jq .
+```
+
+Note: In production with x402 enabled, the `X-PAYMENT` header is set automatically by the thirdweb client after payment. The wallet check uses the `from` address in that header.
+
+---
+
 ## Minimum required fields
 
 Every issuance request must include:

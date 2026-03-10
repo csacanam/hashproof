@@ -18,6 +18,7 @@ Paid endpoints require an x402 payment header. See [`X402-PAYMENT-FLOW.md`](./X4
 | GET | `/verify/:id/pdf` | — | Download credential as PDF |
 | GET | `/entities/:id` | — | Entity info and verification status |
 | POST | `/entities/:id/verificationRequests` | x402 $0.10 USDC | Submit a verification request |
+| POST | `/admin/entities/:id/verify` | `ADMIN_SECRET` header | Approve a pending verification request |
 
 ---
 
@@ -25,23 +26,35 @@ Paid endpoints require an x402 payment header. See [`X402-PAYMENT-FLOW.md`](./X4
 
 Issues one verifiable credential. Requires x402 payment.
 
-For examples see [`ISSUING-CREDENTIALS.md`](./ISSUING-CREDENTIALS.md).
+If `issuer_entity_id` belongs to a **verified entity** (`individual_verified` or `organization_verified`), the wallet that paid must be in that entity's `authorized_wallets` list. If the entity is `suspended`, issuance is blocked entirely.
+
+For practical examples with curl, see [`ISSUING-CREDENTIALS.md`](./ISSUING-CREDENTIALS.md).
 
 ### Request body
 
 ```json
 {
-  "issuer":          { ... },
-  "platform":        { ... },
-  "holder":          { ... },
-  "context":         { ... },
-  "credential_type": "completion",
-  "title":           "Certificate of Completion",
-  "expires_at":      null,
-  "values":          { ... },
-  "template":        { ... }
+  "issuer_entity_id":   "uuid",
+  "platform_entity_id": "uuid",
+  "issuer":             { ... },
+  "platform":           { ... },
+  "holder":             { ... },
+  "context":            { ... },
+  "credential_type":    "completion",
+  "title":              "Certificate of Completion",
+  "expires_at":         null,
+  "values":             { ... },
+  "template_slug":      "hashproof"
 }
 ```
+
+#### issuer_entity_id / platform_entity_id `string (UUID)` — optional
+
+Links the credential to a registered entity in HashProof.
+
+- If the entity is `individual_verified` or `organization_verified`, the paying wallet is validated against the entity's `authorized_wallets`.
+- If the entity is `suspended`, the request is rejected with `403`.
+- If omitted or the entity is `unverified`, no wallet check is performed.
 
 #### issuer `object` — required
 
@@ -192,6 +205,7 @@ Selects or creates the template to use. If omitted, uses the default `hashproof`
 |--------|-------|
 | 400 | Missing required field or invalid value |
 | 402 | Payment required (x402 challenge) |
+| 403 | Entity is suspended, or paying wallet is not in `authorized_wallets` |
 | 500 | IPFS pin failed, on-chain registration failed, or DB error |
 
 ---
@@ -221,7 +235,9 @@ Full 3-layer verification: blockchain → IPFS → database.
   "tx_hash": "0xabc...",
   "ipfs_uri": "https://gateway.pinata.cloud/ipfs/bafybeig...",
   "issuer_verified": true,
-  "platform_verified": true
+  "issuer_status": "organization_verified",
+  "platform_verified": true,
+  "platform_status": "organization_verified"
 }
 ```
 
@@ -234,6 +250,15 @@ Full 3-layer verification: blockchain → IPFS → database.
 | `expired` | Past `expires_at` |
 | `not_found` | Not registered on-chain |
 | `unknown` | Contract unreachable |
+
+**`issuer_status` / `platform_status` allowed values:**
+
+| Value | Meaning |
+|-------|---------|
+| `unverified` | Entity exists but has not been verified by HashProof |
+| `individual_verified` | Verified as an individual (person) |
+| `organization_verified` | Verified as an organization |
+| `suspended` | Previously verified but suspended by HashProof |
 
 ---
 
@@ -294,7 +319,7 @@ Downloads the credential as a PDF.
 
 ## GET /entities/:id
 
-Returns entity info and verification status.
+Returns entity info and verification status. `:id` can be a UUID or a slug.
 
 ### Response `200 OK`
 
@@ -305,17 +330,22 @@ Returns entity info and verification status.
   "slug": "universidad-icesi",
   "website": "https://icesi.edu.co",
   "logo_url": null,
-  "status": "active",
+  "status": "organization_verified",
+  "is_verified": true,
   "email_verified": true,
-  "domain_verified": false,
-  "kyb_verified": false,
   "last_verified_at": "2025-06-01T00:00:00Z",
-  "verified_count": 1,
-  "verified_percentage": 33.33
+  "created_at": "2025-01-01T00:00:00Z"
 }
 ```
 
-**`status` allowed values:** `active`, `suspended`, `blocked`
+**`status` allowed values:**
+
+| Value | Meaning |
+|-------|---------|
+| `unverified` | Registered but not yet verified |
+| `individual_verified` | Verified as an individual (person) |
+| `organization_verified` | Verified as an organization |
+| `suspended` | Previously verified but suspended by HashProof |
 
 ---
 
@@ -373,6 +403,47 @@ Submits a verification request for an entity. Requires x402 payment.
 
 ---
 
+## POST /admin/entities/:id/verify
+
+Approves a pending verification request and updates the entity's status. Protected by `ADMIN_SECRET`.
+
+See [`ADMIN-GUIDE.md`](./ADMIN-GUIDE.md) for the full review and approval process.
+
+### Headers
+
+| Header | Value |
+|--------|-------|
+| `x-admin-secret` | Value of `ADMIN_SECRET` env var |
+
+### Request body
+
+```json
+{
+  "request_id": "uuid-of-verification-request",
+  "status": "individual_verified"
+}
+```
+
+**`status` allowed values:** `individual_verified`, `organization_verified`
+
+`authorized_wallets` are read automatically from the verification request's form payload (`form.wallets`). No need to pass them manually.
+
+### Response `200 OK`
+
+```json
+{ "ok": true }
+```
+
+### Errors
+
+| Status | Cause |
+|--------|-------|
+| 401 | Missing or invalid `x-admin-secret` |
+| 400 | Missing `request_id` or `status` |
+| 404 | Entity or verification request not found |
+
+---
+
 ## Error format
 
 All errors return JSON with a single `error` field:
@@ -385,6 +456,7 @@ All errors return JSON with a single `error` field:
 |--------|---------|
 | 400 | Bad request — missing or invalid fields |
 | 402 | Payment required — x402 challenge in `PAYMENT-REQUIRED` header |
+| 403 | Forbidden — entity suspended or wallet not authorized |
 | 404 | Resource not found |
 | 429 | Rate limit exceeded |
 | 500 | Server error |
