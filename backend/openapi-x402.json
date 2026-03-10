@@ -1,0 +1,188 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "HashProof API (x402 paid endpoints)",
+    "description": "HashProof issues verifiable credentials on Celo and supports entity verification. These endpoints require x402 payment (USDC on Celo, gasless via EIP-3009).",
+    "version": "1.0.0"
+  },
+  "servers": [
+    { "url": "https://api.hashproof.dev", "description": "Production" },
+    { "url": "http://localhost:4022", "description": "Local development" }
+  ],
+  "paths": {
+    "/issueCredential": {
+      "post": {
+        "operationId": "issueCredential",
+        "summary": "Issue credential",
+        "description": "Issue one verifiable credential. Pay $0.10 USDC on Celo via x402. Credential is stored on IPFS and registered on-chain (CredentialRegistry).",
+        "x-price": "0.10",
+        "x-currency": "USDC",
+        "x-network": "celo",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/IssueCredentialRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Credential issued successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string", "format": "uuid" },
+                    "credential_json": { "type": "object" },
+                    "tx_hash": { "type": "string" },
+                    "ipfs_cid": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid payload or missing required fields",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "402": { "description": "Payment required (x402)" },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/entities/{id}/verificationRequests": {
+      "post": {
+        "operationId": "createVerificationRequest",
+        "summary": "Request entity verification",
+        "description": "Submit a verification request for an entity (organization or individual). Pay $19.00 USDC on Celo via x402.",
+        "x-price": "19.00",
+        "x-currency": "USDC",
+        "x-network": "celo",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Entity UUID",
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/VerificationRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Verification request created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "request": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string", "format": "uuid" },
+                        "entity_id": { "type": "string", "format": "uuid" },
+                        "type": { "type": "string", "enum": ["organization", "individual"] },
+                        "status": { "type": "string", "default": "pending" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid payload (type, form required)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "402": { "description": "Payment required (x402)" },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": { "error": { "type": "string" } }
+      },
+      "IssueCredentialRequest": {
+        "type": "object",
+        "required": ["issuer", "platform", "holder", "context", "template"],
+        "properties": {
+          "issuer": {
+            "type": "object",
+            "required": ["display_name", "slug"],
+            "properties": {
+              "display_name": { "type": "string" },
+              "slug": { "type": "string" }
+            }
+          },
+          "platform": {
+            "type": "object",
+            "required": ["display_name", "slug"],
+            "properties": {
+              "display_name": { "type": "string" },
+              "slug": { "type": "string" }
+            }
+          },
+          "holder": { "type": "object", "properties": { "full_name": { "type": "string" } } },
+          "context": { "type": "object" },
+          "template": { "type": "object" },
+          "template_id": { "type": "string", "format": "uuid" },
+          "template_slug": { "type": "string" },
+          "credential_type": { "type": "string" },
+          "title": { "type": "string" },
+          "expires_at": { "type": "string", "format": "date-time" },
+          "values": { "type": "object" }
+        }
+      },
+      "VerificationRequest": {
+        "type": "object",
+        "required": ["type", "form"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["organization", "individual"],
+            "description": "Verification type (organization or individual)"
+          },
+          "form": {
+            "type": "object",
+            "description": "Type-specific form fields (orgName, website, wallets, etc.)"
+          }
+        }
+      }
+    }
+  }
+}

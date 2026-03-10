@@ -221,6 +221,36 @@ create index credentials_chain_name_idx
   on credentials (chain_name);
 
 -- =========================================================
+-- ENTITY VERIFICATION REQUESTS
+-- Manual verification requests for issuers/platforms
+-- =========================================================
+
+create table entity_verification_requests (
+  id uuid primary key default gen_random_uuid(),
+
+  entity_id uuid not null references entities(id),
+
+  type text not null check (type in ('organization', 'individual')),
+
+  payload jsonb not null,
+
+  status text not null default 'pending',
+
+  price_usd numeric(10,2),
+  currency text not null default 'USDC',
+  network text not null default 'celo',
+
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index entity_verification_requests_entity_id_idx
+  on entity_verification_requests (entity_id);
+
+create index entity_verification_requests_status_idx
+  on entity_verification_requests (status);
+
+-- =========================================================
 -- DELIVERIES
 -- Delivery log via email / webhook / whatsapp
 -- =========================================================

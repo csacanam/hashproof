@@ -10,10 +10,11 @@ import { generateJwt } from "@coinbase/cdp-sdk/auth";
 import { paymentMiddleware, x402ResourceServer } from "@x402/express";
 import { HTTPFacilitatorClient } from "@x402/core/server";
 import { ExactEvmScheme } from "@x402/evm/exact/server";
-import { ISSUE_CREDENTIAL_PRICE_USD } from "./utils/constants.js";
+import { ISSUE_CREDENTIAL_PRICE_USD, ENTITY_VERIFICATION_PRICE_USD } from "./utils/constants.js";
 import { executeIssueCredential } from "./services/issueCredential.js";
 import { getCredentialById } from "./services/getCredential.js";
 import { getEntityById } from "./services/getEntity.js";
+import { createVerificationRequest } from "./services/createVerificationRequest.js";
 import { generateCredentialPdf } from "./services/generatePdf.js";
 import {
   runVerificationPipeline,
@@ -111,6 +112,18 @@ export function createApp(options = {}) {
           description: "Issue one verifiable credential (HashProof)",
           mimeType: "application/json",
         },
+        "POST /entities/:id/verificationRequests": {
+          accepts: [
+            {
+              scheme: "exact",
+              price: `$${ENTITY_VERIFICATION_PRICE_USD}`,
+              network: CELO_NETWORK,
+              payTo: PAY_TO,
+            },
+          ],
+          description: "Request entity verification (HashProof)",
+          mimeType: "application/json",
+        },
       },
       resourceServer,
     );
@@ -130,9 +143,11 @@ export function createApp(options = {}) {
   });
 
   app.use((req, res, next) => {
-    const paidPaths = ["/issueCredential"];
-    const isPaidRoute =
-      req.method === "POST" && paidPaths.some((p) => req.path === p);
+    const isIssueCredential =
+      req.method === "POST" && req.path === "/issueCredential";
+    const isVerificationRequest =
+      req.method === "POST" && /^\/entities\/[^/]+\/verificationRequests$/.test(req.path);
+    const isPaidRoute = isIssueCredential || isVerificationRequest;
     if (!isPaidRoute) return next();
     const hasPayment = req.get("payment-signature") || req.get("x-payment");
     if (hasPayment) return next();
@@ -314,12 +329,45 @@ export function createApp(options = {}) {
     }
   });
 
+  app.post("/entities/:id/verificationRequests", async (req, res) => {
+    try {
+      const entityId = req.params.id;
+      const { type, form } = req.body || {};
+
+      if (!entityId) {
+        return res.status(400).json({ error: "entityId is required" });
+      }
+      if (type !== "organization" && type !== "individual") {
+        return res.status(400).json({ error: "type must be 'organization' or 'individual'" });
+      }
+      if (!form || typeof form !== "object") {
+        return res.status(400).json({ error: "form payload is required" });
+      }
+
+      const priceUsd = ENTITY_VERIFICATION_PRICE_USD;
+
+      const request = await createVerificationRequest(entityId, type, form, {
+        price_usd: priceUsd,
+        currency: "USDC",
+        network: "celo",
+      });
+
+      return res.status(201).json({
+        request,
+      });
+    } catch (err) {
+      console.error("[entities/verificationRequests] error:", err.message);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
   app.get("/", readOnlyRateLimit, (_req, res) => {
     res.json({
       name: "HashProof API",
       description: "Issue verifiable credentials via x402 payment on Celo.",
       endpoints: {
         "POST /issueCredential": `Paid (${ISSUE_CREDENTIAL_PRICE_USD} USD). Issue one credential. Full payload required.`,
+        "POST /entities/:id/verificationRequests": `Open for now (planned ${ENTITY_VERIFICATION_PRICE_USD} USD in USDC on Celo). Request entity verification.`,
       },
     });
   });
