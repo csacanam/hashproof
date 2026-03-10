@@ -19,6 +19,7 @@ import { getCredentialById } from "./services/getCredential.js";
 import { getEntityById } from "./services/getEntity.js";
 import { createVerificationRequest } from "./services/createVerificationRequest.js";
 import { approveEntity } from "./services/approveEntity.js";
+import { isPlatformAuthorized, upsertIssuerAuthorization } from "./services/issuerAuthorization.js";
 import { CHAIN_CONFIG } from "./utils/chains.js";
 import { Buffer } from "node:buffer";
 import { generateCredentialPdf } from "./services/generatePdf.js";
@@ -85,8 +86,14 @@ export function createApp(options = {}) {
 
       // Enforce issuer access control based on entity status
       if (payload.issuer_entity_id) {
-        const issuerEntity = await getEntityById(payload.issuer_entity_id);
         const VERIFIED_STATUSES = ["individual_verified", "organization_verified"];
+
+        const [issuerEntity, platformEntity] = await Promise.all([
+          getEntityById(payload.issuer_entity_id),
+          payload.platform_entity_id && payload.platform_entity_id !== payload.issuer_entity_id
+            ? getEntityById(payload.platform_entity_id)
+            : null,
+        ]);
 
         if (issuerEntity?.status === "suspended") {
           return res.status(403).json({
@@ -95,6 +102,7 @@ export function createApp(options = {}) {
         }
 
         if (VERIFIED_STATUSES.includes(issuerEntity?.status)) {
+          // Extract the paying wallet from the x402 payment header
           const paymentHeader = req.get("X-PAYMENT") || req.get("PAYMENT-SIGNATURE");
           let payingWallet = null;
           if (paymentHeader) {
@@ -103,11 +111,42 @@ export function createApp(options = {}) {
               payingWallet = decoded?.payload?.authorization?.from?.toLowerCase();
             } catch { /* ignore decode errors */ }
           }
-          const authorizedWallets = issuerEntity.authorized_wallets ?? [];
-          if (!payingWallet || !authorizedWallets.includes(payingWallet)) {
-            return res.status(403).json({
-              error: "Wallet not authorized to issue credentials for this entity.",
-            });
+
+          const isSelfIssuance = !platformEntity; // issuer == platform or no platform specified
+          const issuerWallets = issuerEntity.authorized_wallets ?? [];
+
+          if (isSelfIssuance) {
+            // Wallet must be directly authorized by the issuer
+            if (!payingWallet || !issuerWallets.includes(payingWallet)) {
+              return res.status(403).json({
+                error: "Wallet not authorized to issue credentials for this entity.",
+              });
+            }
+          } else {
+            // Platform is different from issuer — require an approved authorization
+            const platformWallets = platformEntity?.authorized_wallets ?? [];
+            const walletIsFromPlatform = payingWallet && platformWallets.includes(payingWallet);
+            const walletIsFromIssuer = payingWallet && issuerWallets.includes(payingWallet);
+
+            if (!walletIsFromPlatform && !walletIsFromIssuer) {
+              return res.status(403).json({
+                error: "Wallet not authorized to issue credentials for this entity.",
+              });
+            }
+
+            // The paying wallet must come from an entity that has an approved authorization
+            if (walletIsFromPlatform) {
+              const authorized = await isPlatformAuthorized(
+                payload.issuer_entity_id,
+                payload.platform_entity_id
+              );
+              if (!authorized) {
+                return res.status(403).json({
+                  error: "This platform is not authorized to issue credentials on behalf of this issuer. Request an authorization first.",
+                });
+              }
+            }
+            // If wallet is from the issuer's own wallets, always allow (issuer can always self-issue)
           }
         }
       }
@@ -331,6 +370,32 @@ export function createApp(options = {}) {
       return res.json(result);
     } catch (err) {
       console.error("[admin/verify] error:", err.message);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Admin: manage issuer authorizations ─────────────────────────────────
+  app.post("/admin/issuer-authorizations", async (req, res) => {
+    const adminSecret = process.env.ADMIN_SECRET;
+    const authHeader = req.get("Authorization") || "";
+    if (!adminSecret || authHeader !== `Bearer ${adminSecret}`) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const { issuer_entity_id, platform_entity_id, status } = req.body || {};
+
+      if (!issuer_entity_id || !platform_entity_id) {
+        return res.status(400).json({ error: "issuer_entity_id and platform_entity_id are required" });
+      }
+      if (!["pending", "approved", "revoked"].includes(status)) {
+        return res.status(400).json({ error: "status must be 'pending', 'approved', or 'revoked'" });
+      }
+
+      const result = await upsertIssuerAuthorization(issuer_entity_id, platform_entity_id, status);
+      return res.json(result);
+    } catch (err) {
+      console.error("[admin/issuer-authorizations] error:", err.message);
       return res.status(500).json({ error: err.message });
     }
   });

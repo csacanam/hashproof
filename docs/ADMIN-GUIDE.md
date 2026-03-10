@@ -147,10 +147,59 @@ Clearing `authorized_wallets` immediately prevents any further credential issuan
 
 ## How wallet authorization works on issuance
 
-When `POST /issueCredential` is called:
+When `POST /issueCredential` is called, the backend applies the following rules in order:
 
-1. If the `issuer_entity_id` in the payload belongs to an entity with `authorized_wallets` defined, the backend checks that the wallet that signed and paid the x402 transaction (`authorization.from` in the `X-PAYMENT` header) is in that list.
-2. If the wallet is **not** in the list → `403 Forbidden`.
-3. If the entity has no wallets defined (e.g. unverified entity) → no wallet check is performed (open access).
+1. **Suspended issuer** → always `403`, no further checks.
+2. **Unverified issuer** → no wallet check, any caller can issue.
+3. **Verified issuer + self-issuance** (`issuer_entity_id == platform_entity_id`): paying wallet must be in `issuer.authorized_wallets`.
+4. **Verified issuer + separate platform**: the paying wallet must come from either the platform's or the issuer's `authorized_wallets`, AND an approved `issuer_authorization` row must exist for that (issuer, platform) pair. The issuer's own wallets always work without needing an authorization row.
 
-This means only verified entities with assigned wallets have enforced issuance control.
+---
+
+## Authorizing a platform to issue on behalf of an issuer
+
+Use this when a platform (e.g. Peewah) issues credentials on behalf of a verified issuer (e.g. Universidad Icesi).
+
+**Step 1 — The platform and the issuer should both be verified** (or at minimum the issuer must be verified for the check to apply).
+
+**Step 2 — Create the authorization:**
+
+```bash
+curl -X POST https://your-api-url/admin/issuer-authorizations \
+  -H "Authorization: Bearer YOUR_ADMIN_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "issuer_entity_id":   "uuid-of-the-issuer",
+    "platform_entity_id": "uuid-of-the-platform",
+    "status": "approved"
+  }'
+```
+
+**Step 3 — To revoke the authorization:**
+
+```bash
+curl -X POST https://your-api-url/admin/issuer-authorizations \
+  -H "Authorization: Bearer YOUR_ADMIN_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "issuer_entity_id":   "uuid-of-the-issuer",
+    "platform_entity_id": "uuid-of-the-platform",
+    "status": "revoked"
+  }'
+```
+
+Revoking immediately prevents that platform from issuing new credentials for the issuer. Existing credentials are not affected.
+
+**Alternatively, manage directly in Supabase:**
+
+```sql
+-- Approve
+insert into issuer_authorizations (issuer_entity_id, platform_entity_id, status)
+values ('issuer-uuid', 'platform-uuid', 'approved')
+on conflict (issuer_entity_id, platform_entity_id) do update set status = 'approved', updated_at = now();
+
+-- Revoke
+update issuer_authorizations
+set status = 'revoked', updated_at = now()
+where issuer_entity_id = 'issuer-uuid' and platform_entity_id = 'platform-uuid';
+```

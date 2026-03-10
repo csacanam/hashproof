@@ -356,8 +356,68 @@ before update on credentials
 for each row execute function prevent_credential_json_update();
 
 -- =========================================================
+-- ISSUER AUTHORIZATIONS
+-- Allows a verified platform to issue on behalf of a verified issuer.
+-- Only enforced when issuer_entity_id != platform_entity_id AND issuer is verified.
+-- =========================================================
+
+create table issuer_authorizations (
+  id uuid primary key default gen_random_uuid(),
+
+  issuer_entity_id   uuid not null references entities(id) on delete cascade,
+  platform_entity_id uuid not null references entities(id) on delete cascade,
+
+  -- pending → approved → revoked
+  status text not null default 'pending'
+    check (status in ('pending', 'approved', 'revoked')),
+
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+
+  unique (issuer_entity_id, platform_entity_id)
+);
+
+create index issuer_authorizations_issuer_idx
+  on issuer_authorizations (issuer_entity_id);
+
+create index issuer_authorizations_platform_idx
+  on issuer_authorizations (platform_entity_id);
+
+create trigger issuer_authorizations_set_updated_at
+before update on issuer_authorizations
+for each row execute function set_updated_at();
+
+-- Migration (run on existing DB):
+-- create table issuer_authorizations (
+--   id uuid primary key default gen_random_uuid(),
+--   issuer_entity_id   uuid not null references entities(id) on delete cascade,
+--   platform_entity_id uuid not null references entities(id) on delete cascade,
+--   status text not null default 'pending' check (status in ('pending', 'approved', 'revoked')),
+--   created_at timestamptz not null default now(),
+--   updated_at timestamptz not null default now(),
+--   unique (issuer_entity_id, platform_entity_id)
+-- );
+-- create index issuer_authorizations_issuer_idx on issuer_authorizations (issuer_entity_id);
+-- create index issuer_authorizations_platform_idx on issuer_authorizations (platform_entity_id);
+
+-- =========================================================
 -- GRANTS
 -- =========================================================
+
+-- issuer_authorizations: service_role writes, anon reads
+grant all on table issuer_authorizations to anon;
+grant all on table issuer_authorizations to authenticated;
+grant all on table issuer_authorizations to service_role;
+
+alter table issuer_authorizations enable row level security;
+
+create policy "service_role full access"
+  on issuer_authorizations for all to service_role
+  using (true) with check (true);
+
+create policy "anon read"
+  on issuer_authorizations for select to anon
+  using (true);
 
 -- entity_verification_requests: backend inserts via service role / anon key
 grant all on table entity_verification_requests to anon;

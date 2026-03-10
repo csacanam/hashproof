@@ -14,16 +14,11 @@
 | A | Simplify entity verification model: new `status` enum (`unverified`, `individual_verified`, `organization_verified`, `suspended`), remove `domain_verified` / `kyb_verified`, update backend + frontend + docs |
 | B | Auth for verified entities: x402 paying wallet validated against `entity.authorized_wallets` on issuance; admin approval endpoint populates wallets from verification request payload |
 | D | Authorized wallet check on issuance: extract `from` from X-PAYMENT header and reject with 403 if not in entity's authorized wallets |
+| C | Issuer authorization between entities: `issuer_authorizations` table; verified platform must have an approved row to issue for a verified issuer; admin endpoint `POST /admin/issuer-authorizations` to manage; issuer's own wallets always bypass the check |
 
 ---
 
 ## 🔲 Pending
-
-### C. Issuer authorization between entities
-
-- **Goal**: Allow one entity (e.g. a platform) to issue on behalf of another.
-- Add `issuer_authorizations` table: `issuer_entity_id`, `authorized_entity_id`, `status`.
-- Enforce in issuance: if issuer ≠ caller, require approved authorization row.
 
 ### E. Publish to Karma / Hackathon
 

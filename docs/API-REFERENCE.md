@@ -19,6 +19,7 @@ Paid endpoints require an x402 payment header. See [`X402-PAYMENT-FLOW.md`](./X4
 | GET | `/entities/:id` | — | Entity info and verification status |
 | POST | `/entities/:id/verificationRequests` | x402 $0.10 USDC | Submit a verification request |
 | POST | `/admin/entities/:id/verify` | `ADMIN_SECRET` header | Approve a pending verification request |
+| POST | `/admin/issuer-authorizations` | `ADMIN_SECRET` header | Grant or revoke a platform's right to issue on behalf of an issuer |
 
 ---
 
@@ -26,7 +27,15 @@ Paid endpoints require an x402 payment header. See [`X402-PAYMENT-FLOW.md`](./X4
 
 Issues one verifiable credential. Requires x402 payment.
 
-If `issuer_entity_id` belongs to a **verified entity** (`individual_verified` or `organization_verified`), the wallet that paid must be in that entity's `authorized_wallets` list. If the entity is `suspended`, issuance is blocked entirely.
+### Authorization rules
+
+| Scenario | Condition | Rule |
+|----------|-----------|------|
+| Self-issuance | `issuer_entity_id == platform_entity_id` (or no platform) | Paying wallet must be in `issuer.authorized_wallets` (only if issuer is verified) |
+| Platform issues for issuer | `issuer_entity_id != platform_entity_id`, issuer **unverified** | No wallet restriction |
+| Platform issues for issuer | `issuer_entity_id != platform_entity_id`, issuer **verified** | Paying wallet must be in `platform.authorized_wallets` AND an approved `issuer_authorization` row must exist for (issuer, platform) |
+| Issuer's own wallet used | Any scenario, issuer verified | Wallet in `issuer.authorized_wallets` always works, no authorization row needed |
+| Issuer is `suspended` | Any | Always `403` |
 
 For practical examples with curl, see [`ISSUING-CREDENTIALS.md`](./ISSUING-CREDENTIALS.md).
 
@@ -400,6 +409,52 @@ Submits a verification request for an entity. Requires x402 payment.
   }
 }
 ```
+
+---
+
+## POST /admin/issuer-authorizations
+
+Grants or revokes a platform's permission to issue credentials on behalf of a verified issuer.
+
+Only relevant when `issuer_entity_id != platform_entity_id` and the issuer is verified. See [`ADMIN-GUIDE.md`](./ADMIN-GUIDE.md) for the full workflow.
+
+### Headers
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer <ADMIN_SECRET>` |
+
+### Request body
+
+```json
+{
+  "issuer_entity_id":   "uuid-of-the-issuer",
+  "platform_entity_id": "uuid-of-the-platform",
+  "status":             "approved"
+}
+```
+
+**`status` allowed values:** `pending`, `approved`, `revoked`
+
+### Response `200 OK`
+
+```json
+{
+  "id": "uuid",
+  "issuer_entity_id": "uuid",
+  "platform_entity_id": "uuid",
+  "status": "approved",
+  "created_at": "2025-06-01T00:00:00Z"
+}
+```
+
+### Errors
+
+| Status | Cause |
+|--------|-------|
+| 401 | Missing or invalid `Authorization` header |
+| 400 | Missing required fields or invalid status value |
+| 500 | DB error |
 
 ---
 
