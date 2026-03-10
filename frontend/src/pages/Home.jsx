@@ -1,115 +1,196 @@
 import { Link } from "react-router-dom";
 
+const DEMO_CREDENTIAL_ID = "4c9f7420-0d1e-4340-9edb-e612df2ecea6";
+const DEMO_ENTITY_SLUG = "hashproof";
+
+const PAYLOAD_EXAMPLE = `{
+  "issuer":   { "display_name": "Acme Corp", "slug": "acme-corp" },
+  "platform": { "display_name": "Acme Corp", "slug": "acme-corp" },
+  "holder":   { "full_name": "María García" },
+  "context":  { "type": "course", "title": "Intro to Blockchain" },
+  "credential_type": "completion",
+  "title": "Certificate of Completion",
+  "values":   { "holder_name": "María García" }
+}`;
+
+const FEATURES = [
+  {
+    icon: "⛓️",
+    title: "On-chain registry",
+    desc: "Every credential is registered on Celo. Status checks go to the blockchain — not a centralized database.",
+  },
+  {
+    icon: "📦",
+    title: "IPFS backup",
+    desc: "Credential data is pinned to IPFS via Pinata. Verifiable even if HashProof goes offline.",
+  },
+  {
+    icon: "⚡",
+    title: "x402 payments",
+    desc: "No accounts, no billing dashboards. Pay per call in USDC. AI agents can call the API autonomously.",
+  },
+  {
+    icon: "🏛️",
+    title: "Entity verification",
+    desc: "Organizations and individuals can verify their identity. Credentials show whether the issuer is verified.",
+  },
+];
+
+const STEPS = [
+  {
+    n: "1",
+    title: "Call the API",
+    desc: "Send credential data to POST /issueCredential. Pay $0.10 USDC via x402 — no API key, no signup.",
+  },
+  {
+    n: "2",
+    title: "Credential is created",
+    desc: "HashProof stores the credential in its database, pins the JSON to IPFS, and registers it on Celo.",
+  },
+  {
+    n: "3",
+    title: "Share and verify",
+    desc: "You receive a unique verification URL. Anyone can verify the credential — blockchain, IPFS, and DB all match.",
+  },
+];
+
 export default function Home() {
   return (
     <div className="page">
       <header className="header">
-        <Link to="/" className="logo">
-          HashProof
-        </Link>
+        <Link to="/" className="logo">HashProof</Link>
+        <nav className="home-nav">
+          <a
+            href="https://github.com/csacanam/hashproof"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="home-nav-link"
+          >
+            GitHub
+          </a>
+          <a
+            href="https://github.com/csacanam/hashproof/blob/main/docs/API-REFERENCE.md"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="home-nav-link"
+          >
+            Docs
+          </a>
+        </nav>
       </header>
 
       <main>
+        {/* ── Hero ── */}
         <section className="hero">
-          <h1>Generate verifiable credentials with a single API call</h1>
+          <h1>Issue verifiable credentials with one API call</h1>
           <p className="hero-lead">
-            HashProof allows developers, applications, and AI agents to issue
-            credentials that anyone can verify.
+            HashProof lets developers, platforms, and AI agents issue digital credentials
+            that anyone can verify — backed by IPFS and a public blockchain registry.
           </p>
-          <p>
-            Pay programmatically using x402 when calling the API.
-          </p>
+          <div className="hero-actions">
+            <a
+              href="https://github.com/csacanam/hashproof/blob/main/docs/ISSUING-CREDENTIALS.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-primary"
+            >
+              Read the docs
+            </a>
+            <Link
+              to={`/verify/${DEMO_CREDENTIAL_ID}`}
+              className="btn btn-secondary"
+            >
+              See a live credential →
+            </Link>
+          </div>
         </section>
 
+        {/* ── Code snippet ── */}
         <section className="section">
-          <h2>What you can issue</h2>
-          <p>
-            HashProof lets software generate credentials such as:
-          </p>
-          <ul>
-            <li>Certificates of participation</li>
-            <li>Certificates of completion</li>
-            <li>Attendance records</li>
-            <li>Course or program credentials</li>
-            <li>Any custom credential issued by software</li>
-          </ul>
-          <p>
-            Each credential receives a unique ID and becomes publicly verifiable.
+          <div className="home-code-header">
+            <span className="home-code-label">POST /issueCredential</span>
+            <span className="home-code-price">$0.10 USDC · x402</span>
+          </div>
+          <pre className="home-code">{PAYLOAD_EXAMPLE}</pre>
+          <p className="home-code-note">
+            The API returns a <code>verification_url</code> you can share with the credential holder.
+            No account required — pay directly when calling.
           </p>
         </section>
 
+        {/* ── Features ── */}
+        <section className="section">
+          <h2>Built for trust at the infrastructure layer</h2>
+          <div className="home-features">
+            {FEATURES.map((f) => (
+              <div key={f.title} className="home-feature-card">
+                <span className="home-feature-icon">{f.icon}</span>
+                <div>
+                  <p className="home-feature-title">{f.title}</p>
+                  <p className="home-feature-desc">{f.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ── How it works ── */}
         <section className="section">
           <h2>How it works</h2>
-
-          <h3>1. Issue a credential</h3>
-          <p>
-            Your application sends credential data to the HashProof API.
-          </p>
-          <p>Example payload:</p>
-          <pre>
-{`{
-  "recipient_name": "Juan Perez",
-  "credential_name": "Blockchain for Developers",
-  "issuer": "Example Organization"
-}`}
-          </pre>
-
-          <h3>2. Receive a credential ID</h3>
-          <p>
-            The API returns a unique identifier for the credential.
-          </p>
-
-          <h3>3. Share the credential</h3>
-          <p>
-            You can deliver the credential to the recipient or store the ID in your system.
-          </p>
-
-          <h3>4. Verify it</h3>
-          <p>
-            Anyone can verify the credential using the verification page:
-          </p>
-          <p>
-            <code>/verify/:credential_id</code>
-          </p>
+          <div className="home-steps">
+            {STEPS.map((s) => (
+              <div key={s.n} className="home-step">
+                <span className="home-step-n">{s.n}</span>
+                <div>
+                  <p className="home-step-title">{s.title}</p>
+                  <p className="home-step-desc">{s.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </section>
 
+        {/* ── For agents ── */}
         <section className="section">
-          <h2>Payments</h2>
-          <p>HashProof uses x402 for API payments.</p>
-          <p>
-            Instead of creating accounts or managing billing dashboards, clients can pay
-            directly when invoking the API.
+          <h2>Designed for AI agents</h2>
+          <p className="section-p">
+            HashProof uses the <strong>x402 protocol</strong> — a standard for HTTP-native
+            micropayments. AI agents can discover, call, and pay for the API without
+            human intervention. No accounts, no OAuth, no billing setup.
           </p>
-          <p>This enables:</p>
-          <ul>
-            <li>programmatic payments</li>
-            <li>machine-to-machine usage</li>
-            <li>AI agents paying for API calls</li>
-            <li>simple integration without account management</li>
-          </ul>
+          <p className="section-p">
+            An agent sends a POST request, receives a 402 Payment Required response with
+            a USDC payment request, pays on-chain, and retries — all programmatically.
+          </p>
+          <div className="home-pill-row">
+            <span className="home-pill">No API keys</span>
+            <span className="home-pill">No rate-limit dashboards</span>
+            <span className="home-pill">Pay per use</span>
+            <span className="home-pill">Base + Celo</span>
+          </div>
         </section>
 
+        {/* ── Entity verification ── */}
         <section className="section">
-          <h2>Verification</h2>
-          <p>
-            Every credential issued through HashProof can be verified publicly.
+          <h2>Entity verification</h2>
+          <p className="section-p">
+            Organizations and individuals can verify their identity through HashProof.
+            Verified issuers are marked on every credential they issue — so verifiers
+            know whether the issuer has been reviewed by the platform.
           </p>
-          <p>A verifier only needs the credential ID.</p>
-          <p>Example:</p>
-          <p><code>/verify/abc123</code></p>
-          <p>
-            The verification page displays the credential data and confirms
-            whether the credential exists and matches the original issued record.
+          <p className="section-p">
+            Each verified entity has a public profile and an authorized set of wallets
+            that can issue credentials on its behalf.
           </p>
+          <Link to={`/entities/${DEMO_ENTITY_SLUG}`} className="home-entity-link">
+            View the HashProof entity page →
+          </Link>
         </section>
       </main>
 
       <footer className="footer">
         <p>
-          HashProof is an API for issuing and verifying digital credentials.
-        </p>
-        <p>
-          Credentials can be generated programmatically and verified through a public verification page.
+          HashProof is open infrastructure for issuing and verifying digital credentials.
         </p>
         <p className="footer-copy">
           © HashProof 2026 · Built by{" "}
