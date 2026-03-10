@@ -373,10 +373,24 @@
   border-radius: 8px;
 }
 
-.verify-status--active {
+.verify-status--active,
+.verify-status--individual_verified,
+.verify-status--organization_verified {
   background: rgba(34, 197, 94, 0.15);
   color: #4ade80;
   border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.verify-status--unverified {
+  background: rgba(248, 187, 89, 0.1);
+  color: #fbbf24;
+  border: 1px solid rgba(248, 187, 89, 0.3);
+}
+
+.verify-status--suspended {
+  background: rgba(248, 113, 113, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(248, 113, 113, 0.3);
 }
 
 .verify-status--revoked {

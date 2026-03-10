@@ -119,7 +119,8 @@ export default function Entity() {
   }
 
   const e = data?.entity ?? data ?? {};
-  const status = data?.status ?? e.status ?? "active";
+  const status = data?.status ?? e.status ?? "unverified";
+  const isVerified = data?.is_verified ?? false;
 
   const createdAt = e.created_at
     ? new Date(e.created_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
@@ -311,16 +312,11 @@ export default function Entity() {
       <main className="verify-main">
         <div className="verify-card">
           <div className="verify-header">
-            <div>
-              <h1>{e.display_name || "Entity"}</h1>
-            </div>
-            <span className={`verify-status verify-status--${status}`}>
-              {status}
-            </span>
+            <h1>{e.display_name || "Entity"}</h1>
           </div>
 
 
-          {!e.kyb_verified && (
+          {status === "unverified" && (
             <div className="verify-section">
               <p className="verify-card-description">
                 Verify this issuer to increase trust in your credentials.
@@ -346,8 +342,8 @@ export default function Entity() {
             <div className="verify-detail">
               <dt>Status</dt>
               <dd>
-                <span className={`entity-flag entity-flag--${e.kyb_verified ? "verified" : "unverified"}`}>
-                  {e.kyb_verified ? "verified" : "unverified"}
+                <span className={`entity-flag entity-flag--${isVerified ? "verified" : "unverified"}`}>
+                  {status.replace(/_/g, " ")}
                 </span>
               </dd>
             </div>

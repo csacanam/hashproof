@@ -2,14 +2,13 @@
 -- Minimal: just holder name. Run after schema.sql.
 -- Assumes empty DB (after drop schema + schema.sql).
 
--- HashProof platform entity (owns base template; all verifications true)
-insert into entities (display_name, slug, email_verified, domain_verified, kyb_verified, last_verified_at)
-values ('HashProof', 'hashproof', true, true, true, now())
+-- HashProof platform entity
+insert into entities (display_name, slug, email_verified, last_verified_at, status)
+values ('HashProof', 'hashproof', true, now(), 'organization_verified')
 on conflict (slug) do update set
   email_verified = excluded.email_verified,
-  domain_verified = excluded.domain_verified,
-  kyb_verified = excluded.kyb_verified,
-  last_verified_at = excluded.last_verified_at;
+  last_verified_at = excluded.last_verified_at,
+  status = excluded.status;
 
 -- Default template (belongs to HashProof entity)
 -- Page: 3508 x 2480 px

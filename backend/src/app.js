@@ -128,10 +128,9 @@ export function createApp(options = {}) {
       const cj = cred.credential_json ?? {};
       const pageWidth = template?.page_width ?? 595;
       const pageHeight = template?.page_height ?? 842;
-      const issuerVerified =
-        (issuerEntity?.email_verified || issuerEntity?.domain_verified || issuerEntity?.kyb_verified) === true;
-      const platformVerified =
-        (platformEntity?.email_verified || platformEntity?.domain_verified || platformEntity?.kyb_verified) === true;
+      const VERIFIED_STATUSES = ["individual_verified", "organization_verified"];
+      const issuerVerified = VERIFIED_STATUSES.includes(issuerEntity?.status);
+      const platformVerified = VERIFIED_STATUSES.includes(platformEntity?.status);
 
       // Run full verification pipeline: contract → IPFS → DB
       const pipeline = await runVerificationPipeline({
@@ -210,11 +209,8 @@ export function createApp(options = {}) {
         return res.status(404).json({ error: "Entity not found" });
       }
 
-      const verifiedCount =
-        (entity.email_verified ? 1 : 0) +
-        (entity.domain_verified ? 1 : 0) +
-        (entity.kyb_verified ? 1 : 0);
-      const verifiedPercentage = (verifiedCount / 3) * 100;
+      const VERIFIED_STATUSES = ["individual_verified", "organization_verified"];
+      const isVerified = VERIFIED_STATUSES.includes(entity.status);
 
       return res.json({
         entity,
@@ -224,14 +220,11 @@ export function createApp(options = {}) {
         website: entity.website,
         logo_url: entity.logo_url,
         status: entity.status,
+        is_verified: isVerified,
         email_verified: entity.email_verified,
-        domain_verified: entity.domain_verified,
-        kyb_verified: entity.kyb_verified,
         last_verified_at: entity.last_verified_at,
         created_at: entity.created_at,
         updated_at: entity.updated_at,
-        verified_count: verifiedCount,
-        verified_percentage: verifiedPercentage,
       });
     } catch (err) {
       console.error("[entity] error:", err.message);

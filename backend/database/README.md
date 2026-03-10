@@ -28,14 +28,12 @@ Organizations that issue credentials or platforms that manage issuances.
 | slug | text | URL-safe identifier (e.g. "universidad-icesi"). Unique. |
 | website | text | Website (optional) |
 | logo_url | text | Logo URL (optional) |
-| email_verified | boolean | Level 1 — verified via email (e.g. safe@icesi.edu.co) |
-| domain_verified | boolean | Level 2 — verified via domain control (e.g. DNS) |
-| kyb_verified | boolean | Level 3 — KYB (Know Your Business), strongest |
+| email_verified | boolean | Whether the entity's email has been verified |
 | last_verified_at | timestamptz | When last verified |
-| status | enum | `active`, `suspended`, `blocked` — when suspended/blocked, credentials show as invalid in UI |
+| status | enum | `unverified`, `individual_verified`, `organization_verified`, `suspended` |
 | created_at, updated_at | timestamptz | Audit timestamps |
 
-**Verification levels** (simplest → strongest): email → domain → kyb. For display: `verified_count = email + domain + kyb` (0–3), `verified_percentage = (verified_count / 3) * 100`. Fully verified = all three true = 100%.
+**Status values:** `unverified` (default) → entity has not been reviewed yet. `individual_verified` / `organization_verified` → verification request was approved. `suspended` → entity has been suspended; credentials issued by it are flagged as invalid.
 
 **Relations:** credentials → issuer_entity_id, platform_entity_id
 

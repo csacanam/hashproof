@@ -3,9 +3,10 @@
 -- =========================================================
 
 create type entity_status as enum (
-  'active',
-  'suspended',
-  'blocked'
+  'unverified',
+  'individual_verified',
+  'organization_verified',
+  'suspended'
 );
 
 create type context_type as enum (
@@ -59,13 +60,10 @@ create table entities (
   website text,
   logo_url text,
 
-  -- Verification badges (order: simplest → strongest)
   email_verified boolean not null default false,
-  domain_verified boolean not null default false,
-  kyb_verified boolean not null default false,
   last_verified_at timestamptz,
 
-  status entity_status not null default 'active',
+  status entity_status not null default 'unverified',
 
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -250,6 +248,17 @@ create table entity_verification_requests (
 -- Migration for existing databases:
 -- alter table entity_verification_requests add column if not exists tx_hash text;
 -- alter table entity_verification_requests add column if not exists tx_explorer_url text;
+
+-- Migration: entity_status enum + column cleanup (run in order):
+-- alter type entity_status add value if not exists 'unverified';
+-- alter type entity_status add value if not exists 'individual_verified';
+-- alter type entity_status add value if not exists 'organization_verified';
+-- update entities set status = 'unverified' where status = 'active';
+-- alter table entities alter column status set default 'unverified';
+-- alter table entities drop column if exists domain_verified;
+-- alter table entities drop column if exists kyb_verified;
+-- NOTE: 'active' and 'blocked' can be removed from the enum once all rows are migrated
+--       (Postgres does not support removing enum values directly; requires a type recreation).
 
 create index entity_verification_requests_entity_id_idx
   on entity_verification_requests (entity_id);

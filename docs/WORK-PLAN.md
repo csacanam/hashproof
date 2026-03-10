@@ -11,19 +11,11 @@
 | 5 | Three-layer verification pipeline: contract → IPFS → DB |
 | 6 | x402 payments with EOA settler (no Thirdweb billing required) |
 | 7 | API and issuance documentation (`API-REFERENCE.md`, `ISSUING-CREDENTIALS.md`, `docs/README.md`) |
+| A | Simplify entity verification model: new `status` enum (`unverified`, `individual_verified`, `organization_verified`, `suspended`), remove `domain_verified` / `kyb_verified`, update backend + frontend + docs |
 
 ---
 
 ## 🔲 Pending
-
-### A. Simplify entity verification model in DB
-
-The verification form was simplified to two types: `individual` and `organization`. The current DB still has three separate boolean columns (`email_verified`, `domain_verified`, `kyb_verified`) and a `status` enum (`active`, `suspended`, `blocked`) that no longer maps to this model.
-
-- Decide what `status` should represent now (e.g. `unverified`, `individual_verified`, `organization_verified`, `suspended`)
-- Remove or repurpose `email_verified`, `domain_verified`, `kyb_verified` columns
-- Update `GET /entities/:id` response and frontend entity page to reflect the new model
-- Update `database/README.md` to match
 
 ### B. Auth for verified entities (authenticated API calls)
 
