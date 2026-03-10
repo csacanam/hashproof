@@ -1,5 +1,45 @@
 import { Link } from "react-router-dom";
 
+const JSON_COLORS = {
+  key:         "#7dd3fc", // blue  — keys
+  string:      "#86efac", // green — string values
+  number:      "#fb923c", // orange — numbers
+  literal:     "#c084fc", // purple — true/false/null
+  punctuation: "#52525b", // muted — { } [ ] , :
+  plain:       "#e4e4e7", // default
+};
+
+function JsonHighlight({ code }) {
+  const tokens = [];
+  const re = /("(?:[^"\\]|\\.)*")(\s*:)?|(-?\d+(?:\.\d+)?)|(\btrue\b|\bfalse\b|\bnull\b)|([{}[\],:])/g;
+  let last = 0, m;
+  while ((m = re.exec(code)) !== null) {
+    if (m.index > last) tokens.push({ t: "plain", v: code.slice(last, m.index) });
+    if (m[1] && m[2]) {
+      tokens.push({ t: "key", v: m[1] });
+      tokens.push({ t: "punctuation", v: m[2] });
+    } else if (m[1]) {
+      tokens.push({ t: "string", v: m[1] });
+    } else if (m[3]) {
+      tokens.push({ t: "number", v: m[3] });
+    } else if (m[4]) {
+      tokens.push({ t: "literal", v: m[4] });
+    } else if (m[5]) {
+      tokens.push({ t: "punctuation", v: m[5] });
+    }
+    last = m.index + m[0].length;
+  }
+  if (last < code.length) tokens.push({ t: "plain", v: code.slice(last) });
+
+  return (
+    <pre className="home-code">
+      {tokens.map((tk, i) => (
+        <span key={i} style={{ color: JSON_COLORS[tk.t] }}>{tk.v}</span>
+      ))}
+    </pre>
+  );
+}
+
 const DEMO_CREDENTIAL_ID = "4c9f7420-0d1e-4340-9edb-e612df2ecea6";
 const DEMO_ENTITY_SLUG = "hashproof";
 
@@ -9,8 +49,8 @@ const PAYLOAD_EXAMPLE = `{
     "slug": "acme-corp"
   },
   "platform": {
-    "display_name": "Acme Corp",
-    "slug": "acme-corp"
+    "display_name": "HashProof",
+    "slug": "hashproof"
   },
   "holder": {
     "full_name": "María García"
@@ -22,7 +62,8 @@ const PAYLOAD_EXAMPLE = `{
   "credential_type": "completion",
   "title": "Certificate of Completion",
   "values": {
-    "holder_name": "María García"
+    "holder_name": "María García",
+    "details": "For completing Intro to Blockchain\nAcme Corp · June 2026"
   }
 }`;
 
@@ -98,14 +139,24 @@ export default function Home() {
 
         {/* ── Code snippet ── */}
         <section className="section">
-          <div className="home-code-header">
-            <span className="home-code-label">POST /issueCredential</span>
-            <span className="home-code-price">$0.10 USDC · x402</span>
+          <div className="home-code-block">
+            <div className="home-code-header">
+              <span className="home-code-label">POST api.hashproof.dev/issueCredential</span>
+              <span className="home-code-price">$0.10 USDC · x402 · Base or Celo</span>
+            </div>
+            <JsonHighlight code={PAYLOAD_EXAMPLE} />
           </div>
-          <pre className="home-code">{PAYLOAD_EXAMPLE}</pre>
           <p className="home-code-note">
-            The API returns a <code>verification_url</code> you can share with the credential holder.
-            No account required — pay directly when calling.
+            Returns a <code>verification_url</code> to share with the credential holder.
+            Payment is handled automatically via the{" "}
+            <a
+              href="https://github.com/csacanam/hashproof/blob/main/docs/X402-PAYMENT-FLOW.md"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              x402 protocol
+            </a>{" "}
+            — no API key or account required.
           </p>
         </section>
 
