@@ -7,6 +7,7 @@
 | [API-REFERENCE.md](./API-REFERENCE.md) | All endpoints, allowed values, request and response schemas |
 | [ISSUING-CREDENTIALS.md](./ISSUING-CREDENTIALS.md) | Examples from basic to custom templates |
 | [X402-PAYMENT-FLOW.md](./X402-PAYMENT-FLOW.md) | How the x402 payment protocol works (useful for agents and integrations) |
+| [X402-LESSONS-LEARNED.md](./X402-LESSONS-LEARNED.md) | Real problems we hit integrating x402 + Thirdweb and how we solved them |
 
 ## If you want to run or modify the project
 

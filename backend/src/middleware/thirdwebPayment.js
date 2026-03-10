@@ -85,10 +85,16 @@ export function createThirdwebPaymentMiddleware(skipPayment = false) {
     // ── No payment: generate 402 challenge using Thirdweb (format only) ──────
     // We call settlePayment once per network to collect the accepts[] entries,
     // then merge them into a single patched PAYMENT-REQUIRED header.
+    // If the client signals a preferred network via X-Payment-Network, restrict to it.
+    const requestedNetworkKey = req.get("x-payment-network");
+    const chainsToOffer = requestedNetworkKey
+      ? activeChains.filter((c) => c.key === requestedNetworkKey)
+      : activeChains;
+
     const accepts = [];
     let baseResult = null;
 
-    for (const chainConfig of activeChains) {
+    for (const chainConfig of chainsToOffer) {
       // eslint-disable-next-line no-await-in-loop
       const r = await settlePayment({
         resourceUrl,

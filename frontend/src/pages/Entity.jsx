@@ -3,6 +3,8 @@ import { useParams, Link } from "react-router-dom";
 import {
   useFetchWithPayment,
   useActiveAccount,
+  useActiveWallet,
+  useDisconnect,
   useWalletBalance,
   ConnectButton,
 } from "thirdweb/react";
@@ -13,22 +15,12 @@ import { ACTIVE_CHAINS, PRIMARY_CHAIN_CONFIG } from "../chains.js";
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4022";
 
 const PAYMENT_TOKEN = "USDC";
-
-const SUPPORTED_PAYMENT_NETWORK_LABELS = ACTIVE_CHAINS.map((c) => c.name);
+const VERIFICATION_PRICE_USDC = 0.10;
 
 const WALLETS = [
   createWallet("io.metamask"),
   createWallet("com.coinbase.wallet"),
 ];
-
-function formatNetworkList(labels) {
-  if (labels.length === 0) return "";
-  if (labels.length === 1) return labels[0];
-  if (labels.length === 2) return `${labels[0]} or ${labels[1]}`;
-  return `${labels.slice(0, -1).join(", ")} or ${
-    labels[labels.length - 1]
-  }`;
-}
 
 export default function Entity() {
   const { id } = useParams();
@@ -36,20 +28,29 @@ export default function Entity() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showVerifyDialog, setShowVerifyDialog] = useState(false);
-  const [verifyDialogStep, setVerifyDialogStep] = useState("intro"); // "intro" | "type"
+  const [verifyDialogStep, setVerifyDialogStep] = useState("intro"); // "intro" | "form" | "payment" | "success"
   const [verifyType, setVerifyType] = useState(""); // "" | "individual" | "organization"
-  const [requestSubmitted, setRequestSubmitted] = useState(false);
+
+  const [selectedNetworkKey, setSelectedNetworkKey] = useState(PRIMARY_CHAIN_CONFIG.key);
+  const selectedChainConfig =
+    ACTIVE_CHAINS.find((c) => c.key === selectedNetworkKey) ?? PRIMARY_CHAIN_CONFIG;
 
   const activeAccount = useActiveAccount();
+  const activeWallet = useActiveWallet();
+  const { disconnect } = useDisconnect();
   const {
     data: usdcBalance,
     isLoading: isBalanceLoading,
   } = useWalletBalance({
     address: activeAccount?.address,
-    chain: PRIMARY_CHAIN_CONFIG.chain,
+    chain: selectedChainConfig.chain,
     client: thirdwebClient,
-    tokenAddress: PRIMARY_CHAIN_CONFIG.usdcAddress,
+    tokenAddress: selectedChainConfig.usdcAddress,
   });
+
+  const hasSufficientBalance =
+    !isBalanceLoading &&
+    parseFloat(usdcBalance?.displayValue ?? "0") >= VERIFICATION_PRICE_USDC;
 
   const { fetchWithPayment, isPending: isPaymentPending } = useFetchWithPayment(thirdwebClient);
   const [orgForm, setOrgForm] = useState({
@@ -148,8 +149,25 @@ export default function Entity() {
     setShowVerifyDialog(false);
     setVerifyDialogStep("intro");
     setVerifyType("");
+    setSelectedNetworkKey(PRIMARY_CHAIN_CONFIG.key);
     setFormError("");
-    setRequestSubmitted(false);
+    setOrgForm({
+      orgName: "",
+      website: "",
+      contactName: "",
+      contactEmail: "",
+      country: "",
+      role: "",
+      supportLink: "",
+      wallets: "",
+    });
+    setIndForm({
+      fullName: "",
+      profile: "",
+      email: "",
+      country: "",
+      wallets: "",
+    });
   };
 
   const getFormPayload = () => {
@@ -184,6 +202,21 @@ export default function Entity() {
           .filter(Boolean),
       },
     };
+  };
+
+  const isFormComplete = () => {
+    if (!verifyType) return false;
+    const evmRegex = /^0x[a-fA-F0-9]{40}$/;
+    if (verifyType === "organization") {
+      const { orgName, website, contactName, contactEmail, country, role, supportLink, wallets } = orgForm;
+      if (!orgName.trim() || !website.trim() || !contactName.trim() || !contactEmail.trim() || !country.trim() || !role.trim() || !supportLink.trim()) return false;
+      const list = wallets.split("\n").map((w) => w.trim()).filter(Boolean);
+      return list.length > 0 && list.every((w) => evmRegex.test(w));
+    }
+    const { fullName, profile, email, country, wallets } = indForm;
+    if (!fullName.trim() || !profile.trim() || !email.trim() || !country.trim()) return false;
+    const list = wallets.split("\n").map((w) => w.trim()).filter(Boolean);
+    return list.length > 0 && list.every((w) => evmRegex.test(w));
   };
 
   const handleSubmitVerify = async () => {
@@ -246,10 +279,13 @@ export default function Entity() {
       const payload = getFormPayload();
       await fetchWithPayment(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-Payment-Network": selectedNetworkKey,
+        },
         body: JSON.stringify(payload),
       });
-      setRequestSubmitted(true);
+      setVerifyDialogStep("success");
     } catch (err) {
       const msg = String(err?.message || "");
       if (msg.includes("no usable x402 payment requirements")) {
@@ -371,19 +407,30 @@ export default function Entity() {
               >
                 ×
               </button>
+              {/* Step indicator */}
+              {verifyDialogStep !== "success" && (
+                <p className="modal-step">
+                  Step{" "}
+                  {verifyDialogStep === "intro" ? "1" : verifyDialogStep === "form" ? "2" : "3"}{" "}
+                  of 3
+                </p>
+              )}
+
+              {/* ── Step 1: Info ── */}
               {verifyDialogStep === "intro" && (
                 <>
                   <h2 className="modal-title">Request verification</h2>
                   <p className="modal-text">
-                    You are requesting verification for <strong>{e.display_name || "this entity"}</strong>.
+                    You are requesting verification for{" "}
+                    <strong className="modal-entity-name">{e.display_name || "this entity"}</strong>.
                   </p>
                   <p className="modal-fee">
                     <span className="modal-fee-label">Verification request fee:</span>{" "}
                     <span className="modal-fee-amount">$0.10</span>
                   </p>
                   <p className="modal-text">
-                    This fee helps prevent spam and covers the manual review process.{" "}
-                    <strong>Verification is not guaranteed.</strong>
+                    This fee helps prevent spam and covers the review process.
+                    Submitting a request does not guarantee approval.
                   </p>
                   <div className="modal-actions">
                     <button
@@ -396,7 +443,7 @@ export default function Entity() {
                     <button
                       type="button"
                       className="btn btn-action"
-                      onClick={() => setVerifyDialogStep("type")}
+                      onClick={() => setVerifyDialogStep("form")}
                     >
                       Continue
                     </button>
@@ -404,29 +451,12 @@ export default function Entity() {
                 </>
               )}
 
-              {verifyDialogStep === "type" && (
+              {/* ── Step 2: Form ── */}
+              {verifyDialogStep === "form" && (
                 <>
-                  {requestSubmitted ? (
-                    <>
-                      <h2 className="modal-title">Request submitted</h2>
-                      <p className="modal-text">
-                        Your verification request has been submitted. We will review it and get back to you.
-                      </p>
-                      <div className="modal-actions">
-                        <button
-                          type="button"
-                          className="btn btn-action"
-                          onClick={resetVerifyDialog}
-                        >
-                          Done
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                  <h2 className="modal-title">Who are you verifying?</h2>
+                  <h2 className="modal-title">Your details</h2>
                   <p className="modal-text">
-                    Choose whether this verification request is for an organization or for an individual.
+                    Choose whether this request is for an organization or an individual.
                   </p>
                   <div className="modal-field">
                     <label className="modal-label" htmlFor="verify-type">
@@ -436,8 +466,8 @@ export default function Entity() {
                       id="verify-type"
                       className="modal-select"
                       value={verifyType}
-                      onChange={(e) => {
-                        setVerifyType(e.target.value);
+                      onChange={(ev) => {
+                        setVerifyType(ev.target.value);
                         setFormError("");
                       }}
                     >
@@ -446,277 +476,268 @@ export default function Entity() {
                       <option value="organization">Organization</option>
                     </select>
                   </div>
+
                   {verifyType === "organization" && (
                     <>
                       <div className="modal-field">
-                        <label className="modal-label" htmlFor="org-name">
-                          Organization name
-                        </label>
-                        <input
-                          id="org-name"
-                          className="modal-input"
-                          type="text"
-                          placeholder="ACME Inc."
+                        <label className="modal-label" htmlFor="org-name">Organization name</label>
+                        <input id="org-name" className="modal-input" type="text" placeholder="ACME Inc."
                           value={orgForm.orgName}
-                          onChange={(e) => setOrgForm((f) => ({ ...f, orgName: e.target.value }))}
-                        />
-                        <p className="modal-help">
-                          The name of the organization that issues credentials.
-                        </p>
+                          onChange={(ev) => setOrgForm((f) => ({ ...f, orgName: ev.target.value }))} />
+                        <p className="modal-help">The name of the organization that issues credentials.</p>
                       </div>
                       <div className="modal-field">
-                        <label className="modal-label" htmlFor="org-website">
-                          Website
-                        </label>
-                        <input
-                          id="org-website"
-                          className="modal-input"
-                          type="url"
-                          placeholder="https://example.org"
+                        <label className="modal-label" htmlFor="org-website">Website</label>
+                        <input id="org-website" className="modal-input" type="url" placeholder="https://example.org"
                           value={orgForm.website}
-                          onChange={(e) => setOrgForm((f) => ({ ...f, website: e.target.value }))}
-                        />
-                        <p className="modal-help">
-                          The official website of the organization.
-                        </p>
+                          onChange={(ev) => setOrgForm((f) => ({ ...f, website: ev.target.value }))} />
+                        <p className="modal-help">The official website of the organization.</p>
                       </div>
                       <div className="modal-field">
-                        <label className="modal-label" htmlFor="org-contact-name">
-                          Contact full name
-                        </label>
-                        <input
-                          id="org-contact-name"
-                          className="modal-input"
-                          type="text"
-                          placeholder="Full name of the requester"
+                        <label className="modal-label" htmlFor="org-contact-name">Contact full name</label>
+                        <input id="org-contact-name" className="modal-input" type="text" placeholder="Full name of the requester"
                           value={orgForm.contactName}
-                          onChange={(e) => setOrgForm((f) => ({ ...f, contactName: e.target.value }))}
-                        />
-                        <p className="modal-help">
-                          The person requesting verification for this organization.
-                        </p>
+                          onChange={(ev) => setOrgForm((f) => ({ ...f, contactName: ev.target.value }))} />
+                        <p className="modal-help">The person requesting verification for this organization.</p>
                       </div>
                       <div className="modal-field">
-                        <label className="modal-label" htmlFor="org-contact-email">
-                          Contact email
-                        </label>
-                        <input
-                          id="org-contact-email"
-                          className="modal-input"
-                          type="email"
-                          placeholder="you@example.com"
+                        <label className="modal-label" htmlFor="org-contact-email">Contact email</label>
+                        <input id="org-contact-email" className="modal-input" type="email" placeholder="you@example.com"
                           value={orgForm.contactEmail}
-                          onChange={(e) => setOrgForm((f) => ({ ...f, contactEmail: e.target.value }))}
-                        />
+                          onChange={(ev) => setOrgForm((f) => ({ ...f, contactEmail: ev.target.value }))} />
                         <p className="modal-help">
-                          Please use your organizational email address (personal email providers like Gmail or Outlook will be rejected).
+                          Please use your organizational email address (personal providers like Gmail or Outlook will be rejected).
                         </p>
                       </div>
                       <div className="modal-field">
-                        <label className="modal-label" htmlFor="org-country">
-                          Country
-                        </label>
-                        <input
-                          id="org-country"
-                          className="modal-input"
-                          type="text"
-                          placeholder="Country where the organization operates"
+                        <label className="modal-label" htmlFor="org-country">Country</label>
+                        <input id="org-country" className="modal-input" type="text" placeholder="Country where the organization operates"
                           value={orgForm.country}
-                          onChange={(e) => setOrgForm((f) => ({ ...f, country: e.target.value }))}
-                        />
-                        <p className="modal-help">
-                          Country where the organization operates.
-                        </p>
+                          onChange={(ev) => setOrgForm((f) => ({ ...f, country: ev.target.value }))} />
+                        <p className="modal-help">Country where the organization operates.</p>
                       </div>
                       <div className="modal-field">
-                        <label className="modal-label" htmlFor="org-role">
-                          Role in the organization
-                        </label>
-                        <input
-                          id="org-role"
-                          className="modal-input"
-                          type="text"
-                          placeholder="Your role or relationship with the organization"
+                        <label className="modal-label" htmlFor="org-role">Role in the organization</label>
+                        <input id="org-role" className="modal-input" type="text" placeholder="Your role or relationship with the organization"
                           value={orgForm.role}
-                          onChange={(e) => setOrgForm((f) => ({ ...f, role: e.target.value }))}
-                        />
-                        <p className="modal-help">
-                          Your role or relationship with the organization.
-                        </p>
+                          onChange={(ev) => setOrgForm((f) => ({ ...f, role: ev.target.value }))} />
+                        <p className="modal-help">Your role or relationship with the organization.</p>
                       </div>
                       <div className="modal-field">
-                        <label className="modal-label" htmlFor="org-support-link">
-                          Supporting link
-                        </label>
-                        <input
-                          id="org-support-link"
-                          className="modal-input"
-                          type="url"
-                          placeholder="https://example.org/your-profile"
+                        <label className="modal-label" htmlFor="org-support-link">Supporting link</label>
+                        <input id="org-support-link" className="modal-input" type="url" placeholder="https://example.org/your-profile"
                           value={orgForm.supportLink}
-                          onChange={(e) => setOrgForm((f) => ({ ...f, supportLink: e.target.value }))}
-                        />
+                          onChange={(ev) => setOrgForm((f) => ({ ...f, supportLink: ev.target.value }))} />
                         <p className="modal-help">
-                          A link that shows your relationship with the organization. For example: your profile on the
-                          organization website, a LinkedIn profile listing the organization, or an event page where you
-                          are listed.
+                          A link showing your relationship with the organization — your profile on the organization website,
+                          a LinkedIn listing, or an event page where you appear.
                         </p>
                       </div>
                       <div className="modal-field">
-                        <label className="modal-label" htmlFor="org-wallets">
-                          Authorized wallets
-                        </label>
-                        <textarea
-                          id="org-wallets"
-                          className="modal-input"
-                          rows={3}
+                        <label className="modal-label" htmlFor="org-wallets">Authorized wallets</label>
+                        <textarea id="org-wallets" className="modal-input" rows={3}
                           placeholder={"0x1234...abcd\n0x5678...ef01"}
                           value={orgForm.wallets}
-                          onChange={(e) => setOrgForm((f) => ({ ...f, wallets: e.target.value }))}
-                        />
+                          onChange={(ev) => setOrgForm((f) => ({ ...f, wallets: ev.target.value }))} />
                         <p className="modal-help">
-                          These will be the only wallets allowed to sign transactions on behalf of this organization in
-                          HashProof (one address per line).
+                          The only wallets allowed to sign on behalf of this organization in HashProof (one address per line).
                         </p>
                       </div>
                     </>
                   )}
+
                   {verifyType === "individual" && (
                     <>
                       <div className="modal-field">
-                        <label className="modal-label" htmlFor="ind-name">
-                          Full name
-                        </label>
-                        <input
-                          id="ind-name"
-                          className="modal-input"
-                          type="text"
-                          placeholder="Full name as issuer"
+                        <label className="modal-label" htmlFor="ind-name">Full name</label>
+                        <input id="ind-name" className="modal-input" type="text" placeholder="Full name as issuer"
                           value={indForm.fullName}
-                          onChange={(e) => setIndForm((f) => ({ ...f, fullName: e.target.value }))}
-                        />
-                        <p className="modal-help">
-                          The name that will appear as the issuer of credentials.
-                        </p>
+                          onChange={(ev) => setIndForm((f) => ({ ...f, fullName: ev.target.value }))} />
+                        <p className="modal-help">The name that will appear as the issuer of credentials.</p>
                       </div>
                       <div className="modal-field">
-                        <label className="modal-label" htmlFor="ind-profile">
-                          Public profile or website
-                        </label>
-                        <input
-                          id="ind-profile"
-                          className="modal-input"
-                          type="url"
-                          placeholder="https://your-site-or-profile"
+                        <label className="modal-label" htmlFor="ind-profile">Public profile or website</label>
+                        <input id="ind-profile" className="modal-input" type="url" placeholder="https://your-site-or-profile"
                           value={indForm.profile}
-                          onChange={(e) => setIndForm((f) => ({ ...f, profile: e.target.value }))}
-                        />
-                        <p className="modal-help">
-                          A public profile or website where we can verify your identity.
-                        </p>
+                          onChange={(ev) => setIndForm((f) => ({ ...f, profile: ev.target.value }))} />
+                        <p className="modal-help">A public profile or website where we can verify your identity.</p>
                       </div>
                       <div className="modal-field">
-                        <label className="modal-label" htmlFor="ind-email">
-                          Contact email
-                        </label>
-                        <input
-                          id="ind-email"
-                          className="modal-input"
-                          type="email"
-                          placeholder="you@example.com"
+                        <label className="modal-label" htmlFor="ind-email">Contact email</label>
+                        <input id="ind-email" className="modal-input" type="email" placeholder="you@example.com"
                           value={indForm.email}
-                          onChange={(e) => setIndForm((f) => ({ ...f, email: e.target.value }))}
-                        />
-                        <p className="modal-help">
-                          We may contact you if additional verification is required.
-                        </p>
+                          onChange={(ev) => setIndForm((f) => ({ ...f, email: ev.target.value }))} />
+                        <p className="modal-help">We may contact you if additional verification is required.</p>
                       </div>
                       <div className="modal-field">
-                        <label className="modal-label" htmlFor="ind-country">
-                          Country
-                        </label>
-                        <input
-                          id="ind-country"
-                          className="modal-input"
-                          type="text"
-                          placeholder="Country where you are based"
+                        <label className="modal-label" htmlFor="ind-country">Country</label>
+                        <input id="ind-country" className="modal-input" type="text" placeholder="Country where you are based"
                           value={indForm.country}
-                          onChange={(e) => setIndForm((f) => ({ ...f, country: e.target.value }))}
-                        />
-                        <p className="modal-help">
-                          Country where you operate or are primarily based.
-                        </p>
+                          onChange={(ev) => setIndForm((f) => ({ ...f, country: ev.target.value }))} />
+                        <p className="modal-help">Country where you operate or are primarily based.</p>
                       </div>
                       <div className="modal-field">
-                        <label className="modal-label" htmlFor="ind-wallets">
-                          Authorized wallets
-                        </label>
-                        <textarea
-                          id="ind-wallets"
-                          className="modal-input"
-                          rows={3}
+                        <label className="modal-label" htmlFor="ind-wallets">Authorized wallets</label>
+                        <textarea id="ind-wallets" className="modal-input" rows={3}
                           placeholder={"0x1234...abcd\n0x5678...ef01"}
                           value={indForm.wallets}
-                          onChange={(e) => setIndForm((f) => ({ ...f, wallets: e.target.value }))}
-                        />
+                          onChange={(ev) => setIndForm((f) => ({ ...f, wallets: ev.target.value }))} />
                         <p className="modal-help">
-                          These will be the only wallets allowed to sign transactions on your behalf as an individual
-                          issuer in HashProof (one address per line).
+                          The only wallets allowed to sign on your behalf as an individual issuer in HashProof (one address per line).
                         </p>
                       </div>
                     </>
                   )}
-                  <div className="modal-field">
-                    {activeAccount ? (
-                      <p className="modal-help">
-                        Connected wallet:{" "}
-                        <code>
-                          {activeAccount.address.slice(0, 6)}…
-                          {activeAccount.address.slice(-4)}
-                        </code>
-                        {ACTIVE_CHAINS.length === 1 && (
-                          <>
-                            {" "}— {PAYMENT_TOKEN} on {PRIMARY_CHAIN_CONFIG.name}:{" "}
-                            {isBalanceLoading
-                              ? "Loading..."
-                              : usdcBalance?.displayValue ?? "0"}
-                          </>
-                        )}
-                      </p>
-                    ) : (
-                      <>
-                        <p className="modal-help">
-                          Connect a wallet with {PAYMENT_TOKEN} on{" "}
-                          {formatNetworkList(SUPPORTED_PAYMENT_NETWORK_LABELS)} to pay.
-                        </p>
-                        <ConnectButton client={thirdwebClient} wallets={WALLETS} />
-                      </>
-                    )}
-                  </div>
-                  <p className="modal-text" style={{ marginTop: "0.25rem" }}>
-                    Payment accepted in <strong>{PAYMENT_TOKEN}</strong> on:{" "}
-                    <strong>{formatNetworkList(SUPPORTED_PAYMENT_NETWORK_LABELS)}</strong>.
-                  </p>
+
                   {formError && <p className="modal-error">{formError}</p>}
                   <div className="modal-actions">
                     <button
                       type="button"
                       className="btn btn-ghost"
-                      onClick={resetVerifyDialog}
+                      onClick={() => setVerifyDialogStep("intro")}
                     >
-                      Cancel
+                      Back
                     </button>
                     <button
                       type="button"
                       className="btn btn-action"
-                      onClick={handleSubmitVerify}
-                      disabled={isPaymentPending}
+                      disabled={!isFormComplete()}
+                      onClick={() => { setFormError(""); setVerifyDialogStep("payment"); }}
                     >
-                      {isPaymentPending ? "Processing…" : "Submit & Pay"}
+                      Continue
                     </button>
                   </div>
-                    </>
+                </>
+              )}
+
+              {/* ── Step 3: Payment ── */}
+              {verifyDialogStep === "payment" && (
+                <>
+                  <h2 className="modal-title">Review &amp; pay</h2>
+                  <p className="modal-text">
+                    You are submitting a{" "}
+                    <strong>{verifyType}</strong> verification request for{" "}
+                    <strong className="modal-entity-name">{e.display_name || "this entity"}</strong>.
+                  </p>
+                  <p className="modal-fee">
+                    <span className="modal-fee-label">Amount due:</span>{" "}
+                    <span className="modal-fee-amount">$0.10 USDC</span>
+                  </p>
+
+                  <div className="modal-field">
+                    <label className="modal-label" htmlFor="payment-network">Pay with</label>
+                    {ACTIVE_CHAINS.length === 1 ? (
+                      <p className="modal-help" style={{ marginTop: 0 }}>
+                        <strong>{PAYMENT_TOKEN}</strong> on <strong>{selectedChainConfig.name}</strong>
+                      </p>
+                    ) : (
+                      <select
+                        id="payment-network"
+                        className="modal-select"
+                        value={selectedNetworkKey}
+                        onChange={(ev) => setSelectedNetworkKey(ev.target.value)}
+                      >
+                        {ACTIVE_CHAINS.map((c) => (
+                          <option key={c.key} value={c.key}>
+                            {PAYMENT_TOKEN} on {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  {activeAccount && (
+                    <div className="modal-wallet-info">
+                      <div className="modal-wallet-row">
+                        <span className="modal-wallet-label">Wallet</span>
+                        <code className="modal-wallet-address">
+                          {activeAccount.address.slice(0, 6)}…{activeAccount.address.slice(-4)}
+                        </code>
+                        <button
+                          type="button"
+                          className="modal-wallet-disconnect"
+                          onClick={() => activeWallet && disconnect(activeWallet)}
+                        >
+                          Disconnect
+                        </button>
+                      </div>
+                      <div className="modal-wallet-row">
+                        <span className="modal-wallet-label">Balance</span>
+                        <span>
+                          {isBalanceLoading
+                            ? "Loading…"
+                            : `${usdcBalance?.displayValue ?? "0"} ${PAYMENT_TOKEN}`}
+                        </span>
+                      </div>
+                    </div>
                   )}
+
+                  {activeAccount && !isBalanceLoading && !hasSufficientBalance && (
+                    <p className="modal-error" style={{ marginTop: "0.75rem" }}>
+                      Insufficient {PAYMENT_TOKEN} balance on {selectedChainConfig.name}.
+                      You need at least ${VERIFICATION_PRICE_USDC.toFixed(2)} {PAYMENT_TOKEN} to proceed.
+                    </p>
+                  )}
+                  {formError && <p className="modal-error">{formError}</p>}
+                  <div className="modal-actions">
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      onClick={() => { setFormError(""); setVerifyDialogStep("form"); }}
+                    >
+                      Back
+                    </button>
+                    {!activeAccount ? (
+                      <ConnectButton
+                        client={thirdwebClient}
+                        wallets={WALLETS}
+                        connectButton={{
+                          label: "Connect Wallet",
+                          style: {
+                            fontFamily: "inherit",
+                            fontSize: "0.9rem",
+                            fontWeight: 700,
+                            padding: "0.65rem 1.5rem",
+                            borderRadius: "10px",
+                            border: "none",
+                            background: "#fff",
+                            color: "#0a0a0b",
+                            cursor: "pointer",
+                          },
+                        }}
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn btn-action"
+                        disabled={!hasSufficientBalance || isPaymentPending}
+                        onClick={handleSubmitVerify}
+                      >
+                        {isPaymentPending ? "Processing…" : "Submit & Pay"}
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {/* ── Success ── */}
+              {verifyDialogStep === "success" && (
+                <>
+                  <h2 className="modal-title">Request submitted</h2>
+                  <p className="modal-text">
+                    Your verification request for{" "}
+                    <strong className="modal-entity-name">{e.display_name || "this entity"}</strong>{" "}
+                    has been submitted. We will review it and get back to you.
+                  </p>
+                  <div className="modal-actions">
+                    <button
+                      type="button"
+                      className="btn btn-action"
+                      onClick={resetVerifyDialog}
+                    >
+                      Done
+                    </button>
+                  </div>
                 </>
               )}
             </div>

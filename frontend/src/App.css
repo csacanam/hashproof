@@ -680,6 +680,13 @@
   opacity: 0.9;
 }
 
+.btn-action:disabled,
+.btn-ghost:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 .btn-action--verify {
   background: transparent;
   color: #fff;
@@ -738,18 +745,76 @@
   cursor: pointer;
 }
 
+.modal-step {
+  margin: 0 0 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted, #888);
+}
+
+.modal-entity-name {
+  color: var(--color-text);
+}
+
 .modal-fee {
   margin: 0 0 0.75rem;
   font-size: 0.95rem;
+  font-weight: 600;
   color: var(--color-text);
 }
 
 .modal-fee-label {
-  color: var(--color-text-muted);
+  color: var(--color-text);
 }
 
 .modal-fee-amount {
   font-weight: 600;
+}
+
+.modal-wallet-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.75rem 1rem;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border, rgba(255,255,255,0.08));
+  border-radius: 8px;
+  font-size: 0.875rem;
+}
+
+.modal-wallet-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.modal-wallet-label {
+  color: var(--color-text-muted, #888);
+  min-width: 4.5rem;
+  flex-shrink: 0;
+}
+
+.modal-wallet-row code {
+  font-size: 0.875em;
+  line-height: 1;
+  vertical-align: baseline;
+}
+
+.modal-wallet-disconnect {
+  margin-left: auto;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.8rem;
+  color: var(--color-text-muted, #888);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.modal-wallet-disconnect:hover {
+  color: var(--color-text);
 }
 
 .modal-wallet-address {
@@ -767,6 +832,11 @@
   margin: 0 0 1.5rem;
   font-size: 0.9rem;
   color: var(--color-text-muted);
+}
+
+.modal-text strong {
+  color: var(--color-text);
+  font-weight: 600;
 }
 
 .modal-help {
@@ -829,6 +899,7 @@
   display: flex;
   justify-content: flex-end;
   gap: 0.75rem;
+  margin-top: 1.5rem;
 }
 
 .btn-ghost {
