@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import PdfViewer from "../components/PdfViewer.jsx";
+import SiteHeader from "../components/SiteHeader.jsx";
+import SiteFooter from "../components/SiteFooter.jsx";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4022";
 
@@ -125,6 +127,7 @@ export default function Verify() {
   if (loading) {
     return (
       <div className="page verify-page verify-page--loading">
+        <SiteHeader plain />
         <main className="verify-main">
           <div className="verify-loader">
             <div className="verify-loader__spinner" />
@@ -162,18 +165,14 @@ export default function Verify() {
   if (error) {
     return (
       <div className="page verify-page">
-        <header className="header header--verify">
-          <Link to="/" className="logo">
-            HashProof
-          </Link>
-          <p className="header-subtitle">Credential Verification Service</p>
-        </header>
+        <SiteHeader plain />
         <main className="verify-main">
           <p className="verify-error">{error}</p>
           <Link to="/" className="link-back">
             ← Back to home
           </Link>
         </main>
+        <SiteFooter />
       </div>
     );
   }
@@ -204,12 +203,7 @@ export default function Verify() {
 
   return (
     <div className="page verify-page">
-      <header className="header header--verify">
-        <Link to="/" className="logo">
-          HashProof
-        </Link>
-        <p className="header-subtitle">Credential Verification Service</p>
-      </header>
+      <SiteHeader plain />
 
       <main className="verify-main">
         <div className="verify-pdf-section">
@@ -459,6 +453,7 @@ export default function Verify() {
           </dl>
         </div>
       </main>
+      <SiteFooter />
     </div>
   );
 }

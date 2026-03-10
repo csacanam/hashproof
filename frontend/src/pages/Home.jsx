@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom";
 import JsonHighlight from "../components/JsonHighlight.jsx";
+import SiteHeader from "../components/SiteHeader.jsx";
+import SiteFooter from "../components/SiteFooter.jsx";
 
 const DEMO_CREDENTIAL_ID = "4c9f7420-0d1e-4340-9edb-e612df2ecea6";
 const DEMO_ENTITY_SLUG = "hashproof";
@@ -50,20 +52,7 @@ const STEPS = [
 export default function Home() {
   return (
     <div className="page">
-      <header className="header">
-        <Link to="/" className="logo">HashProof</Link>
-        <nav className="home-nav">
-          <a
-            href="https://github.com/csacanam/hashproof"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="home-nav-link"
-          >
-            GitHub
-          </a>
-          <Link to="/docs" className="home-nav-link">Docs</Link>
-        </nav>
-      </header>
+      <SiteHeader />
 
       <main>
         {/* ── Hero ── */}
@@ -209,23 +198,13 @@ export default function Home() {
             Each verified entity has a public profile and an authorized set of wallets
             that can issue credentials on its behalf.
           </p>
-          <Link to={`/entities/${DEMO_ENTITY_SLUG}`} className="home-entity-link">
-            View the HashProof entity page →
+          <Link to="/entity-verification" className="home-entity-link">
+            Learn how entity verification works →
           </Link>
         </section>
       </main>
 
-      <footer className="footer">
-        <p>
-          HashProof is open infrastructure for issuing and verifying digital credentials.
-        </p>
-        <p className="footer-copy">
-          © HashProof 2026 · Built by{" "}
-          <a href="https://x.com/camilosaka" target="_blank" rel="noopener noreferrer">
-            @camilosaka
-          </a>
-        </p>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

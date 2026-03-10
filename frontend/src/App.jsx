@@ -3,6 +3,7 @@ import Home from "./pages/Home.jsx";
 import Verify from "./pages/Verify.jsx";
 import Entity from "./pages/Entity.jsx";
 import Docs from "./pages/Docs.jsx";
+import EntityVerification from "./pages/EntityVerification.jsx";
 
 function App() {
   return (
@@ -11,6 +12,7 @@ function App() {
       <Route path="/verify/:id" element={<Verify />} />
       <Route path="/entities/:id" element={<Entity />} />
       <Route path="/docs" element={<Docs />} />
+      <Route path="/entity-verification" element={<EntityVerification />} />
     </Routes>
   );
 }

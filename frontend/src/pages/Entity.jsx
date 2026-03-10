@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import SiteHeader from "../components/SiteHeader.jsx";
+import SiteFooter from "../components/SiteFooter.jsx";
 import {
   useFetchWithPayment,
   useActiveAccount,
@@ -102,18 +104,14 @@ export default function Entity() {
   if (error) {
     return (
       <div className="page verify-page">
-        <header className="header header--verify">
-          <Link to="/" className="logo">
-            HashProof
-          </Link>
-          <p className="header-subtitle">Entity Status</p>
-        </header>
+        <SiteHeader plain />
         <main className="verify-main">
           <p className="verify-error">{error}</p>
           <Link to="/" className="link-back">
             ← Back to home
           </Link>
         </main>
+        <SiteFooter />
       </div>
     );
   }
@@ -356,12 +354,7 @@ export default function Entity() {
 
   return (
     <div className="page verify-page">
-      <header className="header header--verify">
-        <Link to="/" className="logo">
-          HashProof
-        </Link>
-        <p className="header-subtitle">Credential Verification Service</p>
-      </header>
+      <SiteHeader plain />
 
       <main className="verify-main">
         <div className="verify-card">
@@ -809,6 +802,7 @@ export default function Entity() {
           </div>
         )}
       </main>
+      <SiteFooter />
     </div>
   );
 }
