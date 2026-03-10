@@ -18,6 +18,7 @@ import { executeIssueCredential } from "./services/issueCredential.js";
 import { getCredentialById } from "./services/getCredential.js";
 import { getEntityById } from "./services/getEntity.js";
 import { createVerificationRequest } from "./services/createVerificationRequest.js";
+import { CHAIN_CONFIG } from "./utils/chains.js";
 import { generateCredentialPdf } from "./services/generatePdf.js";
 import {
   runVerificationPipeline,
@@ -255,10 +256,20 @@ export function createApp(options = {}) {
 
       const priceUsd = ENTITY_VERIFICATION_PRICE_USD;
 
+      const txHash = res.getHeader("X-PAYMENT-RESPONSE") || null;
+      const networkKey = req.get("x-payment-network")
+        ?? process.env.X402_NETWORKS?.split(",")[0]?.trim()
+        ?? "base";
+      const explorerTxUrl = txHash && CHAIN_CONFIG[networkKey]
+        ? CHAIN_CONFIG[networkKey].explorerTxUrl(txHash)
+        : null;
+
       const request = await createVerificationRequest(entityId, type, form, {
         price_usd: priceUsd,
         currency: "USDC",
-        network: process.env.X402_NETWORKS?.split(",")[0]?.trim() || "base",
+        network: networkKey,
+        tx_hash: txHash,
+        tx_explorer_url: explorerTxUrl,
       });
 
       return res.status(201).json({

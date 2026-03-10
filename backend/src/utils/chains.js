@@ -16,6 +16,7 @@ export const CHAIN_CONFIG = {
     thirdwebChain: base,
     usdcAddress: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
     gasToken: "ETH",
+    explorerTxUrl: (hash) => `https://basescan.org/tx/${hash}`,
     getRpcUrl: () => process.env.BASE_RPC_URL || "https://mainnet.base.org",
   },
   celo: {
@@ -23,6 +24,7 @@ export const CHAIN_CONFIG = {
     thirdwebChain: celo,
     usdcAddress: "0xceba9300f2b948710d2653dd7b07f33a8b32118c",
     gasToken: "CELO",
+    explorerTxUrl: (hash) => `https://celoscan.io/tx/${hash}`,
     getRpcUrl: () => process.env.CELO_RPC_URL || "https://forno.celo.org",
   },
   polygon: {
@@ -30,6 +32,7 @@ export const CHAIN_CONFIG = {
     thirdwebChain: polygon,
     usdcAddress: "0x3c499c542cef5e3811e1192ce70d8cc03d5c3359",
     gasToken: "MATIC",
+    explorerTxUrl: (hash) => `https://polygonscan.com/tx/${hash}`,
     getRpcUrl: () => process.env.POLYGON_RPC_URL || "https://polygon-rpc.com",
   },
   arbitrum: {
@@ -37,6 +40,7 @@ export const CHAIN_CONFIG = {
     thirdwebChain: arbitrum,
     usdcAddress: "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
     gasToken: "ETH",
+    explorerTxUrl: (hash) => `https://arbiscan.io/tx/${hash}`,
     getRpcUrl: () => process.env.ARBITRUM_RPC_URL || "https://arb1.arbitrum.io/rpc",
   },
 };

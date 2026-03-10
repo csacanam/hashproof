@@ -27,6 +27,8 @@ export async function createVerificationRequest(entityId, type, form, meta = {})
       price_usd: meta.price_usd ?? null,
       currency: meta.currency ?? undefined,
       network: meta.network ?? undefined,
+      tx_hash: meta.tx_hash ?? null,
+      tx_explorer_url: meta.tx_explorer_url ?? null,
       status: "pending",
     })
     .select("*")

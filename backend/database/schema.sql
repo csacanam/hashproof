@@ -240,9 +240,16 @@ create table entity_verification_requests (
   currency text not null default 'USDC',
   network text not null default 'celo',
 
+  tx_hash text,
+  tx_explorer_url text,
+
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Migration for existing databases:
+-- alter table entity_verification_requests add column if not exists tx_hash text;
+-- alter table entity_verification_requests add column if not exists tx_explorer_url text;
 
 create index entity_verification_requests_entity_id_idx
   on entity_verification_requests (entity_id);
