@@ -4,37 +4,28 @@ const DEMO_CREDENTIAL_ID = "4c9f7420-0d1e-4340-9edb-e612df2ecea6";
 const DEMO_ENTITY_SLUG = "hashproof";
 
 const PAYLOAD_EXAMPLE = `{
-  "issuer":   { "display_name": "Acme Corp", "slug": "acme-corp" },
-  "platform": { "display_name": "Acme Corp", "slug": "acme-corp" },
-  "holder":   { "full_name": "María García" },
-  "context":  { "type": "course", "title": "Intro to Blockchain" },
+  "issuer": {
+    "display_name": "Acme Corp",
+    "slug": "acme-corp"
+  },
+  "platform": {
+    "display_name": "Acme Corp",
+    "slug": "acme-corp"
+  },
+  "holder": {
+    "full_name": "María García"
+  },
+  "context": {
+    "type": "course",
+    "title": "Intro to Blockchain"
+  },
   "credential_type": "completion",
   "title": "Certificate of Completion",
-  "values":   { "holder_name": "María García" }
+  "values": {
+    "holder_name": "María García"
+  }
 }`;
 
-const FEATURES = [
-  {
-    icon: "⛓️",
-    title: "On-chain registry",
-    desc: "Every credential is registered on Celo. Status checks go to the blockchain — not a centralized database.",
-  },
-  {
-    icon: "📦",
-    title: "IPFS backup",
-    desc: "Credential data is pinned to IPFS via Pinata. Verifiable even if HashProof goes offline.",
-  },
-  {
-    icon: "⚡",
-    title: "x402 payments",
-    desc: "No accounts, no billing dashboards. Pay per call in USDC. AI agents can call the API autonomously.",
-  },
-  {
-    icon: "🏛️",
-    title: "Entity verification",
-    desc: "Organizations and individuals can verify their identity. Credentials show whether the issuer is verified.",
-  },
-];
 
 const STEPS = [
   {
@@ -118,22 +109,6 @@ export default function Home() {
           </p>
         </section>
 
-        {/* ── Features ── */}
-        <section className="section">
-          <h2>Built for trust at the infrastructure layer</h2>
-          <div className="home-features">
-            {FEATURES.map((f) => (
-              <div key={f.title} className="home-feature-card">
-                <span className="home-feature-icon">{f.icon}</span>
-                <div>
-                  <p className="home-feature-title">{f.title}</p>
-                  <p className="home-feature-desc">{f.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
         {/* ── How it works ── */}
         <section className="section">
           <h2>How it works</h2>
@@ -150,6 +125,64 @@ export default function Home() {
           </div>
         </section>
 
+        {/* ── Trust pipeline ── */}
+        <section className="section">
+          <h2>Built for trust</h2>
+          <p className="section-p">
+            Every credential is verified across three independent layers.
+            If any layer fails to match, the credential is flagged — no exceptions.
+          </p>
+          <div className="home-pipeline">
+            <div className="home-pipeline-item">
+              <div className="home-pipeline-icon">⛓️</div>
+              <div className="home-pipeline-body">
+                <p className="home-pipeline-title">Blockchain contract</p>
+                <p className="home-pipeline-desc">
+                  The credential hash is registered on Celo mainnet at issuance.
+                  Verification checks the contract first — it's the most authoritative source.
+                </p>
+              </div>
+            </div>
+            <div className="home-pipeline-connector">↓</div>
+            <div className="home-pipeline-item">
+              <div className="home-pipeline-icon">📦</div>
+              <div className="home-pipeline-body">
+                <p className="home-pipeline-title">IPFS content hash</p>
+                <p className="home-pipeline-desc">
+                  The credential JSON is pinned to IPFS. Any modification to the data
+                  produces a different hash — making tampering immediately detectable.
+                </p>
+              </div>
+            </div>
+            <div className="home-pipeline-connector">↓</div>
+            <div className="home-pipeline-item">
+              <div className="home-pipeline-icon">🏛️</div>
+              <div className="home-pipeline-body">
+                <p className="home-pipeline-title">Entity verification</p>
+                <p className="home-pipeline-desc">
+                  The issuer's identity is checked against HashProof's verified entity registry.
+                  Credentials show whether the issuer has been reviewed and approved.
+                </p>
+              </div>
+            </div>
+            <div className="home-pipeline-connector">↓</div>
+            <div className="home-pipeline-item">
+              <div className="home-pipeline-icon">📄</div>
+              <div className="home-pipeline-body">
+                <p className="home-pipeline-title">W3C Verifiable Credentials v2</p>
+                <p className="home-pipeline-desc">
+                  Every credential follows the W3C VC Data Model v2 standard —
+                  interoperable with any system that understands the spec.
+                </p>
+              </div>
+            </div>
+          </div>
+          <p className="home-pipeline-note">
+            Even if HashProof goes offline, the blockchain and IPFS records remain
+            independently verifiable by anyone.
+          </p>
+        </section>
+
         {/* ── For agents ── */}
         <section className="section">
           <h2>Designed for AI agents</h2>
@@ -162,12 +195,6 @@ export default function Home() {
             An agent sends a POST request, receives a 402 Payment Required response with
             a USDC payment request, pays on-chain, and retries — all programmatically.
           </p>
-          <div className="home-pill-row">
-            <span className="home-pill">No API keys</span>
-            <span className="home-pill">No rate-limit dashboards</span>
-            <span className="home-pill">Pay per use</span>
-            <span className="home-pill">Base + Celo</span>
-          </div>
         </section>
 
         {/* ── Entity verification ── */}
