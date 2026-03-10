@@ -463,15 +463,15 @@
 }
 
 .entity-flag--unverified {
-  background: rgba(248, 113, 113, 0.15);
-  color: #f87171;
-  border: 1px solid rgba(248, 113, 113, 0.3);
-}
-
-.entity-flag--suspended {
   background: rgba(251, 146, 60, 0.15);
   color: #fb923c;
   border: 1px solid rgba(251, 146, 60, 0.3);
+}
+
+.entity-flag--suspended {
+  background: rgba(248, 113, 113, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(248, 113, 113, 0.3);
 }
 
 .verify-explorer-link {
