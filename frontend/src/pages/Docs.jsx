@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import JsonHighlight from "../components/JsonHighlight.jsx";
+import CodeHighlight from "../components/CodeHighlight.jsx";
 
 const API_BASE = "https://api.hashproof.dev";
 
@@ -29,11 +29,31 @@ function CodeBlock({ code, lang = "json", label }) {
         </div>
       )}
       {!label && <CopyButton text={code} />}
-      {lang === "json" ? (
-        <JsonHighlight code={code} className="docs-code" />
-      ) : (
-        <pre className="docs-code docs-code--plain">{code}</pre>
-      )}
+      <CodeHighlight code={code} lang={lang} className="docs-code" />
+    </div>
+  );
+}
+
+function CodeTabs({ tabs }) {
+  const [active, setActive] = useState(tabs[0].label);
+  const current = tabs.find((t) => t.label === active);
+  return (
+    <div className="docs-code-block">
+      <div className="docs-code-top">
+        <div className="docs-tabs">
+          {tabs.map((t) => (
+            <button
+              key={t.label}
+              className={`docs-tab ${active === t.label ? "docs-tab--active" : ""}`}
+              onClick={() => setActive(t.label)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <CopyButton text={current.code} />
+      </div>
+      <CodeHighlight code={current.code} lang={current.lang} className="docs-code" />
     </div>
   );
 }
@@ -117,17 +137,45 @@ const MINIMAL_EXAMPLE = `{
   }
 }`;
 
-const CURL_EXAMPLE = `curl -X POST ${API_BASE}/issueCredential \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "issuer":   { "display_name": "Acme Corp", "slug": "acme-corp" },
-    "platform": { "display_name": "Acme Corp", "slug": "acme-corp" },
-    "holder":   { "full_name": "María García" },
-    "context":  { "type": "course", "title": "Intro to Blockchain" },
-    "credential_type": "completion",
-    "title": "Certificate of Completion",
-    "values":   { "holder_name": "María García" }
-  }'`;
+function nodeExample(chain) {
+  return `import { createThirdwebClient } from "thirdweb";
+import { wrapFetchWithPayment } from "thirdweb/x402";
+import { privateKeyToAccount } from "thirdweb/wallets";
+import { ${chain} } from "thirdweb/chains";
+
+const client  = createThirdwebClient({ clientId: "YOUR_CLIENT_ID" });
+const account = privateKeyToAccount({ client, privateKey: process.env.PRIVATE_KEY });
+
+let currentChain = ${chain};
+const wallet = {
+  getAccount:  () => account,
+  getChain:    () => currentChain,
+  switchChain: async (chain) => { currentChain = chain; },
+};
+
+const fetchWithPayment = wrapFetchWithPayment(fetch, client, wallet);
+
+const res = await fetchWithPayment("https://api.hashproof.dev/issueCredential", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    issuer:          { display_name: "HashProof", slug: "hashproof" },
+    platform:        { display_name: "HashProof", slug: "hashproof" },
+    holder:          { full_name: "Your Name" },
+    context:         { type: "certification", title: "HashProof API Quickstart" },
+    credential_type: "completion",
+    title:           "First Credential Issued",
+    values: {
+      holder_name: "Your Name",
+      details:     "For successfully issuing a verifiable credential using the HashProof API.",
+    },
+  }),
+});
+
+const { verification_url } = await res.json();
+console.log(verification_url);`;
+}
+
 
 const ISSUE_RESPONSE = `{
   "id": "a1b2c3d4-...",
@@ -228,25 +276,42 @@ export default function Docs() {
 
           {/* Quick Start */}
           <Section id="quickstart" title="Quick Start">
-            <p className="docs-p">Issue your first verifiable credential in under two minutes.</p>
+            <p className="docs-p">
+              Issue a verifiable credential with a single API call.
+              No account, no API key — each credential costs <strong>$0.10 USDC</strong>, paid
+              on-chain automatically via x402.
+            </p>
 
-            <SubSection id="quickstart-test" title="Test locally (no payment)">
-              <p className="docs-p">
-                Add <code>SKIP_PAYMENT=true</code> to your backend <code>.env</code> and restart.
-                This bypasses x402 so you can test without a wallet.
-              </p>
-              <CodeBlock lang="bash" label="bash" code={CURL_EXAMPLE} />
-              <p className="docs-p">You'll receive:</p>
-              <CodeBlock code={ISSUE_RESPONSE} label="response" />
+            <SubSection id="quickstart-prereqs" title="Before you start">
+              <ul className="docs-ol">
+                <li>
+                  <strong>Node.js 18+</strong>
+                </li>
+                <li>
+                  <strong>A wallet with USDC</strong> on Base or Celo — at least $0.10 per credential.
+                </li>
+                <li>
+                  <strong>thirdweb Client ID</strong> — free at{" "}
+                  <a href="https://thirdweb.com/dashboard" target="_blank" rel="noopener noreferrer">thirdweb.com/dashboard</a>.
+                  Create a project and copy the Client ID.
+                </li>
+              </ul>
             </SubSection>
 
-            <SubSection id="quickstart-live" title="Production (x402 payment)">
+            <SubSection id="quickstart-node" title="Issue your first credential">
+              <CodeBlock lang="bash" label="terminal" code={`npm install thirdweb`} />
+              <CodeTabs tabs={[
+                { label: "Celo", lang: "js", code: nodeExample("celo") },
+                { label: "Base", lang: "js", code: nodeExample("base") },
+              ]} />
+              <CodeBlock lang="bash" label="terminal" code={`PRIVATE_KEY=0x... node issue.mjs`} />
+            </SubSection>
+
+            <SubSection id="quickstart-response" title="What you get back">
+              <CodeBlock code={ISSUE_RESPONSE} label="response" />
               <p className="docs-p">
-                In production, the API returns <code>402 Payment Required</code> first.
-                Your client pays <strong>$0.10 USDC</strong> on Base or Celo and retries automatically.
-                Use the{" "}
-                <a href="https://portal.thirdweb.com/typescript/v5/extensions/erc20" target="_blank" rel="noopener noreferrer">thirdweb SDK</a>{" "}
-                or any x402-compatible client — no API key required.
+                Share <code>verification_url</code> with the credential holder — it renders the
+                certificate and QR code. The same URL is printed on the downloadable PDF.
               </p>
             </SubSection>
           </Section>
@@ -254,17 +319,18 @@ export default function Docs() {
           {/* x402 */}
           <Section id="x402" title="x402 Payments">
             <p className="docs-p">
-              HashProof uses the <strong>x402 protocol</strong> — an open standard for HTTP-native
-              micropayments. There are no API keys, accounts, or billing dashboards.
-              Clients pay per call, directly on-chain.
+              HashProof charges <strong>$0.10 USDC per credential</strong>, paid on-chain using the{" "}
+              <strong>x402 protocol</strong>. There is no subscription, no billing dashboard, and no
+              API key to manage. You pay only for what you issue.
             </p>
 
-            <SubSection id="x402-flow" title="How it works">
+            <SubSection id="x402-flow" title="What happens under the hood">
               <ol className="docs-ol">
-                <li>Client sends a <code>POST /issueCredential</code> request (no auth header).</li>
-                <li>Server returns <code>402 Payment Required</code> with a <code>PAYMENT-REQUIRED</code> header describing the payment.</li>
-                <li>Client pays $0.10 USDC on Base or Celo and retries with an <code>X-PAYMENT</code> header.</li>
-                <li>Server verifies the payment and issues the credential.</li>
+                <li>Your client calls <code>POST /issueCredential</code>.</li>
+                <li>The API responds <code>402 Payment Required</code> with the amount and network.</li>
+                <li>The thirdweb SDK signs a USDC transfer authorization from your wallet.</li>
+                <li>The SDK retries the request with the payment header — no manual steps needed.</li>
+                <li>HashProof settles the payment on-chain and returns the issued credential.</li>
               </ol>
             </SubSection>
 
@@ -273,8 +339,11 @@ export default function Docs() {
                 <span className="docs-badge">Base</span>
                 <span className="docs-badge">Celo</span>
                 <span className="docs-badge">USDC</span>
-                <span className="docs-badge">$0.10 per call</span>
+                <span className="docs-badge">$0.10 per credential</span>
               </div>
+              <p className="docs-p" style={{ marginTop: "0.75rem" }}>
+                You choose which network to pay on. Both settle in USDC with no gas fees on your end.
+              </p>
             </SubSection>
           </Section>
 
@@ -304,8 +373,8 @@ export default function Docs() {
                 ["values.holder_name", "string", true, "Name rendered on the certificate (default template)"],
                 ["values.details", "string", false, "Optional subtitle on the certificate"],
                 ["template_slug", "string", false, "Slug of an existing template. Defaults to hashproof"],
-                ["issuer_entity_id", "UUID", false, "Links to a registered entity. Enforces wallet auth if entity is verified"],
-                ["platform_entity_id", "UUID", false, "Links to a registered platform entity"],
+                ["issuer_entity_id", "UUID", false, "Your entity ID from hashproof.dev/entities. Credentials will show your verified badge if your entity is verified"],
+                ["platform_entity_id", "UUID", false, "The platform entity issuing on your behalf. Can be the same as issuer for self-issuance"],
               ]} />
             </SubSection>
 
@@ -439,16 +508,17 @@ export default function Docs() {
               ]} />
             </SubSection>
 
-            <SubSection id="ia-admin" title="Granting authorization (admin)">
-              <CodeBlock lang="bash" label="bash" code={`curl -X POST ${API_BASE}/admin/issuer-authorizations \\
-  -H "Authorization: Bearer YOUR_ADMIN_SECRET" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "issuer_entity_id":   "uuid-of-the-issuer",
-    "platform_entity_id": "uuid-of-the-platform",
-    "status": "approved"
-  }'`} />
-              <p className="docs-p">Set <code>status</code> to <code>revoked</code> to remove access.</p>
+            <SubSection id="ia-request" title="How to request authorization">
+              <p className="docs-p">
+                Authorizations are managed by HashProof. To grant a platform permission to issue
+                on your behalf — or to revoke an existing authorization — contact us at{" "}
+                <a href="mailto:hello@hashproof.dev">hello@hashproof.dev</a> with:
+              </p>
+              <ul className="docs-ol">
+                <li>Your entity ID (issuer)</li>
+                <li>The platform entity ID you want to authorize</li>
+                <li>Whether you want to <strong>grant</strong> or <strong>revoke</strong> access</li>
+              </ul>
             </SubSection>
           </Section>
 

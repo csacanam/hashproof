@@ -1519,6 +1519,25 @@
   letter-spacing: 0.06em;
 }
 
+.docs-tabs {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.docs-tab {
+  background: none;
+  border: none;
+  font-size: 0.78rem;
+  color: #52525b;
+  padding: 0.2em 0.65em;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.15s, background 0.15s;
+}
+.docs-tab:hover { color: #a1a1aa; background: #27272a; }
+.docs-tab--active { color: #e4e4e7; background: #27272a; font-weight: 600; }
+
 .docs-copy-btn {
   background: #18181b;
   border: 1px solid #27272a;
