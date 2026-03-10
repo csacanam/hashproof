@@ -623,8 +623,9 @@ export default function Entity() {
                     <span className="modal-fee-label">Amount due:</span>{" "}
                     <span className="modal-fee-amount">$0.10 USDC</span>
                   </p>
+                  <p className="modal-gasless">⛽ No gas fees for this transaction.</p>
 
-                  <div className="modal-field">
+                  <div className="modal-field" style={{ marginTop: "1.25rem" }}>
                     <label className="modal-label" htmlFor="payment-network">Pay with</label>
                     {ACTIVE_CHAINS.length === 1 ? (
                       <p className="modal-help" style={{ marginTop: 0 }}>

@@ -758,6 +758,12 @@
   color: var(--color-text);
 }
 
+.modal-gasless {
+  margin: 0 0 0.75rem;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
 .modal-fee {
   margin: 0 0 0.75rem;
   font-size: 0.95rem;
