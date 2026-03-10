@@ -1,3 +1,12 @@
+/**
+ * Verification pipeline.
+ *
+ * Three independent layers checked in sequence:
+ *   1. Blockchain (CredentialRegistry contract) — source of truth for status
+ *   2. IPFS (Pinata) — immutable credential JSON backup
+ *   3. Database (Supabase) — display metadata (recipient, template, issuer)
+ */
+
 import { Contract, JsonRpcProvider } from "ethers";
 
 const REGISTRY_READ_ABI = [

@@ -1,27 +1,42 @@
 # HashProof
 
-Verifiable credentials issued via x402 on Celo.
+Verifiable credentials with IPFS backup, on-chain registry, and pay-per-call API via x402.
 
-## Networks
+## What it is
 
-- **Celo mainnet**  
-  - `CredentialRegistry` address: `0xFD899A0BbdB5378Cb676305e91Ef01939E3B01ba`
+HashProof is a credential issuance API. Organizations and Individuals (entities) issue verifiable credentials to people. Each credential is:
 
-## Project layout
+- Stored as a JSON in the database and backed up on IPFS (Pinata)
+- Registered on-chain in the `CredentialRegistry` contract on Celo
+- Verifiable via a public URL: `https://hashproof.dev/verify/:id`
 
-- `backend/` — Credential issuance API
-- `frontend/` — Landing page and verification UI
+Calling the API requires a micropayment in USDC via the x402 protocol — no API keys, no subscriptions. AI agents can call the API directly using a funded wallet.
 
-## Frontend: credential format and endpoints
+## Project structure
 
-When displaying or verifying credentials:
+```
+backend/       Express API — credential issuance, verification, payments
+frontend/      React app — landing page, credential verification, entity pages
+contracts/     CredentialRegistry smart contract (Celo)
+docs/          Architecture and flow documentation
+```
 
-- **`credentialId`** — canonical identifier (DB `credentials.id`, UUID v4). Used in `/verify/{credentialId}`, IPFS filename `{credentialId}.json`, and as the key in the `CredentialRegistry` contract.
-- **`issuer.id`** is a URI, not a raw UUID: `{BASE_URL}/entities/{entity_id}`. Example: `https://hashproof.example.com/entities/bc309e8c-1d70-4b63-ab82-03acb90f7390`. Use this URI for links or lookups.
-- **`issuer.display_name`** — human-readable issuer name.
-- **`credentialSubject`** — does not include `id` (bearer credential).
-- **`proof`** — type `HashProofBlockchain` with `txHash`, `contractAddress`.
+## Deployed contracts
 
-**Endpoints:**
-- `GET {BASE_URL}/verify/:id` — fetch credential JSON for the verification page.
-- `GET {BASE_URL}/verify/:id/pdf` — download credential as PDF (trigger download after issuance).
+| Network      | Contract           | Address                                      |
+| ------------ | ------------------ | -------------------------------------------- |
+| Celo mainnet | CredentialRegistry | `0xFD899A0BbdB5378Cb676305e91Ef01939E3B01ba` |
+
+## Paid API endpoints
+
+| Endpoint                                  | Price      | Description                     |
+| ----------------------------------------- | ---------- | ------------------------------- |
+| `POST /issueCredential`                   | $0.10 USDC | Issue one verifiable credential |
+| `POST /entities/:id/verificationRequests` | $0.10 USDC | Submit a verification request   |
+
+Payment is in USDC on Base (configurable). The client signs an off-chain authorization — no gas required.
+
+## Quick start
+
+See `backend/README.md` and `frontend/README.md` for setup instructions.
+See [`docs/README.md`](./docs/README.md) for the full documentation index.

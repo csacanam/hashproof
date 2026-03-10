@@ -1,32 +1,33 @@
 # HashProof Frontend
 
-Landing page and credential verification UI.
+Landing page, credential verification UI, and entity pages.
 
 ## Setup
 
 ```bash
 npm install
+cp .env.example .env   # then fill in the values
+npm run dev            # runs at http://localhost:5173
 ```
 
-Copy `.env.example` to `.env` and set `VITE_API_URL` to your backend base URL (default: `http://localhost:4022`).
+## Environment variables
 
-## Development
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `VITE_API_URL` | yes | Backend base URL (default: `http://localhost:4022`) |
+| `VITE_THIRDWEB_CLIENT_ID` | yes | Thirdweb client ID for wallet connect and payments |
+| `VITE_X402_NETWORKS` | yes | Comma-separated payment networks — must match backend `X402_NETWORKS` |
 
-```bash
-npm run dev
-```
+## Routes
 
-Runs at `http://localhost:5173` (or next available port).
+| Path | Description |
+|------|-------------|
+| `/` | Home page |
+| `/verify/:id` | Credential verification — fetches from API, shows credential, offers PDF download |
+| `/entities/:id` | Entity page — shows verification status, allows submitting a verification request (paid) |
 
 ## Build
 
 ```bash
-npm run build
+npm run build   # output in dist/
 ```
-
-Output in `dist/`.
-
-## Routes
-
-- `/` — Home (product overview, docs copy)
-- `/verify/:id` — Credential verification page (fetches from API, displays credential, offers PDF download)

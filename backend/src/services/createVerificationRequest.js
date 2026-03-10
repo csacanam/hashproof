@@ -2,7 +2,7 @@ import { supabase } from "../supabase.js";
 
 /**
  * Create an entity verification request.
- * For now this is open (no x402), but the endpoint is designed to be protected later via x402.
+ * Protected by x402 (Thirdweb facilitator). Caller pays before request is created.
  */
 export async function createVerificationRequest(entityId, type, form, meta = {}) {
   if (!entityId) {

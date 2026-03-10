@@ -1,16 +1,19 @@
 /**
  * HashProof Express app factory.
- * Exported for testing (skipPayment bypasses x402).
+ *
+ * All routes live here. Exported as createApp() so tests can instantiate it
+ * with skipPayment=true to bypass x402.
+ *
+ * Paid routes (x402, USDC on Base):
+ *   POST /issueCredential
+ *   POST /entities/:id/verificationRequests
  */
 
 import express from "express";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
-import { generateJwt } from "@coinbase/cdp-sdk/auth";
-import { paymentMiddleware, x402ResourceServer } from "@x402/express";
-import { HTTPFacilitatorClient } from "@x402/core/server";
-import { ExactEvmScheme } from "@x402/evm/exact/server";
 import { ISSUE_CREDENTIAL_PRICE_USD, ENTITY_VERIFICATION_PRICE_USD } from "./utils/constants.js";
+import { createThirdwebPaymentMiddleware } from "./middleware/thirdwebPayment.js";
 import { executeIssueCredential } from "./services/issueCredential.js";
 import { getCredentialById } from "./services/getCredential.js";
 import { getEntityById } from "./services/getEntity.js";
@@ -22,116 +25,23 @@ import {
   verifyIpfsOnly,
 } from "./services/verifyPipeline.js";
 
-const CELO_NETWORK = "eip155:42220";
-
 export function createApp(options = {}) {
   const { skipPayment = false } = options;
 
-  const PAY_TO =
-    process.env.PAY_TO ||
-    (skipPayment ? "0x0000000000000000000000000000000000000000" : null);
-  const FACILITATOR_URL =
-    process.env.FACILITATOR_URL ||
-    "https://api.cdp.coinbase.com/platform/v2/x402";
   const RATE_LIMIT_WINDOW_MS =
     Number(process.env.RATE_LIMIT_WINDOW_MS) || 60_000;
   const RATE_LIMIT_MAX = Number(process.env.RATE_LIMIT_MAX) || 60;
   const RATE_LIMIT_NO_PAYMENT_MAX =
     Number(process.env.RATE_LIMIT_NO_PAYMENT_MAX) || 10;
 
-  if (!skipPayment && !PAY_TO) {
-    throw new Error("Missing required env: PAY_TO");
-  }
-
-  let paymentMw = (req, res, next) => next();
-  if (!skipPayment) {
-    const CDP_API_KEY_ID = process.env.CDP_API_KEY_ID;
-    const CDP_API_KEY_SECRET = process.env.CDP_API_KEY_SECRET;
-    const isCdpFacilitator = FACILITATOR_URL.includes("api.cdp.coinbase.com");
-
-    function buildFacilitatorClient() {
-      const config = { url: FACILITATOR_URL };
-      if (isCdpFacilitator && CDP_API_KEY_ID && CDP_API_KEY_SECRET) {
-        const facilitatorUrl = new URL(FACILITATOR_URL);
-        const host = facilitatorUrl.host;
-        const basePath = facilitatorUrl.pathname.replace(/\/$/, "") || "";
-        config.createAuthHeaders = async () => {
-          const [supportedJwt, verifyJwt, settleJwt] = await Promise.all([
-            generateJwt({
-              apiKeyId: CDP_API_KEY_ID,
-              apiKeySecret: CDP_API_KEY_SECRET,
-              requestMethod: "GET",
-              requestHost: host,
-              requestPath: `${basePath}/supported`,
-            }),
-            generateJwt({
-              apiKeyId: CDP_API_KEY_ID,
-              apiKeySecret: CDP_API_KEY_SECRET,
-              requestMethod: "POST",
-              requestHost: host,
-              requestPath: `${basePath}/verify`,
-            }),
-            generateJwt({
-              apiKeyId: CDP_API_KEY_ID,
-              apiKeySecret: CDP_API_KEY_SECRET,
-              requestMethod: "POST",
-              requestHost: host,
-              requestPath: `${basePath}/settle`,
-            }),
-          ]);
-          return {
-            supported: { Authorization: `Bearer ${supportedJwt}` },
-            verify: { Authorization: `Bearer ${verifyJwt}` },
-            settle: { Authorization: `Bearer ${settleJwt}` },
-          };
-        };
-      } else if (isCdpFacilitator) {
-        throw new Error(
-          "CDP facilitator requires CDP_API_KEY_ID and CDP_API_KEY_SECRET",
-        );
-      }
-      return new HTTPFacilitatorClient(config);
-    }
-
-    const facilitatorClient = buildFacilitatorClient();
-    const resourceServer = new x402ResourceServer(facilitatorClient).register(
-      CELO_NETWORK,
-      new ExactEvmScheme(),
-    );
-    paymentMw = paymentMiddleware(
-      {
-        "POST /issueCredential": {
-          accepts: [
-            {
-              scheme: "exact",
-              price: `$${ISSUE_CREDENTIAL_PRICE_USD}`,
-              network: CELO_NETWORK,
-              payTo: PAY_TO,
-            },
-          ],
-          description: "Issue one verifiable credential (HashProof)",
-          mimeType: "application/json",
-        },
-        "POST /entities/:id/verificationRequests": {
-          accepts: [
-            {
-              scheme: "exact",
-              price: `$${ENTITY_VERIFICATION_PRICE_USD}`,
-              network: CELO_NETWORK,
-              payTo: PAY_TO,
-            },
-          ],
-          description: "Request entity verification (HashProof)",
-          mimeType: "application/json",
-        },
-      },
-      resourceServer,
-    );
-  }
+  const paymentMw = createThirdwebPaymentMiddleware(skipPayment);
 
   const app = express();
   app.set("trust proxy", 1);
-  app.use(cors({ origin: true })); // allow all origins in dev; restrict in production
+  app.use(cors({
+    origin: true,
+    exposedHeaders: ["PAYMENT-REQUIRED", "payment-required", "X-PAYMENT-RESPONSE"],
+  }));
   app.use(express.json());
 
   const noPaymentRateLimit = rateLimit({
@@ -308,7 +218,6 @@ export function createApp(options = {}) {
       return res.json({
         entity,
         id: entity.id,
-        role: entity.role,
         display_name: entity.display_name,
         slug: entity.slug,
         website: entity.website,
@@ -349,7 +258,7 @@ export function createApp(options = {}) {
       const request = await createVerificationRequest(entityId, type, form, {
         price_usd: priceUsd,
         currency: "USDC",
-        network: "celo",
+        network: process.env.X402_NETWORKS?.split(",")[0]?.trim() || "base",
       });
 
       return res.status(201).json({
@@ -364,10 +273,10 @@ export function createApp(options = {}) {
   app.get("/", readOnlyRateLimit, (_req, res) => {
     res.json({
       name: "HashProof API",
-      description: "Issue verifiable credentials via x402 payment on Celo.",
+      description: "Issue verifiable credentials with IPFS backup and on-chain registry. Paid endpoints use x402 (USDC).",
       endpoints: {
-        "POST /issueCredential": `Paid (${ISSUE_CREDENTIAL_PRICE_USD} USD). Issue one credential. Full payload required.`,
-        "POST /entities/:id/verificationRequests": `Open for now (planned ${ENTITY_VERIFICATION_PRICE_USD} USD in USDC on Celo). Request entity verification.`,
+        "POST /issueCredential": `Paid ($${ISSUE_CREDENTIAL_PRICE_USD} USDC via x402). Issue one credential.`,
+        "POST /entities/:id/verificationRequests": `Paid ($${ENTITY_VERIFICATION_PRICE_USD} USDC via x402). Submit a verification request for an entity.`,
       },
     });
   });

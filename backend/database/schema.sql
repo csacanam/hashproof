@@ -335,3 +335,28 @@ $$ language plpgsql;
 create trigger credentials_prevent_credential_json_update
 before update on credentials
 for each row execute function prevent_credential_json_update();
+
+-- =========================================================
+-- GRANTS
+-- =========================================================
+
+-- entity_verification_requests: backend inserts via service role / anon key
+grant all on table entity_verification_requests to anon;
+grant all on table entity_verification_requests to authenticated;
+grant all on table entity_verification_requests to service_role;
+
+-- RLS policies for entity_verification_requests
+alter table entity_verification_requests enable row level security;
+
+create policy "service_role full access"
+  on entity_verification_requests
+  for all
+  to service_role
+  using (true)
+  with check (true);
+
+create policy "anon insert"
+  on entity_verification_requests
+  for insert
+  to anon
+  with check (true);

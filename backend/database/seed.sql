@@ -3,10 +3,9 @@
 -- Assumes empty DB (after drop schema + schema.sql).
 
 -- HashProof platform entity (owns base template; all verifications true)
-insert into entities (role, display_name, slug, email_verified, domain_verified, kyb_verified, last_verified_at)
-values ('platform', 'HashProof', 'hashproof', true, true, true, now())
+insert into entities (display_name, slug, email_verified, domain_verified, kyb_verified, last_verified_at)
+values ('HashProof', 'hashproof', true, true, true, now())
 on conflict (slug) do update set
-  role = excluded.role,
   email_verified = excluded.email_verified,
   domain_verified = excluded.domain_verified,
   kyb_verified = excluded.kyb_verified,

@@ -1,9 +1,34 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { useFetchWithPayment } from "thirdweb/react";
+import {
+  useFetchWithPayment,
+  useActiveAccount,
+  useWalletBalance,
+  ConnectButton,
+} from "thirdweb/react";
+import { createWallet } from "thirdweb/wallets";
 import { thirdwebClient } from "../thirdweb.js";
+import { ACTIVE_CHAINS, PRIMARY_CHAIN_CONFIG } from "../chains.js";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4022";
+
+const PAYMENT_TOKEN = "USDC";
+
+const SUPPORTED_PAYMENT_NETWORK_LABELS = ACTIVE_CHAINS.map((c) => c.name);
+
+const WALLETS = [
+  createWallet("io.metamask"),
+  createWallet("com.coinbase.wallet"),
+];
+
+function formatNetworkList(labels) {
+  if (labels.length === 0) return "";
+  if (labels.length === 1) return labels[0];
+  if (labels.length === 2) return `${labels[0]} or ${labels[1]}`;
+  return `${labels.slice(0, -1).join(", ")} or ${
+    labels[labels.length - 1]
+  }`;
+}
 
 export default function Entity() {
   const { id } = useParams();
@@ -14,6 +39,17 @@ export default function Entity() {
   const [verifyDialogStep, setVerifyDialogStep] = useState("intro"); // "intro" | "type"
   const [verifyType, setVerifyType] = useState(""); // "" | "individual" | "organization"
   const [requestSubmitted, setRequestSubmitted] = useState(false);
+
+  const activeAccount = useActiveAccount();
+  const {
+    data: usdcBalance,
+    isLoading: isBalanceLoading,
+  } = useWalletBalance({
+    address: activeAccount?.address,
+    chain: PRIMARY_CHAIN_CONFIG.chain,
+    client: thirdwebClient,
+    tokenAddress: PRIMARY_CHAIN_CONFIG.usdcAddress,
+  });
 
   const { fetchWithPayment, isPending: isPaymentPending } = useFetchWithPayment(thirdwebClient);
   const [orgForm, setOrgForm] = useState({
@@ -215,7 +251,15 @@ export default function Entity() {
       });
       setRequestSubmitted(true);
     } catch (err) {
-      setFormError(err?.message || "Request failed. Please try again.");
+      const msg = String(err?.message || "");
+      if (msg.includes("no usable x402 payment requirements")) {
+        setFormError(
+          `Payment setup issue: we couldn't find enough ${PAYMENT_TOKEN} on any supported network in your connected wallet. ` +
+          `Please add ${PAYMENT_TOKEN} on ${ACTIVE_CHAINS.map((c) => c.name).join(", ")} and try again.`
+        );
+      } else {
+        setFormError(msg || "Request failed. Please try again.");
+      }
     }
   };
 
@@ -238,6 +282,7 @@ export default function Entity() {
               {status}
             </span>
           </div>
+
 
           {!e.kyb_verified && (
             <div className="verify-section">
@@ -334,7 +379,7 @@ export default function Entity() {
                   </p>
                   <p className="modal-fee">
                     <span className="modal-fee-label">Verification request fee:</span>{" "}
-                    <span className="modal-fee-amount">$19</span>
+                    <span className="modal-fee-amount">$0.10</span>
                   </p>
                   <p className="modal-text">
                     This fee helps prevent spam and covers the manual review process.{" "}
@@ -621,6 +666,33 @@ export default function Entity() {
                       </div>
                     </>
                   )}
+                  <div className="modal-field">
+                    {activeAccount ? (
+                      <p className="modal-help">
+                        Connected wallet:{" "}
+                        <code>
+                          {activeAccount.address.slice(0, 6)}…
+                          {activeAccount.address.slice(-4)}
+                        </code>{" "}
+                        — {PAYMENT_TOKEN} on {PRIMARY_CHAIN_CONFIG.name}:{" "}
+                        {isBalanceLoading
+                          ? "Loading..."
+                          : usdcBalance?.displayValue ?? "0"}
+                      </p>
+                    ) : (
+                      <>
+                        <p className="modal-help">
+                          Connect a wallet on {PRIMARY_CHAIN_CONFIG.name} to pay in{" "}
+                          {PAYMENT_TOKEN}.
+                        </p>
+                        <ConnectButton client={thirdwebClient} wallets={WALLETS} />
+                      </>
+                    )}
+                  </div>
+                  <p className="modal-text" style={{ marginTop: "0.25rem" }}>
+                    Payment accepted in <strong>{PAYMENT_TOKEN}</strong> on:{" "}
+                    <strong>{formatNetworkList(SUPPORTED_PAYMENT_NETWORK_LABELS)}</strong>.
+                  </p>
                   {formError && <p className="modal-error">{formError}</p>}
                   <div className="modal-actions">
                     <button

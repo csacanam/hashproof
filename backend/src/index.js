@@ -1,8 +1,8 @@
 /**
- * HashProof API
+ * HashProof API — server entry point.
  *
- * Issue verifiable credentials via x402 payment on Celo.
- * Single paid endpoint: POST /issueCredential
+ * Validates required env vars, then starts the Express app.
+ * Paid endpoints (x402): POST /issueCredential, POST /entities/:id/verificationRequests
  */
 
 import "dotenv/config";
@@ -11,11 +11,19 @@ import { createApp } from "./app.js";
 const PORT = process.env.PORT || 4022;
 const SKIP_PAYMENT = process.env.SKIP_PAYMENT === "true";
 
-if (!SKIP_PAYMENT && !process.env.PAY_TO) {
-  console.error(
-    "Missing required env: PAY_TO (Celo address for x402 payments)",
-  );
-  process.exit(1);
+if (!SKIP_PAYMENT) {
+  if (!process.env.PAY_TO) {
+    console.error("Missing required env: PAY_TO (address that receives USDC payments)");
+    process.exit(1);
+  }
+  if (!process.env.THIRDWEB_SECRET_KEY) {
+    console.error("Missing required env: THIRDWEB_SECRET_KEY (from thirdweb.com/dashboard)");
+    process.exit(1);
+  }
+  if (!process.env.SETTLER_PRIVATE_KEY) {
+    console.error("Missing required env: SETTLER_PRIVATE_KEY (EOA that executes transferWithAuthorization; needs native gas on each supported network)");
+    process.exit(1);
+  }
 }
 if (
   !process.env.SUPABASE_URL ||
