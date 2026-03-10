@@ -205,17 +205,71 @@ export default function Entity() {
     };
   };
 
+  const GENERIC_EMAIL_PROVIDERS = [
+    "gmail.com", "outlook.com", "hotmail.com", "yahoo.com",
+    "icloud.com", "protonmail.com", "me.com", "live.com",
+  ];
+
+  const parseHostname = (raw) => {
+    if (!raw) return null;
+    const url = raw.includes("://") ? raw : `https://${raw}`;
+    try { return new URL(url).hostname.replace(/^www\./, "").toLowerCase(); }
+    catch { return null; }
+  };
+
+  const getOrgDomainWarning = () => {
+    const website = orgForm.website.trim();
+    const email = orgForm.contactEmail.trim();
+    if (!email || !email.includes("@")) return null;
+
+    const emailDomain = email.split("@")[1]?.toLowerCase();
+    if (!emailDomain) return null;
+
+    if (GENERIC_EMAIL_PROVIDERS.includes(emailDomain)) {
+      return "Personal email providers are not accepted for organization verification.";
+    }
+
+    if (!website) return null;
+    const websiteDomain = parseHostname(website);
+    if (!websiteDomain) return null;
+
+    if (!emailDomain.endsWith(websiteDomain) && !websiteDomain.endsWith(emailDomain)) {
+      return `Email domain (${emailDomain}) does not match the website domain (${websiteDomain}).`;
+    }
+
+    return null;
+  };
+
+  const isValidUrl = (raw) => {
+    if (!raw) return false;
+    const url = raw.includes("://") ? raw : `https://${raw}`;
+    try {
+      const parsed = new URL(url);
+      const hostname = parsed.hostname;
+      const parts = hostname.split(".");
+      // Need at least 2 parts, each non-empty, and TLD must be 2+ letters
+      return (
+        parts.length >= 2 &&
+        parts.every((p) => p.length > 0) &&
+        /^[a-zA-Z]{2,}$/.test(parts[parts.length - 1])
+      );
+    }
+    catch { return false; }
+  };
+
   const isFormComplete = () => {
     if (!verifyType) return false;
     const evmRegex = /^0x[a-fA-F0-9]{40}$/;
     if (verifyType === "organization") {
       const { orgName, website, contactName, contactEmail, country, role, supportLink, wallets } = orgForm;
-      if (!orgName.trim() || !website.trim() || !contactName.trim() || !contactEmail.trim() || !country.trim() || !role.trim() || !supportLink.trim()) return false;
+      if (!orgName.trim() || !contactName.trim() || !contactEmail.trim() || !country.trim() || !role.trim()) return false;
+      if (!isValidUrl(website) || !isValidUrl(supportLink)) return false;
       const list = wallets.split("\n").map((w) => w.trim()).filter(Boolean);
       return list.length > 0 && list.every((w) => evmRegex.test(w));
     }
     const { fullName, profile, email, country, wallets } = indForm;
-    if (!fullName.trim() || !profile.trim() || !email.trim() || !country.trim()) return false;
+    if (!fullName.trim() || !email.trim() || !country.trim()) return false;
+    if (!isValidUrl(profile)) return false;
     const list = wallets.split("\n").map((w) => w.trim()).filter(Boolean);
     return list.length > 0 && list.every((w) => evmRegex.test(w));
   };
@@ -487,6 +541,9 @@ export default function Entity() {
                         <input id="org-website" className="modal-input" type="url" placeholder="https://example.org"
                           value={orgForm.website}
                           onChange={(ev) => setOrgForm((f) => ({ ...f, website: ev.target.value }))} />
+                        {orgForm.website.trim() && !isValidUrl(orgForm.website.trim()) && (
+                          <p className="modal-error" style={{ marginTop: "0.25rem" }}>Enter a valid URL (e.g. https://example.org).</p>
+                        )}
                         <p className="modal-help">The official website of the organization.</p>
                       </div>
                       <div className="modal-field">
@@ -502,8 +559,13 @@ export default function Entity() {
                           value={orgForm.contactEmail}
                           onChange={(ev) => setOrgForm((f) => ({ ...f, contactEmail: ev.target.value }))} />
                         <p className="modal-help">
-                          Please use your organizational email address (personal providers like Gmail or Outlook will be rejected).
+                          Must match the website domain (e.g. <code>you@yourorg.com</code>). Personal providers like Gmail or Outlook will be rejected.
                         </p>
+                        {getOrgDomainWarning() && (
+                          <p className="modal-error" style={{ marginTop: "0.25rem" }}>
+                            {getOrgDomainWarning()}
+                          </p>
+                        )}
                       </div>
                       <div className="modal-field">
                         <label className="modal-label" htmlFor="org-country">Country</label>
@@ -524,6 +586,9 @@ export default function Entity() {
                         <input id="org-support-link" className="modal-input" type="url" placeholder="https://example.org/your-profile"
                           value={orgForm.supportLink}
                           onChange={(ev) => setOrgForm((f) => ({ ...f, supportLink: ev.target.value }))} />
+                        {orgForm.supportLink.trim() && !isValidUrl(orgForm.supportLink.trim()) && (
+                          <p className="modal-error" style={{ marginTop: "0.25rem" }}>Enter a valid URL (e.g. https://example.org/your-profile).</p>
+                        )}
                         <p className="modal-help">
                           A link showing your relationship with the organization — your profile on the organization website,
                           a LinkedIn listing, or an event page where you appear.
@@ -556,6 +621,9 @@ export default function Entity() {
                         <input id="ind-profile" className="modal-input" type="url" placeholder="https://your-site-or-profile"
                           value={indForm.profile}
                           onChange={(ev) => setIndForm((f) => ({ ...f, profile: ev.target.value }))} />
+                        {indForm.profile.trim() && !isValidUrl(indForm.profile.trim()) && (
+                          <p className="modal-error" style={{ marginTop: "0.25rem" }}>Enter a valid URL (e.g. https://linkedin.com/in/yourname).</p>
+                        )}
                         <p className="modal-help">A public profile or website where we can verify your identity.</p>
                       </div>
                       <div className="modal-field">
@@ -597,7 +665,7 @@ export default function Entity() {
                     <button
                       type="button"
                       className="btn btn-action"
-                      disabled={!isFormComplete()}
+                      disabled={!isFormComplete() || !!getOrgDomainWarning()}
                       onClick={() => { setFormError(""); setVerifyDialogStep("payment"); }}
                     >
                       Continue

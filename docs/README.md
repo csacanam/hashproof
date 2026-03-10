@@ -9,6 +9,12 @@
 | [X402-PAYMENT-FLOW.md](./X402-PAYMENT-FLOW.md) | How the x402 payment protocol works (useful for agents and integrations) |
 | [X402-LESSONS-LEARNED.md](./X402-LESSONS-LEARNED.md) | Real problems we hit integrating x402 + Thirdweb and how we solved them |
 
+## If you operate the platform
+
+| Read | Why |
+|------|-----|
+| [ADMIN-GUIDE.md](./ADMIN-GUIDE.md) | How to review and approve entity verification requests, suspend entities, and manage authorized wallets |
+
 ## If you want to run or modify the project
 
 Start with the README in each folder:

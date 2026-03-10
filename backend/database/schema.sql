@@ -61,6 +61,7 @@ create table entities (
   logo_url text,
 
   email_verified boolean not null default false,
+  authorized_wallets text[] not null default '{}',
   last_verified_at timestamptz,
 
   status entity_status not null default 'unverified',
@@ -248,6 +249,8 @@ create table entity_verification_requests (
 -- Migration for existing databases:
 -- alter table entity_verification_requests add column if not exists tx_hash text;
 -- alter table entity_verification_requests add column if not exists tx_explorer_url text;
+
+-- alter table entities add column if not exists authorized_wallets text[] not null default '{}';
 
 -- Migration: entity_status enum + column cleanup (run in order):
 -- alter type entity_status add value if not exists 'unverified';

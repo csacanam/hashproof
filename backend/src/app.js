@@ -18,7 +18,9 @@ import { executeIssueCredential } from "./services/issueCredential.js";
 import { getCredentialById } from "./services/getCredential.js";
 import { getEntityById } from "./services/getEntity.js";
 import { createVerificationRequest } from "./services/createVerificationRequest.js";
+import { approveEntity } from "./services/approveEntity.js";
 import { CHAIN_CONFIG } from "./utils/chains.js";
+import { Buffer } from "node:buffer";
 import { generateCredentialPdf } from "./services/generatePdf.js";
 import {
   runVerificationPipeline,
@@ -80,6 +82,27 @@ export function createApp(options = {}) {
   app.post("/issueCredential", async (req, res) => {
     try {
       const payload = req.body;
+
+      // If the issuer entity has authorized wallets, verify the paying wallet is among them
+      if (payload.issuer_entity_id) {
+        const issuerEntity = await getEntityById(payload.issuer_entity_id);
+        if (issuerEntity?.authorized_wallets?.length > 0) {
+          const paymentHeader = req.get("X-PAYMENT") || req.get("PAYMENT-SIGNATURE");
+          let payingWallet = null;
+          if (paymentHeader) {
+            try {
+              const decoded = JSON.parse(Buffer.from(paymentHeader, "base64").toString("utf8"));
+              payingWallet = decoded?.payload?.authorization?.from?.toLowerCase();
+            } catch { /* ignore decode errors */ }
+          }
+          if (!payingWallet || !issuerEntity.authorized_wallets.includes(payingWallet)) {
+            return res.status(403).json({
+              error: "Wallet not authorized to issue credentials for this entity.",
+            });
+          }
+        }
+      }
+
       const result = await executeIssueCredential(payload);
       return res.json(result);
     } catch (err) {
@@ -270,6 +293,33 @@ export function createApp(options = {}) {
       });
     } catch (err) {
       console.error("[entities/verificationRequests] error:", err.message);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Admin: approve entity verification ──────────────────────────────────
+  app.post("/admin/entities/:id/verify", async (req, res) => {
+    const adminSecret = process.env.ADMIN_SECRET;
+    const authHeader = req.get("Authorization") || "";
+    if (!adminSecret || authHeader !== `Bearer ${adminSecret}`) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const entityId = req.params.id;
+      const { type, wallets, request_id } = req.body || {};
+
+      if (type !== "organization" && type !== "individual") {
+        return res.status(400).json({ error: "type must be 'organization' or 'individual'" });
+      }
+      if (!request_id && (!Array.isArray(wallets) || wallets.length === 0)) {
+        return res.status(400).json({ error: "provide request_id (wallets will be read from the request) or an explicit wallets[] array" });
+      }
+
+      const result = await approveEntity({ entityId, type, wallets, requestId: request_id });
+      return res.json(result);
+    } catch (err) {
+      console.error("[admin/verify] error:", err.message);
       return res.status(500).json({ error: err.message });
     }
   });
