@@ -109,6 +109,7 @@ const NAV = [
   { id: "issue-credential",    label: "POST /issueCredential" },
   { id: "verify",              label: "GET /verify/:id" },
   { id: "entities",            label: "GET /entities/:id" },
+  { id: "custom-templates",    label: "Custom Templates" },
   { id: "entity-verification", label: "Entity Verification" },
   { id: "issuer-auth",         label: "Issuer Authorizations" },
 ];
@@ -172,8 +173,8 @@ const res = await fetchWithPayment("https://api.hashproof.dev/issueCredential", 
   }),
 });
 
-const { verification_url } = await res.json();
-console.log(verification_url);`;
+const data = await res.json();
+console.log(data.verification_url);`;
 }
 
 
@@ -305,15 +306,9 @@ export default function Docs() {
                 { label: "Base", lang: "js", code: nodeExample("base") },
               ]} />
               <CodeBlock lang="bash" label="terminal" code={`PRIVATE_KEY=0x... node issue.mjs`} />
+              <CodeBlock lang="bash" label="output" code={`https://hashproof.dev/verify/a1b2c3d4-...`} />
             </SubSection>
 
-            <SubSection id="quickstart-response" title="What you get back">
-              <CodeBlock code={ISSUE_RESPONSE} label="response" />
-              <p className="docs-p">
-                Share <code>verification_url</code> with the credential holder — it renders the
-                certificate and QR code. The same URL is printed on the downloadable PDF.
-              </p>
-            </SubSection>
           </Section>
 
           {/* x402 */}
@@ -335,14 +330,8 @@ export default function Docs() {
             </SubSection>
 
             <SubSection id="x402-networks" title="Supported networks">
-              <div className="docs-badge-row">
-                <span className="docs-badge">Base</span>
-                <span className="docs-badge">Celo</span>
-                <span className="docs-badge">USDC</span>
-                <span className="docs-badge">$0.10 per credential</span>
-              </div>
-              <p className="docs-p" style={{ marginTop: "0.75rem" }}>
-                You choose which network to pay on. Both settle in USDC with no gas fees on your end.
+              <p className="docs-p">
+                Pay with <strong>USDC</strong> on <strong>Base</strong> or <strong>Celo</strong> — $0.10 per credential, no gas fees on your end.
               </p>
             </SubSection>
           </Section>
@@ -353,7 +342,11 @@ export default function Docs() {
               <span className="docs-method docs-method--post">POST</span>
               <code className="docs-path">{API_BASE}/issueCredential</code>
             </div>
-            <p className="docs-p">Issues one verifiable credential. Paid — $0.10 USDC via x402.</p>
+            <p className="docs-p">
+              Issues one verifiable credential. Paid — $0.10 USDC via x402.
+              HashProof renders the PDF using its default design. To use your own certificate design,
+              see <button className="docs-link-btn" onClick={() => document.getElementById("custom-templates")?.scrollIntoView({ behavior: "smooth" })}>Custom Templates</button>.
+            </p>
 
             <SubSection id="issue-body" title="Request body">
               <ParamTable rows={[
@@ -372,7 +365,8 @@ export default function Docs() {
                 ["expires_at", "ISO 8601 | null", false, "Expiration date. null = never expires"],
                 ["values.holder_name", "string", true, "Name rendered on the certificate (default template)"],
                 ["values.details", "string", false, "Optional subtitle on the certificate"],
-                ["template_slug", "string", false, "Slug of an existing template. Defaults to hashproof"],
+                ["template", "object", false, "Inline custom template. See Custom Templates section."],
+                ["template_slug", "string", false, "Slug of a pre-registered template. Omit to use the HashProof default design."],
                 ["issuer_entity_id", "UUID", false, "Your entity ID from hashproof.dev/entities. Credentials will show your verified badge if your entity is verified"],
                 ["platform_entity_id", "UUID", false, "The platform entity issuing on your behalf. Can be the same as issuer for self-issuance"],
               ]} />
@@ -462,6 +456,73 @@ export default function Docs() {
                 ["organization_verified", "", false, "Verified as an organization"],
                 ["suspended", "", false, "Suspended by HashProof"],
               ]} />
+            </SubSection>
+          </Section>
+
+          {/* custom templates */}
+          <Section id="custom-templates" title="Custom Templates">
+            <p className="docs-p">
+              By default, HashProof renders your credential using its built-in certificate design.
+              To use your own design, pass a <code>template</code> object inline in the request body.
+            </p>
+
+            <SubSection id="ct-fields" title="Template fields">
+              <ParamTable rows={[
+                ["template.background_url", "string", true, "URL of your certificate background image (PNG or JPG)"],
+                ["template.page_width",     "number", false, "Page width in points. Default: 595 (A4 portrait)"],
+                ["template.page_height",    "number", false, "Page height in points. Default: 842 (A4 portrait)"],
+                ["template.fields_json",    "array",  true, "Array of field objects defining text placement"],
+                ["fields_json[].key",       "string", true, "Maps to a key in values{}"],
+                ["fields_json[].x",         "number", true, "Horizontal position in points from left"],
+                ["fields_json[].y",         "number", true, "Vertical position in points from top"],
+                ["fields_json[].width",     "number", false, "Text box width in points"],
+                ["fields_json[].font_size", "number", false, "Font size. Default: 12"],
+                ["fields_json[].font_color","string", false, "Hex color. Default: #000000"],
+                ["fields_json[].align",     "string", false, "left · center · right. Default: left"],
+                ["fields_json[].required",  "boolean",false, "If true, issueCredential returns 400 when the key is missing from values"],
+              ]} />
+            </SubSection>
+
+            <SubSection id="ct-example" title="Example">
+              <CodeBlock code={`{
+  "issuer":   { "display_name": "Acme Corp", "slug": "acme-corp" },
+  "platform": { "display_name": "Acme Corp", "slug": "acme-corp" },
+  "holder":   { "full_name": "María García" },
+  "context":  { "type": "course", "title": "Intro to Blockchain" },
+  "credential_type": "completion",
+  "title": "Certificate of Completion",
+  "template": {
+    "background_url": "https://your-cdn.com/certificate-bg.png",
+    "page_width": 1123,
+    "page_height": 794,
+    "fields_json": [
+      {
+        "key": "holder_name",
+        "x": 100, "y": 320,
+        "width": 923,
+        "font_size": 48,
+        "font_color": "#1a1a2e",
+        "align": "center",
+        "required": true
+      },
+      {
+        "key": "details",
+        "x": 150, "y": 410,
+        "width": 823,
+        "font_size": 20,
+        "font_color": "#555555",
+        "align": "center"
+      }
+    ]
+  },
+  "values": {
+    "holder_name": "María García",
+    "details": "For completing Intro to Blockchain"
+  }
+}`} label="request body" />
+              <p className="docs-p">
+                The QR code is added automatically at the bottom-right corner — you don't need to define it as a field.
+              </p>
             </SubSection>
           </Section>
 

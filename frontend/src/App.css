@@ -1519,6 +1519,19 @@
   letter-spacing: 0.06em;
 }
 
+.docs-link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #7dd3fc;
+  font-size: inherit;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.docs-link-btn:hover { color: #bae6fd; }
+
 .docs-tabs {
   display: flex;
   gap: 0.25rem;
