@@ -90,8 +90,6 @@ Same fields as `issuer`. Can be the same entity as the issuer (set both to the s
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `full_name` | string | yes | Full name of the credential recipient |
-| `email` | string | no | Email (used for delivery) |
-| `phone` | string | no | Phone in E.164 format, e.g. `+573001234567` (for WhatsApp delivery) |
 | `external_id` | string | no | ID from your own system |
 
 #### context `object` — required

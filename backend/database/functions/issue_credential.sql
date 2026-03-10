@@ -95,15 +95,12 @@ begin
   -- Get or create holder
   select id into v_holder_id from holders
   where full_name = v_holder->>'full_name'
-    and coalesce(email, '') = coalesce(v_holder->>'email', '')
     and coalesce(external_id, '') = coalesce(v_holder->>'external_id', '')
   limit 1;
   if v_holder_id is null then
-    insert into holders (full_name, email, phone, external_id)
+    insert into holders (full_name, external_id)
     values (
       v_holder->>'full_name',
-      v_holder->>'email',
-      v_holder->>'phone',
       v_holder->>'external_id'
     )
     returning id into v_holder_id;

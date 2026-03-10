@@ -21,7 +21,7 @@ describe.skipIf(!hasSupabase)("executeIssueCredential integration", () => {
         display_name: "Test Platform Integration",
         slug: "test-platform-integration",
       },
-      holder: { full_name: "Integration Test User", email: "test@example.com" },
+      holder: { full_name: "Integration Test User" },
       context: {
         type: "event",
         title: "Integration Test Event",

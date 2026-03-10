@@ -90,17 +90,11 @@ create table holders (
 
   full_name text not null,
 
-  email text,
-  phone text,
-
   external_id text,
 
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-
-create index holders_email_idx
-  on holders (email);
 
 create index holders_external_id_idx
   on holders (external_id);
@@ -262,6 +256,11 @@ create table entity_verification_requests (
 -- alter table entities drop column if exists kyb_verified;
 -- NOTE: 'active' and 'blocked' can be removed from the enum once all rows are migrated
 --       (Postgres does not support removing enum values directly; requires a type recreation).
+
+-- Migration: remove unused PII columns from holders:
+-- alter table holders drop column if exists email;
+-- alter table holders drop column if exists phone;
+-- drop index if exists holders_email_idx;
 
 create index entity_verification_requests_entity_id_idx
   on entity_verification_requests (entity_id);
