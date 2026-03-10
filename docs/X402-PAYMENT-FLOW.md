@@ -13,77 +13,31 @@ From the client's perspective:
 
 ## Full flow, step by step
 
-```
-CLIENT (browser / agent / script)           SERVER (HashProof backend)
-─────────────────────────────────           ──────────────────────────
+```mermaid
+sequenceDiagram
+    participant C as Client<br/>(browser / agent)
+    participant S as Server<br/>(HashProof backend)
+    participant B as Blockchain<br/>(USDC contract)
 
-1. POST /entities/:id/verificationRequests
-   (no payment header)
-   ─────────────────────────────────────►
+    C->>S: POST /entities/:id/verificationRequests<br/>(no payment header)
 
-                                        2. Recognizes it's a paid route.
-                                           Calls Thirdweb settlePayment(paymentData=null)
-                                           to build the challenge header.
+    Note over S: Paid route detected.<br/>Calls Thirdweb to build challenge header.
 
-                                        ◄──────────────────────────────────────────────
-                                           HTTP 402 Payment Required
-                                           PAYMENT-REQUIRED: <base64 JSON>
-                                           {
-                                             "x402Version": 2,
-                                             "accepts": [{
-                                               "scheme": "exact",
-                                               "network": "eip155:8453",   ← Base
-                                               "asset": "0x833589f...",    ← USDC
-                                               "maxAmountRequired": "100000", ← $0.10
-                                               "payTo": "0x0a25C9...",
-                                               ...EIP-712 domain info...
-                                             }]
-                                           }
+    S-->>C: HTTP 402 Payment Required<br/>PAYMENT-REQUIRED: {network, asset, amount, payTo, EIP-712 domain}
 
-3. useFetchWithPayment hook reads the header.
-   Wallet signs TransferWithAuthorization
-   (EIP-3009 / EIP-712) OFF-CHAIN.
-   No gas. No blockchain transaction yet.
+    Note over C: Wallet signs TransferWithAuthorization<br/>(EIP-3009) OFF-CHAIN — no gas, no tx yet.
 
-4. POST /entities/:id/verificationRequests
-   X-PAYMENT: <base64 JSON>
-   {
-     "scheme": "exact",
-     "network": "eip155:8453",
-     "payload": {
-       "signature": "0x...",
-       "authorization": {
-         "from": "0x3F69...",        ← payer wallet
-         "to":   "0x0a25...",        ← PAY_TO
-         "value": "100000",          ← $0.10 USDC
-         "validAfter": "0",
-         "validBefore": "1234567890",
-         "nonce": "0xabc..."
-       }
-     }
-   }
-   ─────────────────────────────────────►
+    C->>S: POST /entities/:id/verificationRequests<br/>X-PAYMENT: {signature, authorization}
 
-                                        5. thirdwebPayment.js middleware:
-                                           validates recipient, amount, expiry.
+    Note over S: thirdwebPayment.js validates<br/>recipient · amount · expiry
 
-                                        6. settleEOA.js calls on-chain:
-                                           USDC.transferWithAuthorization(
-                                             from, to, value,
-                                             validAfter, validBefore, nonce,
-                                             v, r, s
-                                           )
-                                           ← SETTLER_PRIVATE_KEY wallet pays gas (~$0.001)
+    S->>B: USDC.transferWithAuthorization(...)<br/>SETTLER_PRIVATE_KEY pays ~$0.001 gas
 
-                                        7. Waits for 1 on-chain confirmation.
-                                           USDC moved from payer wallet to PAY_TO.
+    B-->>S: tx confirmed (1 block)
 
-                                        8. Middleware calls next() → route handler runs.
-                                           createVerificationRequest() saves to DB.
+    Note over S: Route handler runs → saves to DB.
 
-                                        ◄──────────────────────────────────────────────
-                                           HTTP 201 Created
-                                           { "request": { ... } }
+    S-->>C: HTTP 201 Created — {request: {...}}
 ```
 
 ---
