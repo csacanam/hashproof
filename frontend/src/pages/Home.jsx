@@ -53,12 +53,12 @@ const STEPS = [
 ];
 
 export default function Home() {
-  const [totalCredentials, setTotalCredentials] = useState(null);
+  const [stats, setStats] = useState(null);
 
   useEffect(() => {
     fetch(`${API_URL}/stats`)
       .then((r) => r.json())
-      .then((d) => setTotalCredentials(d.total_credentials ?? null))
+      .then((d) => setStats(d))
       .catch(() => {});
   }, []);
 
@@ -85,10 +85,29 @@ export default function Home() {
               See a live credential →
             </Link>
           </div>
-          {totalCredentials !== null && (
-            <p className="hero-stat">
-              <span className="hero-stat-num">{totalCredentials.toLocaleString()}</span> credentials issued on Celo mainnet
-            </p>
+          {stats && (
+            <div className="hero-stats">
+              <span className="hero-stats-since">Since March 10, 2026</span>
+              <div className="hero-stats-row">
+                <div className="hero-stat">
+                  <span className="hero-stat-num">{stats.total_credentials.toLocaleString()}</span>
+                  <span className="hero-stat-label">Credentials Issued</span>
+                </div>
+                <div className="hero-stat-sep" />
+                <div className="hero-stat">
+                  <span className="hero-stat-num">{stats.verified_entities.toLocaleString()}</span>
+                  <span className="hero-stat-label">Verified Entities</span>
+                </div>
+              </div>
+              <a
+                className="hero-stat-explorer"
+                href="https://celoscan.io/address/0x7a1B759A602Aba72a70f99Dffd0a386d7504ce9B#readContract#F8"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Verify onchain ↗
+              </a>
+            </div>
           )}
         </section>
 

@@ -15,6 +15,8 @@ forge test
 
 ## Deploy
 
+Set `DEPLOYER_PRIVATE_KEY` (wallet that pays gas and becomes contract owner). Either inline or in a `.env` file in `contracts/` — Foundry loads it automatically.
+
 ```bash
 # Testnet (Celo Alfajores)
 DEPLOYER_PRIVATE_KEY=0x... forge script script/Deploy.s.sol \
@@ -37,7 +39,7 @@ Go to the contract address on [Celoscan](https://celoscan.io), click **Verify an
 
 | Network | Address |
 |---------|---------|
-| Celo mainnet | `0xFD899A0BbdB5378Cb676305e91Ef01939E3B01ba` |
+| Celo mainnet | `0x7a1B759A602Aba72a70f99Dffd0a386d7504ce9B` |
 
 ## Usage from backend
 

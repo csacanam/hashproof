@@ -162,12 +162,12 @@ const res = await fetchWithPayment("https://api.hashproof.dev/issueCredential", 
   body: JSON.stringify({
     issuer:          { display_name: "HashProof Demo", slug: "hashproof-demo" },
     platform:        { display_name: "HashProof Demo", slug: "hashproof-demo" },
-    holder:          { full_name: "Your Name" },
+    holder:          { full_name: process.env.YOUR_NAME },
     context:         { type: "certification", title: "HashProof API Quickstart" },
     credential_type: "completion",
     title:           "First Credential Issued",
     values: {
-      holder_name: "Your Name",
+      holder_name: process.env.YOUR_NAME,
       details:     "For successfully issuing a verifiable credential using the HashProof API.",
     },
   }),
@@ -296,6 +296,9 @@ export default function Docs() {
                   <a href="https://thirdweb.com/dashboard" target="_blank" rel="noopener noreferrer">thirdweb.com/dashboard</a>.
                   Create a project and copy the Client ID.
                 </li>
+                <li>
+                  <strong>Environment variables</strong> — <code>PRIVATE_KEY</code> (wallet) and <code>YOUR_NAME</code> (recipient name for the credential).
+                </li>
               </ul>
             </SubSection>
 
@@ -305,7 +308,7 @@ export default function Docs() {
                 { label: "Celo", lang: "js", code: nodeExample("celo") },
                 { label: "Base", lang: "js", code: nodeExample("base") },
               ]} />
-              <CodeBlock lang="bash" label="terminal" code={`PRIVATE_KEY=0x... node issue.mjs`} />
+              <CodeBlock lang="bash" label="terminal" code={`PRIVATE_KEY=0x... YOUR_NAME="María García" node issue.mjs`} />
               <CodeBlock lang="bash" label="output" code={`https://hashproof.dev/verify/a1b2c3d4-...`} />
             </SubSection>
 

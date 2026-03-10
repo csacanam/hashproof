@@ -28,18 +28,6 @@ create type credential_type as enum (
   'certification'
 );
 
-create type delivery_channel as enum (
-  'email',
-  'webhook',
-  'whatsapp'
-);
-
-create type delivery_status as enum (
-  'pending',
-  'sent',
-  'failed'
-);
-
 -- =========================================================
 -- HELPERS
 -- =========================================================
@@ -269,38 +257,6 @@ create index entity_verification_requests_status_idx
   on entity_verification_requests (status);
 
 -- =========================================================
--- DELIVERIES
--- Delivery log via email / webhook / whatsapp
--- =========================================================
-
-create table deliveries (
-  id uuid primary key default gen_random_uuid(),
-
-  credential_id uuid not null references credentials(id) on delete cascade,
-
-  channel delivery_channel not null,
-  status delivery_status not null default 'pending',
-
-  recipient text,
-
-  provider_message_id text,
-  error_message text,
-
-  sent_at timestamptz,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-create index deliveries_credential_id_idx
-  on deliveries (credential_id);
-
-create index deliveries_channel_idx
-  on deliveries (channel);
-
-create index deliveries_status_idx
-  on deliveries (status);
-
--- =========================================================
 -- UPDATED_AT trigger
 -- =========================================================
 
@@ -330,10 +286,6 @@ for each row execute function set_updated_at();
 
 create trigger credentials_set_updated_at
 before update on credentials
-for each row execute function set_updated_at();
-
-create trigger deliveries_set_updated_at
-before update on deliveries
 for each row execute function set_updated_at();
 
 -- =========================================================

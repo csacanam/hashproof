@@ -179,18 +179,64 @@
   }
 }
 
+.hero-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.hero-stats-since {
+  font-size: 0.68rem;
+  color: #a1a1aa;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.hero-stats-row {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
 .hero-stat {
-  margin-top: 0;
-  font-size: 0.8rem;
-  color: #52525b;
-  letter-spacing: 0.01em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
 }
 
 .hero-stat-num {
   font-family: monospace;
-  font-size: 0.95rem;
-  font-weight: 700;
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--color-accent);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.hero-stat-label {
+  font-size: 0.7rem;
   color: #a1a1aa;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.hero-stat-sep {
+  width: 1px;
+  height: 2.5rem;
+  background: #27272a;
+  flex-shrink: 0;
+}
+
+.hero-stat-explorer {
+  font-size: 0.72rem;
+  color: var(--color-accent);
+  text-decoration: none;
+  opacity: 0.6;
+}
+
+.hero-stat-explorer:hover {
+  opacity: 1;
+  text-decoration: underline;
 }
 
 /* Buttons */

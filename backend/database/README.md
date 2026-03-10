@@ -9,11 +9,11 @@ Schema overview: tables, relationships, and fields.
 ```
 entities ────┐
 holders  ────┤
-contexts ────┼──► credentials ──► deliveries
+contexts ────┼──► credentials
 templates ───┘
 ```
 
-Base tables (entities, holders, contexts, templates) don't depend on each other. **credentials** ties them all together. **deliveries** only depends on credentials.
+Base tables (entities, holders, contexts, templates) don't depend on each other. **credentials** ties them all together.
 
 ---
 
@@ -58,7 +58,6 @@ GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role
 -- GRANT SELECT ON public.entities TO anon, authenticated, service_role;
 -- GRANT SELECT ON public.holders TO anon, authenticated, service_role;
 -- GRANT SELECT ON public.templates TO anon, authenticated, service_role;
--- GRANT SELECT ON public.deliveries TO anon, authenticated, service_role;
 ```
 
 The backend uses the **service_role** key for API calls; ensure these roles have SELECT on the tables they access.
@@ -73,9 +72,7 @@ People who receive the credentials.
 |-------|------|-------------|
 | id | uuid | PK |
 | full_name | text | Full name |
-| email | text | Email (optional) |
-| phone | text | Phone in E.164 format, e.g. +573001234567 (optional, for WhatsApp delivery) |
-| external_id | text | ID from client system (e.g. Peewah, optional) |
+| external_id | text | ID from client system (optional) |
 | created_at, updated_at | timestamptz | Audit timestamps |
 
 **Relations:** credentials → holder_id
@@ -172,29 +169,7 @@ Central table: each row is one issued credential.
 
 **Derived (not stored):** verification_url = base_url + id. PDF generated on demand (no pdf_url).
 
-**Relations:** receives FKs from entities, holders, contexts, templates. provides FK to deliveries.
-
----
-
-## 6. deliveries
-
-Delivery log per credential (email, webhook, whatsapp).
-
-| Field | Type | Description |
-|-------|------|-------------|
-| id | uuid | PK |
-| credential_id | uuid | FK → credentials |
-| channel | enum | `email`, `webhook`, `whatsapp` |
-| status | enum | `pending`, `sent`, `failed` |
-| recipient | text | Destination (email, URL, phone) |
-| provider_message_id | text | Provider message ID |
-| error_message | text | Error if failed |
-| sent_at | timestamptz | When it was sent |
-| created_at, updated_at | timestamptz | Audit timestamps |
-
-**Note:** Subject and body for email are fixed/templated in the app (not stored per delivery).
-
-**Relations:** credential_id → credentials
+**Relations:** receives FKs from entities, holders, contexts, templates.
 
 ---
 
@@ -206,7 +181,6 @@ Delivery log per credential (email, webhook, whatsapp).
 | holders | credentials (holder_id) |
 | contexts | credentials (context_id) |
 | templates | credentials (template_id) |
-| credentials | deliveries (credential_id) |
 
 ### Cardinality
 
@@ -217,4 +191,3 @@ Delivery log per credential (email, webhook, whatsapp).
 | holders → credentials | 1 → 0..* | One holder receives many credentials; each credential has exactly one holder |
 | contexts → credentials | 1 → 0..* | One context has many credentials; each credential has exactly one context |
 | templates → credentials | 1 → 0..* | One template is used by many credentials; each credential has exactly one template |
-| credentials → deliveries | 1 → 0..* | One credential can have many deliveries (email, webhook, whatsapp); each delivery belongs to exactly one credential |

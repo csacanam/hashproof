@@ -189,11 +189,32 @@ export function createApp(options = {}) {
 
   app.get("/stats", readOnlyRateLimit, async (req, res) => {
     try {
-      const { count, error } = await supabase
-        .from("credentials")
-        .select("*", { count: "exact", head: true });
-      if (error) throw new Error(error.message);
-      return res.json({ total_credentials: count ?? 0 });
+      const rpcUrl = process.env.CELO_RPC_URL;
+      const contractAddress = process.env.REGISTRY_CONTRACT_ADDRESS;
+      if (!rpcUrl || !contractAddress) {
+        return res.status(503).json({ error: "Chain not configured" });
+      }
+
+      const { Contract, JsonRpcProvider } = await import("ethers");
+      const provider = new JsonRpcProvider(rpcUrl);
+      const registry = new Contract(
+        contractAddress,
+        ["function totalIssued() view returns (uint256)"],
+        provider
+      );
+
+      const [totalBn, entitiesResult] = await Promise.all([
+        registry.totalIssued(),
+        supabase
+          .from("entities")
+          .select("*", { count: "exact", head: true })
+          .in("status", ["individual_verified", "organization_verified"]),
+      ]);
+
+      return res.json({
+        total_credentials: Number(totalBn),
+        verified_entities: entitiesResult.count ?? 0,
+      });
     } catch (err) {
       console.error("[stats] error:", err.message);
       return res.status(500).json({ error: err.message });
