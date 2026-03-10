@@ -12,29 +12,18 @@
 | 6 | x402 payments with EOA settler (no Thirdweb billing required) |
 | 7 | API and issuance documentation (`API-REFERENCE.md`, `ISSUING-CREDENTIALS.md`, `docs/README.md`) |
 | A | Simplify entity verification model: new `status` enum (`unverified`, `individual_verified`, `organization_verified`, `suspended`), remove `domain_verified` / `kyb_verified`, update backend + frontend + docs |
+| B | Auth for verified entities: x402 paying wallet validated against `entity.authorized_wallets` on issuance; admin approval endpoint populates wallets from verification request payload |
+| D | Authorized wallet check on issuance: extract `from` from X-PAYMENT header and reject with 403 if not in entity's authorized wallets |
 
 ---
 
 ## 🔲 Pending
-
-### B. Auth for verified entities (authenticated API calls)
-
-- **Goal**: Only a verified entity can issue credentials "as itself".
-- Decide auth mechanism (API keys or wallet signatures bound to `entity.id`).
-- Restrict issuance: if auth present, enforce issuer/platform matches the authenticated entity.
 
 ### C. Issuer authorization between entities
 
 - **Goal**: Allow one entity (e.g. a platform) to issue on behalf of another.
 - Add `issuer_authorizations` table: `issuer_entity_id`, `authorized_entity_id`, `status`.
 - Enforce in issuance: if issuer ≠ caller, require approved authorization row.
-
-### D. Verify authorized wallet on issuance
-
-- **Goal**: Confirm the entity issuing a credential is actually who they claim.
-- Store authorized wallets per entity (already collected in the verification request form).
-- On issuance, compare the x402 paying wallet against the entity's authorized wallets.
-- Depends on (B) and (C).
 
 ### E. Publish to Karma / Hackathon
 
