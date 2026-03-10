@@ -25,7 +25,7 @@ docs/          Architecture and flow documentation
 
 | Network      | Contract           | Address                                      |
 | ------------ | ------------------ | -------------------------------------------- |
-| Celo mainnet | CredentialRegistry | `0xFD899A0BbdB5378Cb676305e91Ef01939E3B01ba` |
+| Celo mainnet | CredentialRegistry | `0x7a1B759A602Aba72a70f99Dffd0a386d7504ce9B` |
 
 ## Paid API endpoints
 

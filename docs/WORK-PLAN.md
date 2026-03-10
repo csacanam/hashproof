@@ -35,3 +35,8 @@
 
 - Study ERC-8004 semantics and decide if/how to align `CredentialRegistry` with the standard.
 - Prototype on testnet.
+
+### H. Test custom templates
+
+- Issue credentials with custom templates and verify they render correctly on the verify page.
+- Document any layout or styling issues and fix them.

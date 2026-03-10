@@ -29,11 +29,21 @@ DEPLOYER_PRIVATE_KEY=0x... forge script script/Deploy.s.sol \
   --broadcast
 ```
 
-After deploy, note the printed address and update `REGISTRY_CONTRACT_ADDRESS` in `backend/.env`.
+## After deploying a new contract
+
+1. **Verify on Celoscan** (see below).
+2. **Backend** — set `REGISTRY_CONTRACT_ADDRESS` to the new address:
+   - Local: `backend/.env`
+   - Production (DigitalOcean): App → Settings → Environment Variables → add or update `REGISTRY_CONTRACT_ADDRESS` → redeploy.
+3. **Frontend** — update the Celoscan link in `frontend/src/pages/Home.jsx` (hero stats "Verify onchain ↗") if the contract address changed. Redeploy (Vercel auto-deploys on push).
 
 ## Verify on Celoscan
 
-Go to the contract address on [Celoscan](https://celoscan.io), click **Verify and Publish**, select Solidity 0.8.19 with optimizer on, and paste the flattened `CredentialRegistry.sol`.
+```bash
+CELOSCAN_API_KEY=your_key forge verify-contract <CONTRACT_ADDRESS> src/CredentialRegistry.sol:CredentialRegistry --chain celo --watch
+```
+
+Get an API key at [celoscan.io/myapikey](https://celoscan.io/myapikey).
 
 ## Deployed contracts
 
