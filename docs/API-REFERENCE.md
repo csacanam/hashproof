@@ -153,6 +153,8 @@ Selects or creates the template to use. If omitted, uses the default `hashproof`
 
 **Important:** Provide **only one** of `template_slug`, `template_id`, or `template` in a request. If more than one is provided, the request is rejected with `400`.
 
+For a concise guide to all template use cases (default, existing by slug/id, inline, background override), see [TEMPLATES.md](./TEMPLATES.md).
+
 **Option A — Use template by slug (existing template):**
 ```json
 { "template_slug": "my-template-slug" }

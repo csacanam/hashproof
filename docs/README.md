@@ -6,7 +6,7 @@
 |------|-----|
 | [API-REFERENCE.md](./API-REFERENCE.md) | All endpoints, allowed values, request and response schemas |
 | [ISSUING-CREDENTIALS.md](./ISSUING-CREDENTIALS.md) | Minimal, copy-paste issuance examples |
-| [TEMPLATES.md](./TEMPLATES.md) | How templates work (fields, public/private, QR placement) |
+| [TEMPLATES.md](./TEMPLATES.md) | Template use cases (default, by slug/id, inline, background override), field definitions, QR placement |
 | [X402-PAYMENT-FLOW.md](./X402-PAYMENT-FLOW.md) | How x402 works (useful for agents and integrations) |
 
 ## If you operate the platform

@@ -2,9 +2,7 @@
 
 **Endpoint:** `POST /issueCredential` — paid, $0.10 USDC via x402.
 
-This doc is intentionally short. For the full field spec, allowed values, and template rules, see:
-- [`API-REFERENCE.md`](./API-REFERENCE.md)
-- [`TEMPLATES.md`](./TEMPLATES.md)
+This doc is intentionally short. For the full field spec and allowed values, see [API-REFERENCE.md](./API-REFERENCE.md). For **template use cases** (default, existing template by slug/id, inline template, same layout with different background), see [TEMPLATES.md](./TEMPLATES.md).
 
 ---
 
@@ -71,6 +69,8 @@ Every issuance request must include:
 | `credential_type` | Kind of claim |
 | `title` | Title printed on the credential |
 | `values.holder_name` | Value for the name field in the default template |
+
+**Template options:** You can omit template fields (default layout), use `template_slug` or `template_id` (existing template), send `template` inline (create once, then reuse by slug), or use `template_slug`/`template_id` with `background_url_override` for the same layout with a different background per credential. One option per request. See [TEMPLATES.md](./TEMPLATES.md) for each case.
 
 ---
 

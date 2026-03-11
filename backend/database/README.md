@@ -113,7 +113,7 @@ How the PDF is rendered: background, size, field positions.
 | fields_json | jsonb | Array of field definitions (see below) |
 | created_at, updated_at | timestamptz | Audit timestamps |
 
-**Inline templates:** Issuance supports creating a template inline (create-only). If a template with the same `slug` already exists, issuance rejects it and the caller must reference the existing template via `template_slug` or `template_id`.
+**Template use cases:** Omit template → default; use `template_slug` or `template_id` → existing (public/private); send `template` inline → create-only, then reuse by slug; use `template_slug`/`template_id` + `background_url_override` → same layout, different background per credential. Full guide: [docs/TEMPLATES.md](../../docs/TEMPLATES.md).
 
 **Template design note:** The renderer always draws a verification QR near the bottom-right corner. See [`docs/TEMPLATES.md`](../../docs/TEMPLATES.md) for the exact placement logic and design guidance.
 

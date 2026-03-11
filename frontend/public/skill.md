@@ -180,19 +180,20 @@ Content-Type: application/json
 # Plus x402 payment header after 402 response
 ```
 
-### Use an existing template (template_slug)
+### Templates — which option to use
 
-If your issuer already created a template (for example the slug `template-eventos-camilo`), pass it as `template_slug`.
+**Rule:** Send **only one** of `template_slug`, `template_id`, or `template` per request. Sending more than one returns `400`.
 
-Templates can be:
-- `private` (issuer-only): only usable by that issuer.
-- `public` (catalog): usable by any issuer.
-Template slugs are globally unique (one template per slug).
+| If you want… | Send |
+|--------------|------|
+| **Default certificate** (quick start, standard layout) | Omit all template fields. Use `values.holder_name` and optionally `values.details`. |
+| **Use an existing template** (by slug or UUID) | `template_slug`: `"slug"` or `template_id`: `"uuid"`. Templates can be **public** (any issuer) or **private** (only the owner entity). Provide `values` for every field with `required: true` in that template. |
+| **Create a new template and use it** (one-off design) | `template`: `{ "slug", "name", "background_url", "page_width", "page_height", "fields_json" }`. Inline is **create-only**: if that slug already exists, the API rejects; use `template_slug` to reuse. |
+| **Same template, different background per credential** | `template_slug` or `template_id` **plus** `background_url_override`: `"https://..."`. Layout comes from the template; the PDF uses the override URL as background for that issuance only. |
 
-Security rule:
-- If the template is `private`, only the owner issuer can use it.
+To discover required keys for a template: `GET https://api.hashproof.dev/templates/:slug_or_id/requirements` (no auth). Full template guide and examples: [docs/TEMPLATES.md](https://github.com/csacanam/hashproof/blob/main/docs/TEMPLATES.md).
 
-Example:
+### Example: existing template by slug
 
 ```json
 {
@@ -202,7 +203,7 @@ Example:
   "context":  { "type": "event", "title": "Meetup Web3" },
   "credential_type": "attendance",
   "title": "Certificate of Attendance - Meetup Web3",
-  "template_slug": "template-eventos-camilo",
+  "template_slug": "eventos-camilo-cert",
   "values": {
     "holder_name": "Maria Garcia",
     "details": "Attended the event"
@@ -210,17 +211,7 @@ Example:
 }
 ```
 
-`values` must contain a value for every template field where `required: true` in the template's `fields_json`. If you do not know the required keys, ask your human for the template field list (or attempt issuance and read the 400 error, which tells you the missing key).
-
-### Create a custom template (inline, create-only)
-
-To create a personalized certificate design, define `template` inline in the `POST /issueCredential` body.
-
-Rules:
-- Provide **only one** of `template`, `template_slug`, or `template_id`.
-- Inline `template` is **create-only**. If the `template.slug` already exists, issuance is rejected and you must use `template_slug` or `template_id`.
-
-Minimal example (add to your normal issuance payload):
+### Example: inline template (create-only)
 
 ```json
 {
@@ -238,14 +229,7 @@ Minimal example (add to your normal issuance payload):
 }
 ```
 
-QR placement: the verification QR is always drawn near the bottom-right corner. Your background should leave a square area empty:
-
-- `qrSize = (page_width > 1000) ? 300 : 160`
-- `qrX = page_width  - qrSize - 120`
-- `qrY = page_height - qrSize - 120`
-- Reserved box: `(x=qrX, y=qrY, width=qrSize, height=qrSize)`
-
-Full template guide (including examples): https://github.com/csacanam/hashproof/blob/main/docs/TEMPLATES.md
+QR code: the verification QR is always drawn near the bottom-right corner. Leave that area empty in your background. Exact formula: [TEMPLATES.md](https://github.com/csacanam/hashproof/blob/main/docs/TEMPLATES.md#qr-placement-design-guideline).
 
 ### Read template requirements (optional)
 
