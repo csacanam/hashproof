@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
-import JsonHighlight from "../components/JsonHighlight.jsx";
+import ResponsiveCode from "../components/ResponsiveCode.jsx";
 import SiteHeader from "../components/SiteHeader.jsx";
 import SiteFooter from "../components/SiteFooter.jsx";
 
@@ -29,7 +29,7 @@ const PAYLOAD_EXAMPLE = `{
   "title": "First Credential Issued",
   "values": {
     "holder_name": "YOUR_NAME",
-    "details": "For successfully issuing a verifiable credential using the HashProof API."
+    "details": "For successfully issuing a verifiable credential\nusing the HashProof API."
   }
 }`;
 
@@ -140,7 +140,7 @@ export default function Home() {
                   <span className="home-code-label">POST api.hashproof.dev/issueCredential</span>
                   <span className="home-code-price">$0.10 USDC · x402 · Base or Celo</span>
                 </div>
-                <JsonHighlight code={PAYLOAD_EXAMPLE} />
+                <ResponsiveCode code={PAYLOAD_EXAMPLE} />
               </div>
               <p className="home-code-replace">
                 Replace <span className="home-code-placeholder">YOUR_NAME</span> with the recipient&apos;s full name.

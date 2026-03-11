@@ -168,7 +168,7 @@ const res = await fetchWithPayment("https://api.hashproof.dev/issueCredential", 
     title:           "First Credential Issued",
     values: {
       holder_name: process.env.YOUR_NAME,
-      details:     "For successfully issuing a verifiable credential using the HashProof API.",
+      details:     "For successfully issuing a verifiable credential\nusing the HashProof API.",
     },
   }),
 });

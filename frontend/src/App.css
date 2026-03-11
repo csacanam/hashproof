@@ -272,12 +272,51 @@
   color: var(--color-accent);
 }
 
-/* Code block */
-.home-code-block {
-  background: var(--color-bg-card);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+/* Responsive code wrapper – same style as .docs-code (unified code block look) */
+.responsive-code {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   overflow: hidden;
+}
+
+.responsive-code__pre {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 1rem 1.125rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  overflow-x: hidden;
+  font-size: 0.82rem;
+  line-height: 1.65;
+  tab-size: 2;
+  color: #e4e4e7;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 480px) {
+  .responsive-code__pre {
+    padding: 0.875rem;
+    font-size: 0.75rem;
+  }
+}
+
+/* Home code block – same visual style as .docs-code-block */
+.home-code-block {
+  background: #0d0d0f;
+  border: 1px solid #27272a;
+  border-radius: 10px;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  margin-bottom: 1.25rem;
 }
 
 .home-code-header {
@@ -285,8 +324,9 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 0.4rem;
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--color-border);
+  padding: 0.5rem 0.875rem;
+  border-bottom: 1px solid #27272a;
+  background: #111113;
 }
 
 @media (min-width: 540px) {
@@ -294,47 +334,49 @@
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    padding: 0.75rem 1.25rem;
   }
 }
 
 .home-code-label {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--color-accent);
-  letter-spacing: 0.02em;
-  font-family: "SF Mono", "Fira Code", monospace;
+  font-size: 0.72rem;
+  color: #7dd3fc;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  letter-spacing: 0.06em;
 }
 
 .home-code-price {
   font-size: 0.72rem;
-  color: var(--color-text-muted);
-  background: var(--color-bg-elevated);
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  padding: 0.2rem 0.6rem;
+  color: #52525b;
+  background: #18181b;
+  border: 1px solid #27272a;
+  border-radius: 5px;
+  padding: 0.2em 0.65em;
   white-space: nowrap;
 }
 
+/* Legacy .home-code – same as docs-code when used elsewhere */
 .home-code {
+  margin: 0;
+  padding: 1rem 1.125rem;
+  font-size: 0.82rem;
+  line-height: 1.65;
+  tab-size: 2;
+  color: #e4e4e7;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
   background: transparent;
   border: none;
   border-radius: 0;
-  padding: 1rem;
-  margin: 0;
-  font-size: 0.78rem;
-  line-height: 1.7;
-  color: #e4e4e7;
-  overflow-x: auto;
-  white-space: pre;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
 }
 
-@media (min-width: 480px) {
+@media (max-width: 480px) {
   .home-code {
-    padding: 1.25rem;
-    font-size: 0.82rem;
+    padding: 0.875rem;
+    font-size: 0.75rem;
   }
 }
 
@@ -1904,7 +1946,7 @@
   color: #52525b;
 }
 
-/* Code block */
+/* Code block – same responsive behavior as Home (one code pipeline) */
 .docs-code-block {
   position: relative;
   background: #0d0d0f;
@@ -1912,6 +1954,8 @@
   border-radius: 10px;
   overflow: hidden;
   margin-bottom: 1.25rem;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .docs-code-top {
@@ -1986,12 +2030,18 @@
   font-size: 0.82rem;
   line-height: 1.65;
   font-family: "JetBrains Mono", "Fira Code", monospace;
-  overflow-x: auto;
   tab-size: 2;
-  white-space: pre;
   color: #e4e4e7;
   background: transparent;
   display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 .docs-code--plain {
