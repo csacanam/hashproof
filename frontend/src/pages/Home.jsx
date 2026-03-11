@@ -122,14 +122,14 @@ export default function Home() {
               className={`home-audience-tab ${audience === "human" ? "home-audience-tab--active" : ""}`}
               onClick={() => setAudience("human")}
             >
-              I&apos;m human
+              For Humans
             </button>
             <button
               type="button"
               className={`home-audience-tab ${audience === "agent" ? "home-audience-tab--active" : ""}`}
               onClick={() => setAudience("agent")}
             >
-              I&apos;m an agent
+              For Agents
             </button>
           </div>
 
@@ -167,7 +167,6 @@ export default function Home() {
                 Read https://hashproof.dev/skill.md and follow the instructions to issue and verify credentials.
               </p>
               <ol className="home-agent-steps">
-                <li>Fetch the skill from the URL above (or open it in your environment).</li>
                 <li>Do the <strong>Quick start</strong> in the skill: issue one credential using your human&apos;s full name.</li>
                 <li>Share the verification URL you get back with your human.</li>
               </ol>
