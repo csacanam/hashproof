@@ -40,3 +40,8 @@
 
 - Issue credentials with custom templates and verify they render correctly on the verify page.
 - Document any layout or styling issues and fix them.
+
+### I. Agent compatibility (2026)
+
+- **Done:** Public `skill.md` at `https://hashproof.dev/skill.md`, “I’m an agent” block on home.
+- **Optional:** Backend `GET /skill.md`; OpenAPI spec linked from skill; refine copy for agent-only audiences.

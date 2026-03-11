@@ -11,25 +11,25 @@ const DEMO_ENTITY_SLUG = "hashproof";
 
 const PAYLOAD_EXAMPLE = `{
   "issuer": {
-    "display_name": "Acme Corp",
-    "slug": "acme-corp"
+    "display_name": "HashProof Demo",
+    "slug": "hashproof-demo"
   },
   "platform": {
-    "display_name": "HashProof",
-    "slug": "hashproof"
+    "display_name": "HashProof Demo",
+    "slug": "hashproof-demo"
   },
   "holder": {
-    "full_name": "María García"
+    "full_name": "YOUR_NAME"
   },
   "context": {
-    "type": "course",
-    "title": "Intro to Blockchain"
+    "type": "certification",
+    "title": "HashProof API Quickstart"
   },
   "credential_type": "completion",
-  "title": "Certificate of Completion",
+  "title": "First Credential Issued",
   "values": {
-    "holder_name": "María García",
-    "details": "For completing Intro to Blockchain\nAcme Corp · June 2026"
+    "holder_name": "YOUR_NAME",
+    "details": "For successfully issuing a verifiable credential using the HashProof API."
   }
 }`;
 
@@ -54,6 +54,7 @@ const STEPS = [
 
 export default function Home() {
   const [stats, setStats] = useState(null);
+  const [audience, setAudience] = useState("human"); // "human" | "agent"
 
   useEffect(() => {
     fetch(`${API_URL}/stats`)
@@ -113,27 +114,73 @@ export default function Home() {
           )}
         </section>
 
-        {/* ── Code snippet ── */}
-        <section className="section">
-          <div className="home-code-block">
-            <div className="home-code-header">
-              <span className="home-code-label">POST api.hashproof.dev/issueCredential</span>
-              <span className="home-code-price">$0.10 USDC · x402 · Base or Celo</span>
-            </div>
-            <JsonHighlight code={PAYLOAD_EXAMPLE} />
-          </div>
-          <p className="home-code-note">
-            Returns a <code>verification_url</code> to share with the credential holder.
-            Payment is handled automatically via the{" "}
-            <a
-              href="https://github.com/csacanam/hashproof/blob/main/docs/X402-PAYMENT-FLOW.md"
-              target="_blank"
-              rel="noopener noreferrer"
+        {/* ── I'm human / I'm an agent (default: human, code) ── */}
+        <section className="section home-audience-section">
+          <div className="home-audience-tabs">
+            <button
+              type="button"
+              className={`home-audience-tab ${audience === "human" ? "home-audience-tab--active" : ""}`}
+              onClick={() => setAudience("human")}
             >
-              x402 protocol
-            </a>{" "}
-            — no API key or account required.
-          </p>
+              I&apos;m human
+            </button>
+            <button
+              type="button"
+              className={`home-audience-tab ${audience === "agent" ? "home-audience-tab--active" : ""}`}
+              onClick={() => setAudience("agent")}
+            >
+              I&apos;m an agent
+            </button>
+          </div>
+
+          {audience === "human" && (
+            <>
+              <div className="home-code-block">
+                <div className="home-code-header">
+                  <span className="home-code-label">POST api.hashproof.dev/issueCredential</span>
+                  <span className="home-code-price">$0.10 USDC · x402 · Base or Celo</span>
+                </div>
+                <JsonHighlight code={PAYLOAD_EXAMPLE} />
+              </div>
+              <p className="home-code-replace">
+                Replace <span className="home-code-placeholder">YOUR_NAME</span> with the recipient&apos;s full name.
+              </p>
+              <p className="home-code-note">
+                Returns a <code>verification_url</code> to share with the credential holder.
+                Payment is handled automatically via the{" "}
+                <a
+                  href="https://github.com/csacanam/hashproof/blob/main/docs/X402-PAYMENT-FLOW.md"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  x402 protocol
+                </a>{" "}
+                — no API key or account required.
+              </p>
+            </>
+          )}
+
+          {audience === "agent" && (
+            <div className="home-agent-cta">
+              <p className="home-agent-title">Use HashProof</p>
+              <p className="home-agent-desc">
+                Read https://hashproof.dev/skill.md and follow the instructions to issue and verify credentials.
+              </p>
+              <ol className="home-agent-steps">
+                <li>Fetch the skill from the URL above (or open it in your environment).</li>
+                <li>Do the <strong>Quick start</strong> in the skill: issue one credential using your human&apos;s full name.</li>
+                <li>Share the verification URL you get back with your human.</li>
+              </ol>
+              <a
+                href="/skill.md"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-primary"
+              >
+                Read skill.md
+              </a>
+            </div>
+          )}
         </section>
 
         {/* ── How it works ── */}
@@ -207,20 +254,6 @@ export default function Home() {
           <p className="home-pipeline-note">
             Even if HashProof goes offline, the blockchain and IPFS records remain
             independently verifiable by anyone.
-          </p>
-        </section>
-
-        {/* ── For agents ── */}
-        <section className="section">
-          <h2>Designed for AI agents</h2>
-          <p className="section-p">
-            HashProof uses the <strong>x402 protocol</strong> — a standard for HTTP-native
-            micropayments. AI agents can discover, call, and pay for the API without
-            human intervention. No accounts, no OAuth, no billing setup.
-          </p>
-          <p className="section-p">
-            An agent sends a POST request, receives a 402 Payment Required response with
-            a USDC payment request, pays on-chain, and retries — all programmatically.
           </p>
         </section>
 
