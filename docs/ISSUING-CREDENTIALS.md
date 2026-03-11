@@ -74,6 +74,28 @@ Every issuance request must include:
 
 ---
 
+## Fixed layout, variable background
+
+When you use the same template layout for many credentials but want a different background image per event or batch, use `background_url_override` with `template_slug` or `template_id`. One template defines the layout; each issuance can set its own background URL.
+
+```bash
+curl -s -X POST http://localhost:4022/issueCredential \
+  -H "Content-Type: application/json" \
+  -d '{
+    "issuer":   { "display_name": "My Org", "slug": "my-org" },
+    "platform": { "display_name": "My Org", "slug": "my-org" },
+    "holder":   { "full_name": "Jane Doe" },
+    "context":  { "type": "event", "title": "Summit 2025" },
+    "credential_type": "attendance",
+    "title": "Certificate of Attendance",
+    "template_slug": "evento-layout-generico",
+    "background_url_override": "https://cdn.example.com/eventos/summit-2025-bg.png",
+    "values": { "holder_name": "Jane Doe" }
+  }' | jq .
+```
+
+---
+
 ## What to read next
 
 - Need every field, allowed values, and errors: [`API-REFERENCE.md`](./API-REFERENCE.md)

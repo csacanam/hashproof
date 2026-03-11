@@ -27,7 +27,7 @@ Minimal example:
     "page_width": 3508,
     "page_height": 2480,
     "fields_json": [
-      { "key": "holder_name", "x": 248, "y": 1200, "width": 3012, "required": true, "font_size": 192, "font_color": "#111827", "align": "center" },
+      { "key": "holder_name", "x": 248, "y": 1200, "width": 3012, "required": true, "font_size": 192, "font_color": "#111827", "align": "center", "bold": true },
       { "key": "details", "x": 716, "y": 1488, "width": 2077, "required": false, "font_size": 84, "font_color": "#111827", "align": "center" }
     ]
   },
@@ -52,6 +52,19 @@ A template defines:
 - Text fields placement and styling (`fields_json`)
 
 At issuance time, the caller provides `values` and the renderer writes `credentialSubject[valuesKey]` into each field position.
+
+### Text field styling (fields_json)
+
+Each field can optionally control text style with booleans (all default `false`):
+
+| Property   | Description        |
+|-----------|--------------------|
+| `bold`    | Render text in bold (Helvetica-Bold). |
+| `italic`  | Render text in italic (Helvetica-Oblique). |
+| `underline` | Underline the text. |
+| `strike`  | Strike through the text. |
+
+You can combine `bold` and `italic`. Example: `{ "key": "holder_name", "x": 80, "y": 260, "font_size": 40, "bold": true }`.
 
 ## QR placement (important for design)
 

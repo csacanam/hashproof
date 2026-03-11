@@ -130,6 +130,10 @@ How the PDF is rendered: background, size, field positions.
 | font_size | number | no | Font size in pt. Default: 12 |
 | font_color | string | no | Hex color for text (e.g. `#000000`). Default: black |
 | align | string | no | `left`, `center`, `right` |
+| bold | boolean | no | If true, text is bold. Default: false |
+| italic | boolean | no | If true, text is italic. Default: false |
+| underline | boolean | no | If true, text is underlined. Default: false |
+| strike | boolean | no | If true, text is struck through. Default: false |
 
 **Flow:** Template defines which keys render where (position, font, color). The credential assigns values to those keys at issuance (via `values` payload or defaults). The PDF renderer renders subject[key] at (x, y). QR is always rendered in a fixed position.
 
@@ -169,6 +173,7 @@ Central table: each row is one issued credential.
 | contract_address | text | Contract address |
 | tx_hash | text | Transaction hash |
 | ipfs_cid | text | IPFS CID (Pinata) for decentralized backup |
+| background_url_override | text | Optional; overrides the template's background image for this credential only (layout from template unchanged) |
 | created_at, updated_at | timestamptz | Audit timestamps |
 
 **Note:** `credential_type` = kind of claim (attendance, completion, etc.). `context.type` = kind of context (event, course, etc.). A course (context) can have completion or participation credentials.

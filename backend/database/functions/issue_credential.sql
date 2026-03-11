@@ -297,7 +297,8 @@ begin
       'credential_json', v_credential_json,
       'chain_name', 'celo',
       'chain_id', 42220,
-      'contract_address', p_contract_address
+      'contract_address', p_contract_address,
+      'background_url_override', nullif(trim(coalesce(p_payload->>'background_url_override', '')), '')
     )
   );
 end;
@@ -328,6 +329,7 @@ declare
   v_chain_name text;
   v_chain_id int;
   v_contract_address text;
+  v_background_url_override text;
 begin
   v_id := (p_prepared->>'id')::uuid;
   v_issuer_entity_id := (p_prepared->>'issuer_entity_id')::uuid;
@@ -341,6 +343,7 @@ begin
   v_chain_name := p_prepared->>'chain_name';
   v_chain_id := (p_prepared->>'chain_id')::int;
   v_contract_address := p_prepared->>'contract_address';
+  v_background_url_override := nullif(trim(coalesce(p_prepared->>'background_url_override', '')), '');
 
   insert into credentials (
     id,
@@ -348,14 +351,16 @@ begin
     credential_type, expires_at, revoked_at,
     credential_json,
     chain_name, chain_id, contract_address, tx_hash,
-    ipfs_cid
+    ipfs_cid,
+    background_url_override
   ) values (
     v_id,
     v_issuer_entity_id, v_platform_entity_id, v_holder_id, v_context_id, v_template_id,
     v_credential_type::credential_type, v_expires_at, null,
     v_credential_json,
     v_chain_name, v_chain_id, v_contract_address, p_tx_hash,
-    p_ipfs_cid
+    p_ipfs_cid,
+    v_background_url_override
   );
 
   return jsonb_build_object(

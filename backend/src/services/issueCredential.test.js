@@ -162,6 +162,19 @@ describe("executeIssueCredential", () => {
     });
   });
 
+  it("passes background_url_override to prepare_credential when provided", async () => {
+    const payload = {
+      ...validPayload,
+      background_url_override: "https://cdn.example.com/event-bg.png",
+    };
+    await executeIssueCredential(payload);
+    const prepareCall = supabase.rpc.mock.calls.find((c) => c[0] === "prepare_credential");
+    expect(prepareCall).toBeDefined();
+    expect(prepareCall[1].p_payload.background_url_override).toBe(
+      "https://cdn.example.com/event-bg.png"
+    );
+  });
+
   it("throws when template_id and template_slug are both provided", async () => {
     const payload = { ...validPayload, template_id: "00000000-0000-0000-0000-000000000005" };
     await expect(executeIssueCredential(payload)).rejects.toThrow(

@@ -10,7 +10,7 @@ export async function generateCredentialPdf(credentialId, baseUrl) {
   const { data: cred, error } = await supabase
     .from("credentials")
     .select(
-      "id, credential_json, templates(background_url, page_width, page_height, fields_json)"
+      "id, credential_json, background_url_override, templates(background_url, page_width, page_height, fields_json)"
     )
     .eq("id", credentialId)
     .single();
@@ -22,12 +22,10 @@ export async function generateCredentialPdf(credentialId, baseUrl) {
   const template = Array.isArray(cred.templates) ? cred.templates[0] : cred.templates;
   if (!template) return null;
 
-  const {
-    background_url,
-    page_width = 595,
-    page_height = 842,
-    fields_json = [],
-  } = template;
+  const page_width = Number(template.page_width) || 595;
+  const page_height = Number(template.page_height) || 842;
+  const fields_json = template.fields_json ?? [];
+  const background_url = cred.background_url_override || template.background_url;
 
   const credentialJson = cred.credential_json;
   const verificationUrl = `${baseUrl}/verify/${credentialId}`;
@@ -69,16 +67,37 @@ export async function generateCredentialPdf(credentialId, baseUrl) {
         const fontSize = Math.min(200, Math.max(6, Number(f.font_size) || 12));
         const fontColor = f.font_color ?? "#000000";
         const align = f.align === "center" ? "center" : f.align === "right" ? "right" : "left";
-        doc.fontSize(fontSize).fillColor(fontColor).text(text, x, y, {
+        const bold = f.bold === true;
+        const italic = f.italic === true;
+        const fontName =
+          bold && italic
+            ? "Helvetica-BoldOblique"
+            : bold
+              ? "Helvetica-Bold"
+              : italic
+                ? "Helvetica-Oblique"
+                : "Helvetica";
+        const textOpts = {
           width: w,
           align,
           ellipsis: true,
-        });
+          ...(f.underline === true && { underline: true }),
+          ...(f.strike === true && { strike: true }),
+        };
+        doc.font(fontName).fontSize(fontSize).fillColor(fontColor).text(text, x, y, textOpts);
       }
 
-      const qrSize = page_width > 1000 ? 300 : 160;
-      const qrX = page_width - qrSize - 120;
-      const qrY = page_height - qrSize - 120;
+      // Scale QR from a reference size (360px at 3508px width, ~20% larger) so it looks good on any page size
+      const REFERENCE_PAGE_WIDTH = 3508;
+      const REFERENCE_QR_SIZE = 360;
+      const QR_SIZE_MIN = 96;
+      const QR_SIZE_MAX = 360;
+      const qrSize = Math.round(
+        Math.min(QR_SIZE_MAX, Math.max(QR_SIZE_MIN, REFERENCE_QR_SIZE * (page_width / REFERENCE_PAGE_WIDTH)))
+      );
+      const qrMargin = Math.round(qrSize * 0.4); // margin scales with QR
+      const qrX = page_width - qrSize - qrMargin;
+      const qrY = page_height - qrSize - qrMargin;
       const qrDataUrl = await QRCode.toDataURL(verificationUrl, { width: qrSize });
       doc.image(qrDataUrl, qrX, qrY, { width: qrSize, height: qrSize });
 

@@ -181,6 +181,9 @@ create table credentials (
   -- IPFS backup (Pinata) – CID for decentralized storage
   ipfs_cid text,
 
+  -- Override template background for this credential only (layout from template unchanged)
+  background_url_override text,
+
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
 
@@ -254,6 +257,9 @@ create table entity_verification_requests (
 -- alter table holders drop column if exists email;
 -- alter table holders drop column if exists phone;
 -- drop index if exists holders_email_idx;
+
+-- Migration: background_url_override per credential (run on existing DB):
+-- alter table credentials add column if not exists background_url_override text;
 
 create index entity_verification_requests_entity_id_idx
   on entity_verification_requests (entity_id);

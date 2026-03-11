@@ -52,10 +52,15 @@ For practical examples with curl, see [`ISSUING-CREDENTIALS.md`](./ISSUING-CREDE
   "credential_type":    "completion",
   "title":              "Certificate of Completion",
   "expires_at":         null,
-  "values":             { ... },
-  "template_slug":      "hashproof"
+  "values":                    { ... },
+  "template_slug":             "hashproof",
+  "background_url_override":   "https://..."
 }
 ```
+
+#### background_url_override `string` — optional
+
+When using `template_slug` or `template_id`, you can override the template's background image for this credential only. Layout (size, field positions) comes from the template; the PDF uses this URL as the background. If omitted, the template's `background_url` is used. Not added to the credential JSON or IPFS.
 
 #### issuer_entity_id / platform_entity_id `string (UUID)` — optional
 
@@ -216,6 +221,10 @@ For template design (PDF size, background, QR placement), see [`TEMPLATES.md`](.
 | `font_size` | number | no | Font size in pt. Default: `12` |
 | `font_color` | string | no | Hex color. Default: `#000000` |
 | `align` | string | no | `left`, `center`, or `right`. Default: `left` |
+| `bold` | boolean | no | If `true`, text is rendered in bold. Default: `false` |
+| `italic` | boolean | no | If `true`, text is rendered in italic. Default: `false` |
+| `underline` | boolean | no | If `true`, text is underlined. Default: `false` |
+| `strike` | boolean | no | If `true`, text is struck through. Default: `false` |
 
 ### Response `200 OK`
 
