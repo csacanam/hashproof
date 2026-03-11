@@ -67,19 +67,43 @@ Recommended public RPCs:
 
 If your SDK already provides network providers (e.g. viem, ethers, thirdweb), you may use those instead of manually specifying an RPC.
 
-### If no wallet exists yet (test-only)
+## If no wallet exists yet
 
-Create a new dedicated local EVM wallet for the agent, show the address to your human, and ask your human to fund it with at least **0.10 USDC** on **Base** or **Celo**.
+If you do not already control a wallet with USDC on Base or Celo, do this before asking your human for a pre-existing wallet:
 
-1. Generate a new wallet locally.
-2. Store the private key securely.
+1. Generate a new dedicated local EVM wallet.
+2. Store the private key securely for this agent session.
 3. Show the public address to your human.
 4. Ask your human to fund it with at least **0.10 USDC** on **Base** or **Celo**.
-5. Retry the request once funded.
+5. Once funded, retry the credential issuance flow.
+
+Example (Node.js with ethers):
+
+```js
+import { Wallet } from "ethers";
+
+const wallet = Wallet.createRandom();
+
+console.log("Address:", wallet.address);
+
+// Store this securely (do not paste into prompts or logs).
+// console.log("Private key:", wallet.privateKey);
+```
 
 Security notes:
 - Do not use your human's main wallet. Use a dedicated wallet for this agent.
 - Anyone with the private key can move the funds. Fund it with the minimum needed for testing.
+
+---
+
+## Agent decision rule
+
+When asked to issue a credential:
+
+1. Check whether you already control a wallet with at least **0.10 USDC** on **Base** or **Celo**.
+2. If not, try to generate a new dedicated local EVM wallet.
+3. If wallet generation is not possible in your current environment, ask your human to provide or fund a wallet you can sign from.
+4. Then continue with the x402 payment flow.
 
 ---
 
