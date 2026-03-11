@@ -1,13 +1,21 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import PdfViewer from "../components/PdfViewer.jsx";
 import SiteHeader from "../components/SiteHeader.jsx";
 import SiteFooter from "../components/SiteFooter.jsx";
+import { getPreferredLocale, createTranslator } from "../i18n.js";
+import { verifyMessages } from "../locales/verify.js";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4022";
 
+const localeToDateLocale = { en: "en-US", es: "es" };
+
 export default function Verify() {
   const { id } = useParams();
+  const locale = useMemo(() => getPreferredLocale(), []);
+  const t = useMemo(() => createTranslator(verifyMessages, locale), [locale]);
+  const dateLocale = localeToDateLocale[locale] || "en-US";
+
   const [data, setData] = useState(null);
   const [pdfBlob, setPdfBlob] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -111,11 +119,15 @@ export default function Verify() {
   };
 
   const getStepText = (state) => {
-    if (state === "running") return "Checking…";
-    if (state === "success") return "Done";
-    if (state === "error") return "Error";
-    return "Waiting…";
+    if (state === "running") return t("verify.step.checking");
+    if (state === "success") return t("verify.step.done");
+    if (state === "error") return t("verify.step.error");
+    return t("verify.step.waiting");
   };
+
+  const displayError = error === "Credential not found" ? t("verify.error.notFound")
+    : error === "Failed to verify credential" ? t("verify.error.generic")
+    : error;
 
   const getStepDotClass = (state) => {
     if (state === "running") return "verify-step__dot verify-step__dot--active";
@@ -131,31 +143,31 @@ export default function Verify() {
         <main className="verify-main">
           <div className="verify-loader">
             <div className="verify-loader__spinner" />
-            <p className="verify-loader__text">Verifying credential…</p>
+            <p className="verify-loader__text">{t("verify.verifying")}</p>
             <ul className="verify-steps">
               <li className="verify-step">
-                <span className="verify-step__label">1. Checking blockchain record</span>
+                <span className="verify-step__label">{t("verify.step.1")}</span>
                 <span className="verify-step__status">
                   <span className={getStepDotClass(steps.contract)} />
                   {getStepText(steps.contract)}
                 </span>
               </li>
               <li className="verify-step">
-                <span className="verify-step__label">2. Retrieving credential data</span>
+                <span className="verify-step__label">{t("verify.step.2")}</span>
                 <span className="verify-step__status">
                   <span className={getStepDotClass(steps.ipfs)} />
                   {getStepText(steps.ipfs)}
                 </span>
               </li>
               <li className="verify-step">
-                <span className="verify-step__label">3. Verifying data integrity</span>
+                <span className="verify-step__label">{t("verify.step.3")}</span>
                 <span className="verify-step__status">
                   <span className={getStepDotClass(steps.db)} />
                   {getStepText(steps.db)}
                 </span>
               </li>
             </ul>
-            <p className="verify-loader__brand">Powered by HashProof</p>
+            <p className="verify-loader__brand">{t("verify.poweredBy")}</p>
           </div>
         </main>
       </div>
@@ -167,9 +179,9 @@ export default function Verify() {
       <div className="page verify-page">
         <SiteHeader plain />
         <main className="verify-main">
-          <p className="verify-error">{error}</p>
+          <p className="verify-error">{displayError}</p>
           <Link to="/" className="link-back">
-            ← Back to home
+            {t("verify.backHome")}
           </Link>
         </main>
         <SiteFooter />
@@ -193,12 +205,12 @@ export default function Verify() {
   const issuedThrough = cred.platform?.display_name ?? data?.platform_name ?? "—";
   const issuedDateRaw = cred.issuanceDate ?? data?.created_at;
   const issuedDate = issuedDateRaw
-    ? new Date(issuedDateRaw).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    ? new Date(issuedDateRaw).toLocaleDateString(dateLocale, { month: "long", day: "numeric", year: "numeric" })
     : "—";
   const expirationDateRaw = cred.expirationDate ?? data?.expires_at ?? null;
   const expirationDate = expirationDateRaw
-    ? new Date(expirationDateRaw).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
-    : "No expiration";
+    ? new Date(expirationDateRaw).toLocaleDateString(dateLocale, { month: "long", day: "numeric", year: "numeric" })
+    : t("verify.label.noExpiration");
   const credentialIdDisplay = id ?? "—";
 
   return (
@@ -208,13 +220,13 @@ export default function Verify() {
       <main className="verify-main">
         <div className="verify-pdf-section">
           <div className="verify-pdf-header">
-            <h1>{[credentialName, activity].filter((x) => x && x !== "—").join(" · ") || "Credential"}</h1>
+            <h1>{[credentialName, activity].filter((x) => x && x !== "—").join(" · ") || t("verify.credentialTitle")}</h1>
           </div>
           <div ref={wrapperRef} className="verify-pdf-wrapper">
             {pdfBlob ? (
               <PdfViewer pdfBlob={pdfBlob} containerRef={wrapperRef} />
             ) : (
-              <p className="verify-pdf-loading">Loading PDF…</p>
+              <p className="verify-pdf-loading">{t("verify.loadingPdf")}</p>
             )}
           </div>
           <div className="verify-pdf-actions">
@@ -228,7 +240,7 @@ export default function Verify() {
                 <polyline points="7 10 12 15 17 10" />
                 <line x1="12" y1="15" x2="12" y2="3" />
               </svg>
-              Download
+              {t("verify.download")}
             </button>
             <button
               type="button"
@@ -238,94 +250,66 @@ export default function Verify() {
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
               </svg>
-              Verify
+              {t("verify.verify")}
             </button>
           </div>
         </div>
 
         <div ref={verifyCardRef} className="verify-card">
-          <h2>Verification details</h2>
+          <h2>{t("verify.detailsTitle")}</h2>
           {status !== "active" && status !== "revoked" && status !== "expired" && (
             <p className="verify-warning verify-warning--error">
               <span className="verify-warning-icon">❌</span>
-              <span>
-                This credential could not be verified.
-              </span>
+              <span>{t("verify.warning.notVerified")}</span>
             </p>
           )}
           {status === "expired" && (
             <p className="verify-warning">
               <span className="verify-warning-icon">⚠️</span>
-              <span>
-                This credential has expired.
-              </span>
+              <span>{t("verify.warning.expired")}</span>
             </p>
           )}
           {status === "revoked" && (
             <p className="verify-warning verify-warning--error">
               <span className="verify-warning-icon">❌</span>
-              <span>
-                This credential has been revoked by the issuer.
-              </span>
+              <span>{t("verify.warning.revoked")}</span>
             </p>
           )}
           {status === "active" && (data?.issuer_status === "suspended" || data?.platform_status === "suspended") && (
             <p className="verify-warning verify-warning--error">
               <span className="verify-warning-icon">🚫</span>
-              <span>
-                One or more entities involved in issuing this credential have been suspended by HashProof. Exercise caution.
-              </span>
+              <span>{t("verify.warning.suspended")}</span>
             </p>
           )}
           {status === "active" && (!data?.issuer_verified || !data?.platform_verified) && data?.issuer_status !== "suspended" && data?.platform_status !== "suspended" && (
             <p className="verify-warning">
               <span className="verify-warning-icon">⚠️</span>
-              <span>
-                This credential is authentic, but some entities involved in issuing it have not been verified.
-              </span>
+              <span>{t("verify.warning.unverifiedEntities")}</span>
             </p>
           )}
           <dl className="verify-details">
             <div className="verify-detail">
-              <dt>Credential</dt>
+              <dt>{t("verify.label.credential")}</dt>
               <dd>
                 <div>{credentialIdDisplay}</div>
                 <div className="verify-detail-id">
                   <span className={`verify-status verify-status--${status}`}>
-                    {status === "active" ? "Verified" : status}
+                    {status === "active" ? t("verify.status.verified") : status}
                   </span>
                   <span className="verify-tooltip">
-                    <span className="verify-tooltip__icon" aria-hidden>
-                      ?
-                    </span>
+                    <span className="verify-tooltip__icon" aria-hidden>?</span>
                     <span className="verify-tooltip__content">
-                      {status === "active" && statusSource === "contract" && (
-                        <>
-                          This credential is valid on the blockchain. The record exists and has not been revoked or expired.
-                        </>
-                      )}
-                      {status === "revoked" && (
-                        <>
-                          This credential was revoked by the issuer on the blockchain.
-                        </>
-                      )}
-                      {status === "expired" && (
-                        <>
-                          This credential has expired based on its validity period.
-                        </>
-                      )}
-                      {status !== "active" && status !== "revoked" && status !== "expired" && (
-                        <>
-                          This credential could not be fully verified. The blockchain record may be missing or temporarily unavailable.
-                        </>
-                      )}
+                      {status === "active" && statusSource === "contract" && t("verify.tooltip.active")}
+                      {status === "revoked" && t("verify.tooltip.revoked")}
+                      {status === "expired" && t("verify.tooltip.expired")}
+                      {status !== "active" && status !== "revoked" && status !== "expired" && t("verify.tooltip.notFound")}
                     </span>
                   </span>
                 </div>
               </dd>
             </div>
             <div className="verify-detail">
-              <dt>Issuer</dt>
+              <dt>{t("verify.label.issuer")}</dt>
               <dd>
                 <div>
                   <span>{issuedBy}</span>
@@ -333,41 +317,28 @@ export default function Verify() {
                     <span>
                       {" · "}
                       <Link to={`/entities/${data.issuer_entity_id}`} className="verify-explorer-link">
-                        Start verification
+                        {t("verify.link.startVerification")}
                       </Link>
                     </span>
                   )}
                 </div>
                 <div className="verify-detail-id">
                   <span className={`entity-flag entity-flag--${data?.issuer_verified ? "verified" : data?.issuer_status === "suspended" ? "suspended" : "unverified"}`}>
-                    {data?.issuer_verified ? "Verified" : data?.issuer_status === "suspended" ? "Suspended" : "Unverified"}
+                    {data?.issuer_verified ? t("verify.status.verified") : data?.issuer_status === "suspended" ? t("verify.status.suspended") : t("verify.status.unverified")}
                   </span>
                   <span className="verify-tooltip">
-                    <span className="verify-tooltip__icon" aria-hidden>
-                      ?
-                    </span>
+                    <span className="verify-tooltip__icon" aria-hidden>?</span>
                     <span className="verify-tooltip__content">
-                      {data?.issuer_verified ? (
-                        <>
-                          This issuer has been verified by HashProof as the issuer of this credential.
-                        </>
-                      ) : data?.issuer_status === "suspended" ? (
-                        <>
-                          This issuer has been suspended by HashProof. Exercise caution with credentials issued by this entity.
-                        </>
-                      ) : (
-                        <>
-                          The issuer has not been verified by HashProof. The credential may still be valid if the
-                          blockchain record matches.
-                        </>
-                      )}
+                      {data?.issuer_verified && t("verify.tooltip.issuerVerified")}
+                      {data?.issuer_status === "suspended" && t("verify.tooltip.issuerSuspended")}
+                      {!data?.issuer_verified && data?.issuer_status !== "suspended" && t("verify.tooltip.issuerUnverified")}
                     </span>
                   </span>
                 </div>
               </dd>
             </div>
             <div className="verify-detail">
-              <dt>Platform</dt>
+              <dt>{t("verify.label.platform")}</dt>
               <dd>
                 <div>
                   <span>{issuedThrough}</span>
@@ -375,65 +346,52 @@ export default function Verify() {
                     <span>
                       {" · "}
                       <Link to={`/entities/${data.platform_entity_id}`} className="verify-explorer-link">
-                        Start verification
+                        {t("verify.link.startVerification")}
                       </Link>
                     </span>
                   )}
                 </div>
                 <div className="verify-detail-id">
                   <span className={`entity-flag entity-flag--${data?.platform_verified ? "verified" : data?.platform_status === "suspended" ? "suspended" : "unverified"}`}>
-                    {data?.platform_verified ? "Verified" : data?.platform_status === "suspended" ? "Suspended" : "Unverified"}
+                    {data?.platform_verified ? t("verify.status.verified") : data?.platform_status === "suspended" ? t("verify.status.suspended") : t("verify.status.unverified")}
                   </span>
                   <span className="verify-tooltip">
-                    <span className="verify-tooltip__icon" aria-hidden>
-                      ?
-                    </span>
+                    <span className="verify-tooltip__icon" aria-hidden>?</span>
                     <span className="verify-tooltip__content">
-                      {data?.platform_verified ? (
-                        <>
-                          This platform has been verified by HashProof as a trusted credential issuer or intermediary.
-                        </>
-                      ) : data?.platform_status === "suspended" ? (
-                        <>
-                          This platform has been suspended by HashProof. Exercise caution with credentials issued through this platform.
-                        </>
-                      ) : (
-                        <>
-                          This platform has not been verified by HashProof. Credentials issued through it should be
-                          reviewed carefully.
-                        </>
-                      )}
+                      {data?.platform_verified && t("verify.tooltip.platformVerified")}
+                      {data?.platform_status === "suspended" && t("verify.tooltip.platformSuspended")}
+                      {!data?.platform_verified && data?.platform_status !== "suspended" && t("verify.tooltip.platformUnverified")}
                     </span>
                   </span>
                 </div>
               </dd>
             </div>
             <div className="verify-detail">
-              <dt>Recipient</dt>
+              <dt>{t("verify.label.recipient")}</dt>
               <dd>{recipient}</dd>
             </div>
             <div className="verify-detail">
-              <dt>Credential</dt>
+              <dt>{t("verify.label.credential")}</dt>
               <dd>{credentialName}</dd>
             </div>
             <div className="verify-detail">
-              <dt>Activity</dt>
+              <dt>{t("verify.label.activity")}</dt>
               <dd>{activity}</dd>
             </div>
             <div className="verify-detail">
-              <dt>Issued date</dt>
+              <dt>{t("verify.label.issuedDate")}</dt>
               <dd>{issuedDate}</dd>
             </div>
             <div className="verify-detail">
-              <dt>Expiration date</dt>
+              <dt>{t("verify.label.expirationDate")}</dt>
               <dd>{expirationDate}</dd>
             </div>
             <div className="verify-detail">
-              <dt>Blockchain Record</dt>
+              <dt>{t("verify.label.blockchainRecord")}</dt>
               <dd>
                 {explorerUrl ? (
                   <a href={explorerUrl} target="_blank" rel="noopener noreferrer" className="verify-explorer-link">
-                    View transaction
+                    {t("verify.label.viewTransaction")}
                   </a>
                 ) : (
                   "—"
@@ -442,10 +400,10 @@ export default function Verify() {
             </div>
             {data?.ipfs_uri && (
               <div className="verify-detail">
-                <dt>IPFS Backup</dt>
+                <dt>{t("verify.label.ipfsBackup")}</dt>
                 <dd>
                   <a href={data.ipfs_uri} target="_blank" rel="noopener noreferrer" className="verify-explorer-link">
-                    View on IPFS
+                    {t("verify.label.viewOnIpfs")}
                   </a>
                 </dd>
               </div>
