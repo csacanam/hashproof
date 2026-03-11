@@ -180,6 +180,85 @@ Content-Type: application/json
 # Plus x402 payment header after 402 response
 ```
 
+### Use an existing template (template_slug)
+
+If your issuer already created a template (for example the slug `template-eventos-camilo`), pass it as `template_slug`.
+
+Templates can be:
+- `private` (issuer-only): only usable by that issuer.
+- `public` (catalog): usable by any issuer.
+Template slugs are globally unique (one template per slug).
+
+Security rule:
+- If the template is `private`, only the owner issuer can use it.
+
+Example:
+
+```json
+{
+  "issuer":   { "display_name": "Eventos Camilo", "slug": "eventos-camilo" },
+  "platform": { "display_name": "Eventos Camilo", "slug": "eventos-camilo" },
+  "holder":   { "full_name": "Maria Garcia" },
+  "context":  { "type": "event", "title": "Meetup Web3" },
+  "credential_type": "attendance",
+  "title": "Certificate of Attendance - Meetup Web3",
+  "template_slug": "template-eventos-camilo",
+  "values": {
+    "holder_name": "Maria Garcia",
+    "details": "Attended the event"
+  }
+}
+```
+
+`values` must contain a value for every template field where `required: true` in the template's `fields_json`. If you do not know the required keys, ask your human for the template field list (or attempt issuance and read the 400 error, which tells you the missing key).
+
+### Create a custom template (inline, create-only)
+
+To create a personalized certificate design, define `template` inline in the `POST /issueCredential` body.
+
+Rules:
+- Provide **only one** of `template`, `template_slug`, or `template_id`.
+- Inline `template` is **create-only**. If the `template.slug` already exists, issuance is rejected and you must use `template_slug` or `template_id`.
+
+Minimal example (add to your normal issuance payload):
+
+```json
+{
+  "template": {
+    "slug": "my-custom-template-v1",
+    "name": "My Custom Template v1",
+    "background_url": "https://your-cdn.com/certificate-bg.png",
+    "page_width": 3508,
+    "page_height": 2480,
+    "fields_json": [
+      { "key": "holder_name", "x": 248, "y": 1200, "width": 3012, "required": true, "font_size": 192, "font_color": "#111827", "align": "center" },
+      { "key": "details", "x": 716, "y": 1488, "width": 2077, "required": false, "font_size": 84, "font_color": "#111827", "align": "center" }
+    ]
+  }
+}
+```
+
+QR placement: the verification QR is always drawn near the bottom-right corner. Your background should leave a square area empty:
+
+- `qrSize = (page_width > 1000) ? 300 : 160`
+- `qrX = page_width  - qrSize - 120`
+- `qrY = page_height - qrSize - 120`
+- Reserved box: `(x=qrX, y=qrY, width=qrSize, height=qrSize)`
+
+Full template guide (including examples): https://github.com/csacanam/hashproof/blob/main/docs/TEMPLATES.md
+
+### Read template requirements (optional)
+
+You can fetch the required keys and full `fields_json`:
+
+```bash
+GET https://api.hashproof.dev/templates/:template_slug_or_id/requirements
+```
+
+For `public` templates: no auth required.
+
+For `private` templates: include an x402 payment header (`X-PAYMENT` / `PAYMENT-SIGNATURE`) from a wallet that is in the template owner's `authorized_wallets`.
+
 **Minimal body:**
 
 ```json

@@ -77,8 +77,8 @@ export async function generateCredentialPdf(credentialId, baseUrl) {
       }
 
       const qrSize = page_width > 1000 ? 300 : 160;
-      const qrX = page_width - qrSize - 50;
-      const qrY = page_height - qrSize - 50;
+      const qrX = page_width - qrSize - 120;
+      const qrY = page_height - qrSize - 120;
       const qrDataUrl = await QRCode.toDataURL(verificationUrl, { width: qrSize });
       doc.image(qrDataUrl, qrX, qrY, { width: qrSize, height: qrSize });
 

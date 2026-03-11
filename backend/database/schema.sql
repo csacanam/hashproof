@@ -117,8 +117,8 @@ create index contexts_external_id_idx
 -- =========================================================
 -- TEMPLATES
 -- How the PDF is rendered
--- entity_id null = base template (global); entity_id set = template belongs to that entity (issuer)
--- slug unique per entity; default template has slug 'hashproof'
+-- entity_id = template owner (issuer/author)
+-- slug is globally unique; default template has slug 'hashproof'
 -- =========================================================
 
 create table templates (
@@ -128,6 +128,10 @@ create table templates (
 
   name text not null,
   slug text not null,
+
+  -- public: can be used by any issuer (catalog template)
+  -- private: only usable within the issuer entity (brand/private template)
+  visibility text not null default 'private' check (visibility in ('public','private')),
 
   background_url text not null,
 
@@ -140,8 +144,9 @@ create table templates (
   updated_at timestamptz not null default now()
 );
 
-create unique index templates_entity_slug_unique_idx
-  on templates (entity_id, slug);
+-- Slugs are globally unique (one template per slug).
+create unique index templates_slug_unique_idx
+  on templates (slug);
 
 -- =========================================================
 -- CREDENTIALS

@@ -20,7 +20,10 @@ declare
   v_context jsonb;
   v_template jsonb;
   v_template_id uuid;
+  v_template_id_text text;
   v_template_slug text;
+  v_issuer_entity_id uuid;
+  v_platform_entity_id uuid;
   v_credential_type text;
   v_title text;
   v_issued_at timestamptz;
@@ -46,12 +49,35 @@ begin
   v_holder := p_payload->'holder';
   v_context := p_payload->'context';
   v_template := p_payload->'template';
-  v_template_id := (p_payload->>'template_id')::uuid;
+  v_template_id_text := p_payload->>'template_id';
+  if v_template_id_text is not null and trim(v_template_id_text) != '' then
+    v_template_id := v_template_id_text::uuid;
+  else
+    v_template_id := null;
+  end if;
   v_template_slug := p_payload->>'template_slug';
+  v_issuer_entity_id := nullif(trim(coalesce(p_payload->>'issuer_entity_id','')), '')::uuid;
+  v_platform_entity_id := nullif(trim(coalesce(p_payload->>'platform_entity_id','')), '')::uuid;
   v_credential_type := p_payload->>'credential_type';
   v_title := p_payload->>'title';
   v_expires_at := (p_payload->>'expires_at')::timestamptz;
   v_values := coalesce(p_payload->'values', '{}'::jsonb);
+
+  -- Template selection must be unambiguous: choose exactly one of template_id, template_slug, template.
+  if ((v_template_id is not null)::int
+      + (trim(coalesce(v_template_slug, '')) != '')::int
+      + (
+          v_template is not null
+          and v_template->>'slug' is not null
+          and v_template->>'name' is not null
+          and v_template->>'background_url' is not null
+          and (v_template->>'page_width')::int is not null
+          and (v_template->>'page_height')::int is not null
+          and v_template->'fields_json' is not null
+        )::int
+    ) > 1 then
+    raise exception 'Provide only one of template_id, template_slug, template.';
+  end if;
 
   if v_issuer is null or v_issuer->>'display_name' is null or v_issuer->>'slug' is null then
     raise exception 'issuer.display_name and issuer.slug required';
@@ -82,6 +108,9 @@ begin
     values (v_issuer->>'display_name', v_slug_lower, v_issuer->>'website', v_issuer->>'logo_url')
     returning id into v_issuer_id;
   end if;
+  if v_issuer_entity_id is not null and v_issuer_entity_id != v_issuer_id then
+    raise exception 'issuer_entity_id does not match issuer.slug';
+  end if;
 
   -- Get or create platform (by slug only)
   v_slug_lower := lower(regexp_replace(v_platform->>'slug', '\s+', '-', 'g'));
@@ -90,6 +119,9 @@ begin
     insert into entities (display_name, slug, website, logo_url)
     values (v_platform->>'display_name', v_slug_lower, v_platform->>'website', v_platform->>'logo_url')
     returning id into v_platform_id;
+  end if;
+  if v_platform_entity_id is not null and v_platform_entity_id != v_platform_id then
+    raise exception 'platform_entity_id does not match platform.slug';
   end if;
 
   -- Get or create holder
@@ -127,14 +159,29 @@ begin
 
   -- Get or create template
   if v_template_id is not null then
-    select id, fields_json into v_template_record from templates where id = v_template_id;
+    -- Template IDs can be:
+    -- - private: only usable by the owner entity
+    -- - public: usable by any issuer
+    select id, fields_json
+      into v_template_record
+      from templates
+     where id = v_template_id
+       and (visibility = 'public' or entity_id = v_issuer_id);
     if v_template_record.id is null then
       raise exception 'Template not found';
     end if;
   elsif v_template_slug is not null and v_template_slug != '' then
     v_slug_lower := lower(regexp_replace(v_template_slug, '\s+', '-', 'g'));
-    select id, fields_json into v_template_record from templates where slug = v_slug_lower;
+    -- Slugs are globally unique. Enforce privacy via visibility + owner entity.
+    select id, fields_json, entity_id, visibility
+      into v_template_record
+      from templates
+     where slug = v_slug_lower
+     limit 1;
     if v_template_record.id is null then
+      raise exception 'Template not found';
+    end if;
+    if (v_template_record.visibility = 'private' and v_template_record.entity_id != v_issuer_id) then
       raise exception 'Template not found';
     end if;
   elsif v_template is not null
@@ -146,29 +193,35 @@ begin
     and v_template->'fields_json' is not null
   then
     v_slug_lower := lower(regexp_replace(v_template->>'slug', '\s+', '-', 'g'));
-    select id, fields_json into v_template_record from templates where slug = v_slug_lower limit 1;
-    if v_template_record.id is null then
-      insert into templates (name, slug, background_url, page_width, page_height, fields_json)
-      values (
-        v_template->>'name',
-        v_slug_lower,
-        v_template->>'background_url',
-        (v_template->>'page_width')::int,
-        (v_template->>'page_height')::int,
-        coalesce(v_template->'fields_json', '[]'::jsonb)
-      )
-      on conflict (slug) do update set
-        name = excluded.name,
-        background_url = excluded.background_url,
-        page_width = excluded.page_width,
-        page_height = excluded.page_height,
-        fields_json = excluded.fields_json
-      returning id, fields_json into v_template_record;
+    -- Safe/simple rule: inline template can ONLY create a new template.
+    -- If the slug already exists, force callers to reference it by template_slug/template_id.
+    perform 1 from templates where slug = v_slug_lower;
+    if found then
+      raise exception 'Template already exists. Use template_slug or template_id.';
     end if;
+
+    insert into templates (entity_id, name, slug, visibility, background_url, page_width, page_height, fields_json)
+    values (
+      v_issuer_id,
+      v_template->>'name',
+      v_slug_lower,
+      'private',
+      v_template->>'background_url',
+      (v_template->>'page_width')::int,
+      (v_template->>'page_height')::int,
+      coalesce(v_template->'fields_json', '[]'::jsonb)
+    )
+    returning id, fields_json into v_template_record;
   else
     -- Default template (from seed): used when no template passed
     v_slug_lower := 'hashproof';
-    select id, fields_json into v_template_record from templates where slug = v_slug_lower limit 1;
+    select t.id, t.fields_json
+      into v_template_record
+      from templates t
+      join entities e on e.id = t.entity_id
+     where e.slug = 'hashproof'
+       and t.slug = v_slug_lower
+     limit 1;
     if v_template_record.id is null then
       raise exception 'Default template not found. Run database/seed.sql first.';
     end if;

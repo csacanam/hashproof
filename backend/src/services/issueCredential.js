@@ -82,6 +82,31 @@ export async function executeIssueCredential(payload) {
   if (!context?.type || !context?.title) throw new Error("context.type and context.title required");
   if (!credential_type || !title) throw new Error("credential_type and title required");
 
+  const hasTemplateId = typeof template_id === "string" && template_id.trim() !== "";
+  const hasTemplateSlug = typeof template_slug === "string" && template_slug.trim() !== "";
+  const hasInlineTemplate =
+    template &&
+    typeof template === "object" &&
+    typeof template.slug === "string" &&
+    template.slug.trim() !== "" &&
+    typeof template.name === "string" &&
+    template.name.trim() !== "" &&
+    typeof template.background_url === "string" &&
+    template.background_url.trim() !== "" &&
+    Number.isFinite(Number(template.page_width)) &&
+    Number.isFinite(Number(template.page_height)) &&
+    template.fields_json !== undefined &&
+    template.fields_json !== null;
+
+  const templateSelectors = [
+    hasTemplateId ? "template_id" : null,
+    hasTemplateSlug ? "template_slug" : null,
+    hasInlineTemplate ? "template" : null,
+  ].filter(Boolean);
+  if (templateSelectors.length > 1) {
+    throw new Error("Provide only one of template_id, template_slug, template.");
+  }
+
   // Template optional: base template used when none passed
 
   const baseUrl = process.env.BASE_URL || "https://hashproof.example.com";

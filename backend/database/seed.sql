@@ -12,15 +12,20 @@ on conflict (slug) do update set
 
 -- Default template (belongs to HashProof entity)
 -- Page: 3508 x 2480 px
-insert into templates (entity_id, name, slug, background_url, page_width, page_height, fields_json)
-select e.id, 'HashProof', 'hashproof', 'https://tdsboovupretgiuuqeqy.supabase.co/storage/v1/object/public/teamplates/certificate.png', 3508, 2480,
+insert into templates (entity_id, name, slug, visibility, background_url, page_width, page_height, fields_json)
+select e.id, 'HashProof', 'hashproof',
+  'public',
+  'https://tdsboovupretgiuuqeqy.supabase.co/storage/v1/object/public/teamplates/certificate.png',
+  3508, 2480,
   '[
     {"key": "holder_name", "x": 248, "y": 1200, "width": 3012, "height": 312, "required": true, "font_size": 192, "font_color": "#9a7e2c", "align": "center"},
     {"key": "details", "x": 716, "y": 1488, "width": 2077, "height": 169, "required": false, "font_size": 84, "font_color": "#000000", "align": "center"}
   ]'::jsonb
 from entities e where e.slug = 'hashproof'
-on conflict (entity_id, slug) do update set
+on conflict (slug) do update set
+  entity_id = excluded.entity_id,
   name = excluded.name,
+  visibility = excluded.visibility,
   background_url = excluded.background_url,
   page_width = excluded.page_width,
   page_height = excluded.page_height,

@@ -347,7 +347,7 @@ export default function Docs() {
             </div>
             <p className="docs-p">
               Issues one verifiable credential. Paid — $0.10 USDC via x402.
-              HashProof renders the PDF using its default design. To use your own certificate design,
+              The minimal example below uses the default template. To use your own certificate design,
               see <button className="docs-link-btn" onClick={() => document.getElementById("custom-templates")?.scrollIntoView({ behavior: "smooth" })}>Custom Templates</button>.
             </p>
 
@@ -467,10 +467,21 @@ export default function Docs() {
             <p className="docs-p">
               By default, HashProof renders your credential using its built-in certificate design.
               To use your own design, pass a <code>template</code> object inline in the request body.
+              This is <strong>create-only</strong>: if the <code>template.slug</code> already exists, the request is rejected and you must reference the existing template using <code>template_slug</code> or <code>template_id</code>.
+            </p>
+            <p className="docs-p">
+              Important: provide <strong>only one</strong> of <code>template</code>, <code>template_slug</code>, or <code>template_id</code>.
+            </p>
+            <p className="docs-p">
+              QR placement: the verification QR is always drawn near the bottom-right corner. Leave a square area empty in your background or it may be covered. See{" "}
+              <a className="docs-link" href="https://github.com/csacanam/hashproof/blob/main/docs/TEMPLATES.md" target="_blank" rel="noreferrer">docs/TEMPLATES.md</a>{" "}
+              for the exact reserved box.
             </p>
 
             <SubSection id="ct-fields" title="Template fields">
               <ParamTable rows={[
+                ["template.slug",           "string", true, "Unique template slug (global). Used later with template_slug."],
+                ["template.name",           "string", true, "Human-readable template name"],
                 ["template.background_url", "string", true, "URL of your certificate background image (PNG or JPG)"],
                 ["template.page_width",     "number", false, "Page width in points. Default: 595 (A4 portrait)"],
                 ["template.page_height",    "number", false, "Page height in points. Default: 842 (A4 portrait)"],
@@ -495,6 +506,8 @@ export default function Docs() {
   "credential_type": "completion",
   "title": "Certificate of Completion",
   "template": {
+    "slug": "acme-certificate-v1",
+    "name": "Acme Certificate v1",
     "background_url": "https://your-cdn.com/certificate-bg.png",
     "page_width": 1123,
     "page_height": 794,

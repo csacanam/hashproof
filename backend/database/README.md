@@ -104,12 +104,18 @@ How the PDF is rendered: background, size, field positions.
 | Field | Type | Description |
 |-------|------|-------------|
 | id | uuid | PK |
+| entity_id | uuid | Owner entity (template author) |
 | name | text | Template name |
-| slug | text | Unique identifier |
+| slug | text | Unique identifier (globally unique) |
+| visibility | text | `private` (issuer-only) or `public` (any issuer can use) |
 | background_url | text | Background image URL |
 | page_width, page_height | integer | PDF dimensions (px) |
 | fields_json | jsonb | Array of field definitions (see below) |
 | created_at, updated_at | timestamptz | Audit timestamps |
+
+**Inline templates:** Issuance supports creating a template inline (create-only). If a template with the same `slug` already exists, issuance rejects it and the caller must reference the existing template via `template_slug` or `template_id`.
+
+**Template design note:** The renderer always draws a verification QR near the bottom-right corner. See [`docs/TEMPLATES.md`](../../docs/TEMPLATES.md) for the exact placement logic and design guidance.
 
 **fields_json** — Array of objects. Each object defines where and how to render a **text field**. The template creator defines the keys; at credential creation the issuer must provide values for required keys. Keys are flexible (e.g. holder_name, holder_document_type, holder_document_number, event_name, date). **QR:** The verification QR is placed in a fixed position on every credential (not defined in the template).
 

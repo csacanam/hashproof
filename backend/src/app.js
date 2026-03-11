@@ -85,6 +85,33 @@ export function createApp(options = {}) {
     try {
       const payload = req.body;
 
+      // Consistency: if entity IDs are provided, they must match the slugs in issuer/platform objects.
+      const normalizeSlug = (s) =>
+        String(s || "")
+          .trim()
+          .toLowerCase()
+          .replace(/\s+/g, "-");
+
+      if (payload.issuer_entity_id && payload.issuer?.slug) {
+        const issuerEntityForId = await getEntityById(payload.issuer_entity_id);
+        const expected = normalizeSlug(payload.issuer.slug);
+        if (issuerEntityForId?.slug && issuerEntityForId.slug !== expected) {
+          return res.status(400).json({
+            error: "issuer_entity_id does not match issuer.slug",
+          });
+        }
+      }
+
+      if (payload.platform_entity_id && payload.platform?.slug) {
+        const platformEntityForId = await getEntityById(payload.platform_entity_id);
+        const expected = normalizeSlug(payload.platform.slug);
+        if (platformEntityForId?.slug && platformEntityForId.slug !== expected) {
+          return res.status(400).json({
+            error: "platform_entity_id does not match platform.slug",
+          });
+        }
+      }
+
       // Enforce issuer access control based on entity status
       if (payload.issuer_entity_id) {
         const VERIFIED_STATUSES = ["individual_verified", "organization_verified"];
@@ -114,7 +141,7 @@ export function createApp(options = {}) {
           }
 
           const isSelfIssuance = !platformEntity; // issuer == platform or no platform specified
-          const issuerWallets = issuerEntity.authorized_wallets ?? [];
+          const issuerWallets = (issuerEntity.authorized_wallets ?? []).map((w) => String(w).toLowerCase());
 
           if (isSelfIssuance) {
             // Wallet must be directly authorized by the issuer
@@ -125,7 +152,7 @@ export function createApp(options = {}) {
             }
           } else {
             // Platform is different from issuer — require an approved authorization
-            const platformWallets = platformEntity?.authorized_wallets ?? [];
+            const platformWallets = (platformEntity?.authorized_wallets ?? []).map((w) => String(w).toLowerCase());
             const walletIsFromPlatform = payingWallet && platformWallets.includes(payingWallet);
             const walletIsFromIssuer = payingWallet && issuerWallets.includes(payingWallet);
 
@@ -183,6 +210,78 @@ export function createApp(options = {}) {
       return res.send(pdf);
     } catch (err) {
       console.error("[verify/pdf] error:", err.message);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  function normalizeSlug(s) {
+    return String(s || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "-");
+  }
+
+  function extractPayingWallet(req) {
+    const paymentHeader = req.get("X-PAYMENT") || req.get("PAYMENT-SIGNATURE");
+    if (!paymentHeader) return null;
+    try {
+      const decoded = JSON.parse(Buffer.from(paymentHeader, "base64").toString("utf8"));
+      return decoded?.payload?.authorization?.from?.toLowerCase() || null;
+    } catch {
+      return null;
+    }
+  }
+
+  // Template requirements (for agents): required keys + full fields_json.
+  // The same endpoint accepts either a slug or a UUID template ID.
+  // Public templates are readable by anyone. Private templates require an authorized wallet.
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  app.get("/templates/:ref/requirements", readOnlyRateLimit, async (req, res) => {
+    try {
+      const refRaw = String(req.params.ref || "").trim();
+      const isUuid = UUID_RE.test(refRaw);
+
+      let query = supabase
+        .from("templates")
+        .select("id, entity_id, name, slug, visibility, fields_json")
+        .limit(1);
+      if (isUuid) query = query.eq("id", refRaw);
+      else query = query.eq("slug", normalizeSlug(refRaw));
+
+      const { data: rows, error } = await query;
+      if (error) throw new Error(error.message);
+
+      const tpl = rows?.[0];
+      if (!tpl) return res.status(404).json({ error: "Template not found" });
+
+      if (tpl.visibility !== "public") {
+        const payingWallet = extractPayingWallet(req);
+        if (!payingWallet) {
+          return res.status(403).json({ error: "Wallet not authorized to read this template." });
+        }
+        const owner = await getEntityById(tpl.entity_id);
+        const wallets = (owner?.authorized_wallets ?? []).map((w) => String(w).toLowerCase());
+        if (!wallets.includes(payingWallet)) {
+          return res.status(403).json({ error: "Wallet not authorized to read this template." });
+        }
+      }
+
+      const fields = Array.isArray(tpl.fields_json) ? tpl.fields_json : [];
+      const required_keys = fields
+        .filter((f) => f && f.key && f.required === true)
+        .map((f) => f.key);
+
+      return res.json({
+        id: tpl.id,
+        slug: tpl.slug,
+        name: tpl.name,
+        visibility: tpl.visibility,
+        owner_entity_id: tpl.entity_id,
+        required_keys,
+        fields_json: fields,
+      });
+    } catch (err) {
+      console.error("[templates/requirements] error:", err.message);
       return res.status(500).json({ error: err.message });
     }
   });

@@ -162,6 +162,30 @@ describe("executeIssueCredential", () => {
     });
   });
 
+  it("throws when template_id and template_slug are both provided", async () => {
+    const payload = { ...validPayload, template_id: "00000000-0000-0000-0000-000000000005" };
+    await expect(executeIssueCredential(payload)).rejects.toThrow(
+      "Provide only one of template_id, template_slug, template."
+    );
+  });
+
+  it("throws when inline template and template_slug are both provided", async () => {
+    const payload = {
+      ...validPayload,
+      template: {
+        slug: "inline-x",
+        name: "Inline X",
+        background_url: "https://example.com/bg.png",
+        page_width: 1000,
+        page_height: 1000,
+        fields_json: [],
+      },
+    };
+    await expect(executeIssueCredential(payload)).rejects.toThrow(
+      "Provide only one of template_id, template_slug, template."
+    );
+  });
+
   it("does not call finalize_credential when IPFS pin fails", async () => {
     const { pinJsonToIpfs } = await import("./pinata.js");
     pinJsonToIpfs.mockRejectedValueOnce(new Error("pin failed"));
@@ -239,5 +263,35 @@ describe("executeIssueCredential", () => {
 
     await expect(executeIssueCredential(validPayload)).rejects.toThrow("DB insert failed");
     expect(unpinCid).toHaveBeenCalledWith("bafy-finalize-fail");
+  });
+
+  it("surfaces DB error when inline template slug already exists", async () => {
+    // Simulate Postgres function rejecting inline template creation for existing slug.
+    supabase.rpc.mockImplementationOnce(async (fnName) => {
+      if (fnName === "prepare_credential") {
+        return {
+          data: null,
+          error: { message: "Template already exists. Use template_slug or template_id." },
+        };
+      }
+      return { data: null, error: { message: `Unexpected rpc: ${fnName}` } };
+    });
+
+    const payload = {
+      ...validPayload,
+      template_slug: undefined,
+      template: {
+        slug: "hashproof",
+        name: "HashProof",
+        background_url: "https://example.com/bg.png",
+        page_width: 1000,
+        page_height: 1000,
+        fields_json: [{ key: "holder_name", required: true, x: 0, y: 0 }],
+      },
+    };
+
+    await expect(executeIssueCredential(payload)).rejects.toThrow(
+      "Template already exists. Use template_slug or template_id."
+    );
   });
 });

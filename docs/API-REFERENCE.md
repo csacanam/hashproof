@@ -146,6 +146,8 @@ Default template required keys:
 
 Selects or creates the template to use. If omitted, uses the default `hashproof` template.
 
+**Important:** Provide **only one** of `template_slug`, `template_id`, or `template` in a request. If more than one is provided, the request is rejected with `400`.
+
 **Option A — Use template by slug (existing template):**
 ```json
 { "template_slug": "my-template-slug" }
@@ -156,7 +158,7 @@ Selects or creates the template to use. If omitted, uses the default `hashproof`
 { "template_id": "uuid-of-existing-template" }
 ```
 
-**Option C — Define inline (creates or updates on first use by slug):**
+**Option C — Define inline (creates on first use by slug):**
 ```json
 {
   "template": {
@@ -179,6 +181,28 @@ Selects or creates the template to use. If omitted, uses the default `hashproof`
   }
 }
 ```
+
+Inline templates are **create-only**. If a template with the same `slug` already exists, the request is rejected with:
+
+- `Template already exists. Use template_slug or template_id.`
+
+### GET /templates/:ref/requirements
+
+Fetch template field requirements for an agent or integration.
+
+`ref` can be either:
+- a template `slug`, or
+- a template UUID `id`
+
+```bash
+GET /templates/:ref/requirements
+```
+
+**Authorization:**
+- If the template is `public`, no auth is required.
+- If the template is `private`, include `X-PAYMENT` / `PAYMENT-SIGNATURE` and the paying wallet must be in the template owner's `authorized_wallets`.
+
+For template design (PDF size, background, QR placement), see [`TEMPLATES.md`](./TEMPLATES.md).
 
 **fields_json item properties:**
 
