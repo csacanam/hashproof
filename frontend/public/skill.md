@@ -257,7 +257,7 @@ GET https://api.hashproof.dev/templates/:template_slug_or_id/requirements
 
 For `public` templates: no auth required.
 
-For `private` templates: include an x402 payment header (`X-PAYMENT` / `PAYMENT-SIGNATURE`) from a wallet that is in the template owner's `authorized_wallets`.
+For `private` templates: no auth required (requirements are public).
 
 **Minimal body:**
 

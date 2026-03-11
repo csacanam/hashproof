@@ -477,6 +477,10 @@ export default function Docs() {
               <a className="docs-link" href="https://github.com/csacanam/hashproof/blob/main/docs/TEMPLATES.md" target="_blank" rel="noreferrer">docs/TEMPLATES.md</a>{" "}
               for the exact reserved box.
             </p>
+            <p className="docs-p">
+              Tip: you can fetch template required keys at{" "}
+              <code>{API_BASE}/templates/:slug_or_uuid/requirements</code>.
+            </p>
 
             <SubSection id="ct-fields" title="Template fields">
               <ParamTable rows={[

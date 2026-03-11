@@ -199,8 +199,7 @@ GET /templates/:ref/requirements
 ```
 
 **Authorization:**
-- If the template is `public`, no auth is required.
-- If the template is `private`, include `X-PAYMENT` / `PAYMENT-SIGNATURE` and the paying wallet must be in the template owner's `authorized_wallets`.
+- No auth required (templates are readable by anyone).
 
 For template design (PDF size, background, QR placement), see [`TEMPLATES.md`](./TEMPLATES.md).
 

@@ -234,7 +234,7 @@ export function createApp(options = {}) {
 
   // Template requirements (for agents): required keys + full fields_json.
   // The same endpoint accepts either a slug or a UUID template ID.
-  // Public templates are readable by anyone. Private templates require an authorized wallet.
+  // Public and private templates are readable by anyone.
   const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   app.get("/templates/:ref/requirements", readOnlyRateLimit, async (req, res) => {
     try {
@@ -253,18 +253,6 @@ export function createApp(options = {}) {
 
       const tpl = rows?.[0];
       if (!tpl) return res.status(404).json({ error: "Template not found" });
-
-      if (tpl.visibility !== "public") {
-        const payingWallet = extractPayingWallet(req);
-        if (!payingWallet) {
-          return res.status(403).json({ error: "Wallet not authorized to read this template." });
-        }
-        const owner = await getEntityById(tpl.entity_id);
-        const wallets = (owner?.authorized_wallets ?? []).map((w) => String(w).toLowerCase());
-        if (!wallets.includes(payingWallet)) {
-          return res.status(403).json({ error: "Wallet not authorized to read this template." });
-        }
-      }
 
       const fields = Array.isArray(tpl.fields_json) ? tpl.fields_json : [];
       const required_keys = fields

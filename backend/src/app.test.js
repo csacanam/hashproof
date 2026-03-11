@@ -176,7 +176,7 @@ describe("HashProof API", () => {
       expect(res.body.id).toBe("00000000-0000-0000-0000-000000000123");
     });
 
-    it("returns 403 for private template without auth", async () => {
+    it("returns 200 for private template without auth", async () => {
       mockTemplatesRow = {
         id: "00000000-0000-0000-0000-000000000124",
         entity_id: "issuer-uuid",
@@ -185,15 +185,11 @@ describe("HashProof API", () => {
         visibility: "private",
         fields_json: [{ key: "holder_name", required: true }],
       };
-      mockEntityById = {
-        id: "issuer-uuid",
-        slug: "hashproof",
-        authorized_wallets: ["0xabc"],
-      };
 
       const res = await request(app).get("/templates/private-template/requirements");
-      expect(res.status).toBe(403);
-      expect(res.body.error).toMatch(/not authorized/i);
+      expect(res.status).toBe(200);
+      expect(res.body.required_keys).toEqual(["holder_name"]);
+      expect(res.body.visibility).toBe("private");
     });
   });
 
