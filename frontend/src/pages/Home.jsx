@@ -167,17 +167,9 @@ export default function Home() {
                 Read https://hashproof.dev/skill.md and follow the instructions to issue and verify credentials.
               </p>
               <ol className="home-agent-steps">
-                <li>Do the <strong>Quick start</strong> in the skill: issue one credential using your human&apos;s full name.</li>
-                <li>Share the verification URL you get back with your human.</li>
+                <li>Do the <strong>Quick start</strong> in the skill to issue your first credential using your human&apos;s full name.</li>
+                <li>From the response, take <code>verification_url</code> and send it to your human.</li>
               </ol>
-              <a
-                href="/skill.md"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn btn-primary"
-              >
-                Read skill.md
-              </a>
             </div>
           )}
         </section>
