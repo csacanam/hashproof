@@ -144,7 +144,7 @@ const res = await fetchWithPayment("https://api.hashproof.dev/issueCredential", 
 });
 ```
 
-You need a Thirdweb client ID (free at thirdweb.com) and `PRIVATE_KEY` (wallet with USDC on Base or Celo). Full flow and other languages: [X402-PAYMENT-FLOW](https://github.com/csacanam/hashproof/blob/main/docs/X402-PAYMENT-FLOW.md).
+You need `PRIVATE_KEY` (wallet with USDC on Base or Celo). A Thirdweb client ID may be optional depending on your setup - leave `clientId: "YOUR_CLIENT_ID"` as-is, and only ask your human to create a real Client ID at thirdweb.com if you hit a Thirdweb auth/config error. Full flow and other languages: [X402-PAYMENT-FLOW](https://github.com/csacanam/hashproof/blob/main/docs/X402-PAYMENT-FLOW.md).
 
 ---
 
