@@ -111,7 +111,7 @@ const NAV = [
   { id: "entities",            label: "GET /entities/:id" },
   { id: "custom-templates",    label: "Custom Templates" },
   { id: "entity-verification", label: "Entity Verification" },
-  { id: "issuer-auth",         label: "Issuer Authorizations" },
+  // { id: "issuer-auth",         label: "Issuer Authorizations" },
 ];
 
 const MINIMAL_EXAMPLE = `{
@@ -124,7 +124,7 @@ const MINIMAL_EXAMPLE = `{
     "slug": "hashproof"
   },
   "holder": {
-    "full_name": "María García"
+    "full_name": "Jane Doe"
   },
   "context": {
     "type": "course",
@@ -133,7 +133,7 @@ const MINIMAL_EXAMPLE = `{
   "credential_type": "completion",
   "title": "Certificate of Completion",
   "values": {
-    "holder_name": "María García",
+    "holder_name": "Jane Doe",
     "details": "For completing Intro to Blockchain\\nAcme Corp · June 2026"
   }
 }`;
@@ -308,7 +308,7 @@ export default function Docs() {
                 { label: "Celo", lang: "js", code: nodeExample("celo") },
                 { label: "Base", lang: "js", code: nodeExample("base") },
               ]} />
-              <CodeBlock lang="bash" label="terminal" code={`PRIVATE_KEY=0x... YOUR_NAME="María García" node issue.mjs`} />
+              <CodeBlock lang="bash" label="terminal" code={`PRIVATE_KEY=0x... YOUR_NAME="Jane Doe" node issue.mjs`} />
               <CodeBlock lang="bash" label="output" code={`https://hashproof.dev/verify/a1b2c3d4-...`} />
             </SubSection>
 
@@ -368,8 +368,10 @@ export default function Docs() {
                 ["expires_at", "ISO 8601 | null", false, "Expiration date. null = never expires"],
                 ["values.holder_name", "string", true, "Name rendered on the certificate (default template)"],
                 ["values.details", "string", false, "Optional subtitle on the certificate"],
-                ["template", "object", false, "Inline custom template. See Custom Templates section."],
-                ["template_slug", "string", false, "Slug of a pre-registered template. Omit to use the HashProof default design."],
+                ["template", "object", false, "Inline custom template (create once). See Custom Templates."],
+                ["template_slug", "string", false, "Slug of an existing template. Omit for default design."],
+                ["template_id", "UUID", false, "UUID of an existing template. Use only one of template, template_slug, or template_id."],
+                ["background_url_override", "string", false, "With template_slug/template_id: use this URL as background for this credential only (layout unchanged)."],
                 ["issuer_entity_id", "UUID", false, "Your entity ID from hashproof.dev/entities. Credentials will show your verified badge if your entity is verified"],
                 ["platform_entity_id", "UUID", false, "The platform entity issuing on your behalf. Can be the same as issuer for self-issuance"],
               ]} />
@@ -449,6 +451,7 @@ export default function Docs() {
             </div>
             <p className="docs-p">
               Returns entity info and verification status. <code>:id</code> can be a UUID or slug.
+              Use this to check if an issuer or platform is verified before displaying credentials.
             </p>
             <CodeBlock code={ENTITY_RESPONSE} label="response" />
 
@@ -465,47 +468,72 @@ export default function Docs() {
           {/* custom templates */}
           <Section id="custom-templates" title="Custom Templates">
             <p className="docs-p">
-              By default, HashProof renders your credential using its built-in certificate design.
-              To use your own design, pass a <code>template</code> object inline in the request body.
-              This is <strong>create-only</strong>: if the <code>template.slug</code> already exists, the request is rejected and you must reference the existing template using <code>template_slug</code> or <code>template_id</code>.
+              <strong>What is a template?</strong> A template is the definition of <strong>how to paint the credential data onto the PDF canvas</strong>: page size, background image, and where and how each value from <code>values</code> is drawn (position, font, color, alignment, bold/italic, etc.). You send the data; the template defines how it is laid out.
             </p>
             <p className="docs-p">
-              Important: provide <strong>only one</strong> of <code>template</code>, <code>template_slug</code>, or <code>template_id</code>.
-            </p>
-            <p className="docs-p">
-              QR placement: the verification QR is always drawn near the bottom-right corner. Leave a square area empty in your background or it may be covered. See{" "}
-              <a className="docs-link" href="https://github.com/csacanam/hashproof/blob/main/docs/TEMPLATES.md" target="_blank" rel="noreferrer">docs/TEMPLATES.md</a>{" "}
-              for the exact reserved box.
-            </p>
-            <p className="docs-p">
-              Tip: you can fetch template required keys at{" "}
-              <code>{API_BASE}/templates/:slug_or_uuid/requirements</code>.
+              You can <strong>use an existing template</strong> (by <code>template_slug</code> or <code>template_id</code>) or <strong>create one inline</strong> the first time you issue; after that, use the slug to reuse it. Provide <strong>only one</strong> of <code>template</code>, <code>template_slug</code>, or <code>template_id</code> per request. With an existing template you can optionally pass <code>background_url_override</code> to use a different background image for that credential only (layout unchanged).
             </p>
 
+            <SubSection id="ct-existing" title="Using an existing template">
+              <p className="docs-p">
+                When the template was already created (e.g. in a previous request with inline <code>template</code>), send only the template reference and the credential data. No <code>template</code> object — the layout is stored.
+              </p>
+              <CodeBlock code={`{
+  "issuer":   { "display_name": "Acme Corp", "slug": "acme-corp" },
+  "platform": { "display_name": "Acme Corp", "slug": "acme-corp" },
+  "holder":   { "full_name": "Jane Doe" },
+  "context":  { "type": "event", "title": "Expo 2026" },
+  "credential_type": "attendance",
+  "title": "Certificate of Attendance",
+  "template_slug": "acme-certificate-v1",
+  "values": {
+    "holder_name": "Jane Doe",
+    "details": "Attended the expo stand."
+  }
+}`} label="request body (template already created)" />
+            </SubSection>
+
+            <SubSection id="ct-inline" title="Creating a template inline (first time only)">
+              <p className="docs-p">
+                To define a new design, pass a <code>template</code> object in the request. The API creates the template and issues the credential. For every <strong>next</strong> credential with the same layout, use <code>template_slug</code> (as in the example above) instead of sending <code>template</code> again. Inline is <strong>create-only</strong>: if <code>template.slug</code> already exists, the request is rejected.
+              </p>
+              <p className="docs-p">
+                QR: the verification QR is drawn near the bottom-right corner. Leave that area empty in your background. Required keys: <code>GET {API_BASE}/templates/:slug_or_uuid/requirements</code>.
+              </p>
+            </SubSection>
+
             <SubSection id="ct-fields" title="Template fields">
+              <p className="docs-note">
+                Dimensions are used <strong>as-is</strong> (no conversion). Use the same values as your design (e.g. pixels from your canvas): <code>page_width</code>, <code>page_height</code>, and field <code>x</code>, <code>y</code>, <code>width</code>, <code>height</code> in the same units. Defaults: 595×842 (A4 portrait).
+              </p>
               <ParamTable rows={[
                 ["template.slug",           "string", true, "Unique template slug (global). Used later with template_slug."],
                 ["template.name",           "string", true, "Human-readable template name"],
                 ["template.background_url", "string", true, "URL of your certificate background image (PNG or JPG)"],
-                ["template.page_width",     "number", false, "Page width in points. Default: 595 (A4 portrait)"],
-                ["template.page_height",    "number", false, "Page height in points. Default: 842 (A4 portrait)"],
+                ["template.page_width",     "number", false, "Page width. Default: 595 (A4 portrait). Same units as your design."],
+                ["template.page_height",    "number", false, "Page height. Default: 842 (A4 portrait). Same units as your design."],
                 ["template.fields_json",    "array",  true, "Array of field objects defining text placement"],
                 ["fields_json[].key",       "string", true, "Maps to a key in values{}"],
-                ["fields_json[].x",         "number", true, "Horizontal position in points from left"],
-                ["fields_json[].y",         "number", true, "Vertical position in points from top"],
-                ["fields_json[].width",     "number", false, "Text box width in points"],
+                ["fields_json[].x",         "number", true, "Horizontal position from left (same units as page)"],
+                ["fields_json[].y",         "number", true, "Vertical position from top"],
+                ["fields_json[].width",     "number", false, "Text box width"],
+                ["fields_json[].height",    "number", false, "Optional. Height for layout"],
                 ["fields_json[].font_size", "number", false, "Font size. Default: 12"],
                 ["fields_json[].font_color","string", false, "Hex color. Default: #000000"],
                 ["fields_json[].align",     "string", false, "left · center · right. Default: left"],
                 ["fields_json[].required",  "boolean",false, "If true, issueCredential returns 400 when the key is missing from values"],
+                ["fields_json[].bold",      "boolean", false, "If true, text in bold. Default: false"],
+                ["fields_json[].italic",    "boolean", false, "If true, text in italic. Default: false"],
+                ["fields_json[].underline","boolean", false, "If true, text underlined. Default: false"],
+                ["fields_json[].strike",    "boolean", false, "If true, text struck through. Default: false"],
               ]} />
             </SubSection>
 
-            <SubSection id="ct-example" title="Example">
+            <SubSection id="ct-example" title="Example: inline template (first issuance)">
               <CodeBlock code={`{
   "issuer":   { "display_name": "Acme Corp", "slug": "acme-corp" },
   "platform": { "display_name": "Acme Corp", "slug": "acme-corp" },
-  "holder":   { "full_name": "María García" },
+  "holder":   { "full_name": "Jane Doe" },
   "context":  { "type": "course", "title": "Intro to Blockchain" },
   "credential_type": "completion",
   "title": "Certificate of Completion",
@@ -536,7 +564,7 @@ export default function Docs() {
     ]
   },
   "values": {
-    "holder_name": "María García",
+    "holder_name": "Jane Doe",
     "details": "For completing Intro to Blockchain"
   }
 }`} label="request body" />
@@ -550,14 +578,14 @@ export default function Docs() {
           <Section id="entity-verification" title="Entity Verification">
             <p className="docs-p">
               Organizations and individuals can verify their identity through HashProof.
-              Verified issuers appear with a ✅ badge on every credential they issue.
+              Verified issuers appear with a verified badge (✅) on every credential they issue.
             </p>
 
             <SubSection id="ev-how" title="How to request verification">
               <ol className="docs-ol">
                 <li>Go to your entity page: <code>/entities/:slug</code></li>
                 <li>Click <strong>Request verification</strong>.</li>
-                <li>Fill the form (organization or individual) and pay $0.10 USDC.</li>
+                <li>Fill the form (organization or individual) and pay $49 USDC.</li>
                 <li>HashProof reviews your request and approves it manually.</li>
                 <li>Once approved, your entity is marked as verified and your wallets are authorized.</li>
               </ol>
@@ -567,19 +595,18 @@ export default function Docs() {
               <p className="docs-p">
                 When you verify your entity, you declare which EVM wallets are authorized
                 to issue credentials on your behalf. Only those wallets can call
-                <code> POST /issueCredential</code> with your <code>issuer_entity_id</code>.
+                <code>POST /issueCredential</code> with your <code>issuer_entity_id</code>.
               </p>
             </SubSection>
           </Section>
 
-          {/* issuer auth */}
+          {/* Issuer Authorizations — commented out for now
           <Section id="issuer-auth" title="Issuer Authorizations">
             <p className="docs-p">
               If a <strong>platform</strong> (e.g. HashProof) wants to issue credentials on behalf
               of a <strong>verified issuer</strong> (e.g. Acme Corp), the issuer must explicitly
               authorize the platform.
             </p>
-
             <SubSection id="ia-rules" title="Authorization rules">
               <ParamTable rows={[
                 ["issuer == platform", "", false, "No restriction. Wallet must be in issuer.authorized_wallets"],
@@ -588,7 +615,6 @@ export default function Docs() {
                 ["issuer suspended", "", false, "Always 403 — cannot issue"],
               ]} />
             </SubSection>
-
             <SubSection id="ia-request" title="How to request authorization">
               <p className="docs-p">
                 Authorizations are managed by HashProof. To grant a platform permission to issue
@@ -602,6 +628,7 @@ export default function Docs() {
               </ul>
             </SubSection>
           </Section>
+          */}
 
         </main>
       </div>

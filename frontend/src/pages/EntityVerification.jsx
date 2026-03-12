@@ -97,7 +97,7 @@ export default function EntityVerification() {
             <li>
               <span className="ev-step-num">3</span>
               <div>
-                <strong>Pay $0.10 USDC</strong>
+                <strong>Pay $49 USDC</strong>
                 <p>The verification request is submitted on-chain via x402. Payment is made with USDC on Base or Celo — no gas fees on your end.</p>
               </div>
             </li>

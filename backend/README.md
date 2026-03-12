@@ -28,7 +28,7 @@ Express API for issuing verifiable credentials and handling entity verification 
 | GET | `/verify/:id/ipfs` | — | IPFS data check |
 | GET | `/verify/:id/pdf` | — | Download credential PDF |
 | GET | `/entities/:id` | — | Entity info and verification status |
-| POST | `/entities/:id/verificationRequests` | x402 ($0.10 USDC) | Submit a verification request |
+| POST | `/entities/:id/verificationRequests` | x402 ($49 USDC) | Submit a verification request |
 
 For the full API spec with all allowed values, request/response schemas, and error codes, see [`docs/API-REFERENCE.md`](../docs/API-REFERENCE.md).
 

@@ -109,7 +109,7 @@ How the PDF is rendered: background, size, field positions.
 | slug | text | Unique identifier (globally unique) |
 | visibility | text | `private` (issuer-only) or `public` (any issuer can use) |
 | background_url | text | Background image URL |
-| page_width, page_height | integer | PDF dimensions (px) |
+| page_width, page_height | integer | Page dimensions; used as-is (no conversion). Use same units as your design (e.g. px). Default 595×842 = A4 portrait. |
 | fields_json | jsonb | Array of field definitions (see below) |
 | created_at, updated_at | timestamptz | Audit timestamps |
 

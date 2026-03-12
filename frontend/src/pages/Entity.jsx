@@ -17,7 +17,7 @@ import { ACTIVE_CHAINS, PRIMARY_CHAIN_CONFIG } from "../chains.js";
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4022";
 
 const PAYMENT_TOKEN = "USDC";
-const VERIFICATION_PRICE_USDC = 0.10;
+const VERIFICATION_PRICE_USDC = 49;
 
 const WALLETS = [
   createWallet("io.metamask"),
@@ -469,7 +469,7 @@ export default function Entity() {
                   </p>
                   <p className="modal-fee">
                     <span className="modal-fee-label">Verification request fee:</span>{" "}
-                    <span className="modal-fee-amount">$0.10</span>
+                    <span className="modal-fee-amount">$49</span>
                   </p>
                   <p className="modal-text">
                     This fee helps prevent spam and covers the review process.
@@ -678,7 +678,7 @@ export default function Entity() {
                   </p>
                   <p className="modal-fee">
                     <span className="modal-fee-label">Amount due:</span>{" "}
-                    <span className="modal-fee-amount">$0.10 USDC</span>
+                    <span className="modal-fee-amount">$49 USDC</span>
                   </p>
                   <p className="modal-gasless">⛽ No gas fees for this transaction.</p>
 

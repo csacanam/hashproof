@@ -8,7 +8,7 @@ This document describes the operator workflows for reviewing and approving entit
 
 When an entity submits a verification request through the HashProof UI, the flow is:
 
-1. Entity fills the form (individual or organization) and pays $0.10 USDC via x402.
+1. Entity fills the form (individual or organization) and pays $49 USDC via x402.
 2. A row is inserted in `entity_verification_requests` with `status = 'pending'`.
 3. **You review the request manually** (see below).
 4. If approved, you call the admin endpoint — this sets the entity's status and authorized wallets.

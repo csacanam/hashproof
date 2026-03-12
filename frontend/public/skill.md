@@ -180,6 +180,10 @@ Content-Type: application/json
 # Plus x402 payment header after 402 response
 ```
 
+### What a template is
+
+A template is the **definition of how to paint the credential data onto a canvas**: canvas size, background image, and where and how each value (from `values`) is drawn — position, font, color, alignment, bold/italic, etc. You send the data; the template defines how it is laid out on the PDF.
+
 ### Templates — which option to use
 
 **Rule:** Send **only one** of `template_slug`, `template_id`, or `template` per request. Sending more than one returns `400`.
@@ -187,37 +191,47 @@ Content-Type: application/json
 | If you want… | Send |
 |--------------|------|
 | **Default certificate** (quick start, standard layout) | Omit all template fields. Use `values.holder_name` and optionally `values.details`. |
-| **Use an existing template** (by slug or UUID) | `template_slug`: `"slug"` or `template_id`: `"uuid"`. Templates can be **public** (any issuer) or **private** (only the owner entity). Provide `values` for every field with `required: true` in that template. |
-| **Create a new template and use it** (one-off design) | `template`: `{ "slug", "name", "background_url", "page_width", "page_height", "fields_json" }`. Inline is **create-only**: if that slug already exists, the API rejects; use `template_slug` to reuse. |
-| **Same template, different background per credential** | `template_slug` or `template_id` **plus** `background_url_override`: `"https://..."`. Layout comes from the template; the PDF uses the override URL as background for that issuance only. |
+| **Use an existing template** (already created) | `template_slug`: `"slug"` or `template_id`: `"uuid"`. No `template` object — the layout is stored; you only send credential data and reference the template. Provide `values` for every field with `required: true`. |
+| **Create a new template and use it** (first time only) | `template`: `{ "slug", "name", "background_url", "page_width", "page_height", "fields_json" }`. Inline is **create-only**. After the first issuance, reuse with `template_slug` for all following credentials. |
+| **Same template, different background per credential** | `template_slug` or `template_id` **plus** `background_url_override`: `"https://..."`. Layout from template; PDF uses the override URL as background for that issuance only. |
 
-To discover required keys for a template: `GET https://api.hashproof.dev/templates/:slug_or_id/requirements` (no auth). Full template guide and examples: [docs/TEMPLATES.md](https://github.com/csacanam/hashproof/blob/main/docs/TEMPLATES.md).
+To discover required keys: `GET https://api.hashproof.dev/templates/:slug_or_id/requirements` (no auth). Full guide: [docs/TEMPLATES.md](https://github.com/csacanam/hashproof/blob/main/docs/TEMPLATES.md).
 
-### Example: existing template by slug
+### Example: issue with an existing template (reuse)
+
+Use this when the template was already created (e.g. in a previous request with inline `template`). You only send the template reference and the data; no `template` object.
 
 ```json
 {
-  "issuer":   { "display_name": "Eventos Camilo", "slug": "eventos-camilo" },
-  "platform": { "display_name": "Eventos Camilo", "slug": "eventos-camilo" },
-  "holder":   { "full_name": "Maria Garcia" },
-  "context":  { "type": "event", "title": "Meetup Web3" },
+  "issuer":   { "display_name": "Acme Corp", "slug": "acme-corp" },
+  "platform": { "display_name": "Acme Corp", "slug": "acme-corp" },
+  "holder":   { "full_name": "Jane Doe" },
+  "context":  { "type": "event", "title": "Expo 2026" },
   "credential_type": "attendance",
-  "title": "Certificate of Attendance - Meetup Web3",
-  "template_slug": "eventos-camilo-cert",
+  "title": "Certificate of Attendance",
+  "template_slug": "acme-expo-2026-v1",
   "values": {
-    "holder_name": "Maria Garcia",
-    "details": "Attended the event"
+    "holder_name": "Jane Doe",
+    "details": "Attended the expo stand."
   }
 }
 ```
 
-### Example: inline template (create-only)
+### Example: create a template inline (first time only)
+
+Use this the **first time** you want a custom layout. The API creates the template and issues the credential. For every **next** credential with the same layout, use `template_slug` (as in the example above) instead of sending `template` again.
 
 ```json
 {
+  "issuer":   { "display_name": "Acme Corp", "slug": "acme-corp" },
+  "platform": { "display_name": "Acme Corp", "slug": "acme-corp" },
+  "holder":   { "full_name": "Jane Doe" },
+  "context":  { "type": "event", "title": "Expo 2026" },
+  "credential_type": "attendance",
+  "title": "Certificate of Attendance",
   "template": {
-    "slug": "my-custom-template-v1",
-    "name": "My Custom Template v1",
+    "slug": "acme-expo-2026-v1",
+    "name": "Acme Expo 2026 v1",
     "background_url": "https://your-cdn.com/certificate-bg.png",
     "page_width": 3508,
     "page_height": 2480,
@@ -225,11 +239,15 @@ To discover required keys for a template: `GET https://api.hashproof.dev/templat
       { "key": "holder_name", "x": 248, "y": 1200, "width": 3012, "required": true, "font_size": 192, "font_color": "#111827", "align": "center" },
       { "key": "details", "x": 716, "y": 1488, "width": 2077, "required": false, "font_size": 84, "font_color": "#111827", "align": "center" }
     ]
+  },
+  "values": {
+    "holder_name": "Jane Doe",
+    "details": "For attending Expo 2026."
   }
 }
 ```
 
-QR code: the verification QR is always drawn near the bottom-right corner. Leave that area empty in your background. Exact formula: [TEMPLATES.md](https://github.com/csacanam/hashproof/blob/main/docs/TEMPLATES.md#qr-placement-design-guideline).
+QR code: the verification QR is always drawn near the bottom-right corner. Leave that area empty in your background. [TEMPLATES.md](https://github.com/csacanam/hashproof/blob/main/docs/TEMPLATES.md#qr-placement-design-guideline).
 
 ### Read template requirements (optional)
 
@@ -259,7 +277,9 @@ For `private` templates: no auth required (requirements are public).
 
 **Response 200:** `id`, `verification_url`, `tx_hash`, `ipfs_cid`, `ipfs_uri`. Share `verification_url` with the holder.
 
-**Verified issuers:** If the issuer is a verified entity, the paying wallet must be in that entity's `authorized_wallets`. HashProof verifies people and organizations; agents use wallets authorized by those entities.
+**Errors:** `400` (missing/invalid field, or e.g. template slug already exists), `402` (payment required — retry with x402), `403` (entity suspended or wallet not authorized), `500` (server error).
+
+**Verified issuers:** If the issuer is a verified entity, the paying wallet must be in that entity's `authorized_wallets`. HashProof verifies people and organizations; agents use wallets authorized by those entities. To request verification, the human goes to https://hashproof.dev and their entity page (e.g. `/entities/your-slug`). Entity verification costs **$49 USDC** (one-time, via x402).
 
 ---
 
@@ -269,9 +289,11 @@ For `private` templates: no auth required (requirements are public).
 GET https://api.hashproof.dev/verify/:id
 ```
 
-No payment. Returns status (`active`, `revoked`, `expired`, `not_found`), issuer/platform verification, IPFS URI, and full credential payload.
+No payment. Returns status (`active`, `revoked`, `expired`, `not_found`), issuer/platform verification, IPFS URI, and full credential payload. Use the `id` from the issuance response (or from `verification_url`).
 
 **Public verification page:** `https://hashproof.dev/verify/:id`
+
+**Entity status (optional):** `GET https://api.hashproof.dev/entities/:id` — no payment. Returns `status`, `is_verified`, etc. Use `:id` or slug to check if an issuer/platform is verified.
 
 ---
 

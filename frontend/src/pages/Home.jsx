@@ -72,8 +72,7 @@ export default function Home() {
         <section className="hero">
           <h1>Issue verifiable credentials with one API call</h1>
           <p className="hero-lead">
-            HashProof lets developers, platforms, and AI agents issue digital credentials
-            that anyone can verify — backed by IPFS and a public blockchain registry.
+            HashProof lets developers, platforms, and AI agents issue digital credentials that anyone can verify.
           </p>
           <div className="hero-actions">
             <Link to="/docs" className="btn btn-primary">
@@ -147,15 +146,6 @@ export default function Home() {
               </p>
               <p className="home-code-note">
                 Returns a <code>verification_url</code> to share with the credential holder.
-                Payment is handled automatically via the{" "}
-                <a
-                  href="https://github.com/csacanam/hashproof/blob/main/docs/X402-PAYMENT-FLOW.md"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  x402 protocol
-                </a>{" "}
-                — no API key or account required.
               </p>
             </>
           )}

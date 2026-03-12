@@ -94,7 +94,7 @@ USDC addresses and RPC URLs for each network are in `backend/src/utils/chains.js
 | Endpoint | Price | Description |
 |----------|-------|-------------|
 | `POST /issueCredential` | $0.10 USDC | Issue one verifiable credential |
-| `POST /entities/:id/verificationRequests` | $0.10 USDC | Submit an entity verification request |
+| `POST /entities/:id/verificationRequests` | $49 USDC | Submit an entity verification request |
 
 Prices are defined in `backend/src/utils/constants.js`.
 

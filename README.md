@@ -32,7 +32,7 @@ docs/          Architecture and flow documentation
 | Endpoint                                  | Price      | Description                     |
 | ----------------------------------------- | ---------- | ------------------------------- |
 | `POST /issueCredential`                   | $0.10 USDC | Issue one verifiable credential |
-| `POST /entities/:id/verificationRequests` | $0.10 USDC | Submit a verification request   |
+| `POST /entities/:id/verificationRequests` | $49 USDC | Submit a verification request   |
 
 Payment is in USDC on Base (configurable). The client signs an off-chain authorization — no gas required.
 

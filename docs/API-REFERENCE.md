@@ -17,7 +17,7 @@ Paid endpoints require an x402 payment header. See [`X402-PAYMENT-FLOW.md`](./X4
 | GET | `/verify/:id/ipfs` | — | IPFS vs DB integrity check |
 | GET | `/verify/:id/pdf` | — | Download credential as PDF |
 | GET | `/entities/:id` | — | Entity info and verification status |
-| POST | `/entities/:id/verificationRequests` | x402 $0.10 USDC | Submit a verification request |
+| POST | `/entities/:id/verificationRequests` | x402 $49 USDC | Submit a verification request |
 | POST | `/admin/entities/:id/verify` | `ADMIN_SECRET` header | Approve a pending verification request |
 | POST | `/admin/issuer-authorizations` | `ADMIN_SECRET` header | Grant or revoke a platform's right to issue on behalf of an issuer |
 
@@ -149,23 +149,38 @@ Default template required keys:
 
 #### template — optional
 
-Selects or creates the template to use. If omitted, uses the default `hashproof` template.
+A **template** is the definition of how to paint the credential data onto the PDF canvas: page size, background, and where each value from `values` is drawn (position, font, style). If omitted, the default `hashproof` template is used.
 
-**Important:** Provide **only one** of `template_slug`, `template_id`, or `template` in a request. If more than one is provided, the request is rejected with `400`.
+You can **use an existing template** (by slug or ID) or **create one inline** on first issuance; after that, use the slug to reuse it. Provide **only one** of `template_slug`, `template_id`, or `template` per request (otherwise `400`).
 
-For a concise guide to all template use cases (default, existing by slug/id, inline, background override), see [TEMPLATES.md](./TEMPLATES.md).
+Full guide and examples: [TEMPLATES.md](./TEMPLATES.md).
 
-**Option A — Use template by slug (existing template):**
+**Option A — Use an existing template (by slug):**
+
+Send `template_slug` and the usual issuance fields; no `template` object. The layout is already stored.
+
 ```json
-{ "template_slug": "my-template-slug" }
+{
+  "issuer":   { "display_name": "Acme Corp", "slug": "acme-corp" },
+  "platform": { "display_name": "Acme Corp", "slug": "acme-corp" },
+  "holder":   { "full_name": "Juan Pérez" },
+  "context":  { "type": "event", "title": "Expo 2026" },
+  "credential_type": "attendance",
+  "title": "Certificado",
+  "template_slug": "acme-expo-2026-v1",
+  "values": { "holder_name": "Juan Pérez", "details": "Participación en stand." }
+}
 ```
 
-**Option B — Use template by ID:**
+**Option B — Use an existing template (by ID):**
 ```json
 { "template_id": "uuid-of-existing-template" }
 ```
 
 **Option C — Define inline (creates on first use by slug):**
+
+Dimensions are used as-is (no conversion). Use the **same values as your design canvas** (e.g. pixels from your image editor): `page_width`, `page_height`, and field `x`, `y`, `width`, `height` in the same units so the layout matches. Defaults if omitted: 595×842 (A4 portrait).
+
 ```json
 {
   "template": {
@@ -215,11 +230,11 @@ For template design (PDF size, background, QR placement), see [`TEMPLATES.md`](.
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
 | `key` | string | yes | Must match a key in `values` |
-| `x` | number | yes | X position in pixels from left |
-| `y` | number | yes | Y position in pixels from top |
+| `x` | number | yes | X position from left (same units as page; use design canvas values 1:1) |
+| `y` | number | yes | Y position from top |
 | `required` | boolean | no | If true, `values[key]` must be provided. Default: `true` |
-| `width` | number | no | Bounding box width in pixels |
-| `height` | number | no | Bounding box height in pixels |
+| `width` | number | no | Bounding box width (same units as page) |
+| `height` | number | no | Bounding box height (same units as page) |
 | `font_size` | number | no | Font size in pt. Default: `12` |
 | `font_color` | string | no | Hex color. Default: `#000000` |
 | `align` | string | no | `left`, `center`, or `right`. Default: `left` |
