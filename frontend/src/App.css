@@ -27,14 +27,14 @@
 }
 
 .logo {
-  font-weight: 700;
-  font-size: 1.25rem;
-  letter-spacing: -0.02em;
-  color: var(--color-text);
+  display: inline-flex;
+  align-items: center;
 }
 
-.logo:hover {
-  color: var(--color-accent);
+.logo-img {
+  height: 50px;
+  width: auto;
+  display: block;
 }
 
 /* Home */

@@ -3,7 +3,13 @@ import { Link } from "react-router-dom";
 export default function SiteHeader({ plain } = {}) {
   return (
     <header className="header">
-      <Link to="/" className="logo">HashProof</Link>
+      <Link to="/" className="logo">
+        <img
+          src="/hashproof-logo.png"
+          alt="HashProof"
+          className="logo-img"
+        />
+      </Link>
       {!plain && (
         <nav className="home-nav">
           <a
