@@ -168,15 +168,15 @@ You can combine `bold` and `italic`. Example: `{ "key": "holder_name", "x": 80, 
 
 ## QR placement (design guideline)
 
-The **verification QR code** is not defined in `fields_json`. The PDF renderer always draws it near the **bottom-right** corner. Your background art should leave that area free so the QR is readable.
+The **verification QR code** is not defined in `fields_json`. The PDF renderer always draws it near the **top-right** corner. Your background art should leave that area free so the QR is readable.
 
 Current logic (scaled by page width):
 
 - Reference: 360px QR at 3508px page width; min 96px, max 360px.
 - Margin from edges scales with QR size (about 40% of QR size).
-- Reserved rectangle: bottom-right square; size and position scale with page dimensions.
+- Reserved rectangle: top-right square; size and position scale with page dimensions.
 
-For a high-res template (e.g. 3508×2480): the reserved area is roughly the last ~360px + margin in both x and y. For smaller pages the QR and margin scale down. Keep the bottom-right corner visually quiet and with enough contrast for a black QR.
+For a high-res template (e.g. 3508×2480): the reserved area is roughly the top-right ~360px + margin in both x and y. For smaller pages the QR and margin scale down. Keep the top-right corner visually quiet and with enough contrast for a black QR.
 
 ---
 

@@ -97,7 +97,7 @@ export async function generateCredentialPdf(credentialId, baseUrl) {
       );
       const qrMargin = Math.round(qrSize * 0.4); // margin scales with QR
       const qrX = page_width - qrSize - qrMargin;
-      const qrY = page_height - qrSize - qrMargin;
+      const qrY = qrMargin; // same margin, but from the top edge (top-right corner)
       const qrDataUrl = await QRCode.toDataURL(verificationUrl, { width: qrSize });
       doc.image(qrDataUrl, qrX, qrY, { width: qrSize, height: qrSize });
 

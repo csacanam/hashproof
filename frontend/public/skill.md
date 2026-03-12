@@ -251,7 +251,7 @@ Use this the **first time** you want a custom layout. The API creates the templa
 }
 ```
 
-QR code: the verification QR is always drawn near the bottom-right corner. Leave that area empty in your background. [TEMPLATES.md](https://github.com/csacanam/hashproof/blob/main/docs/TEMPLATES.md#qr-placement-design-guideline).
+QR code: the verification QR is always drawn near the top-right corner. Leave that area empty in your background. [TEMPLATES.md](https://github.com/csacanam/hashproof/blob/main/docs/TEMPLATES.md#qr-placement-design-guideline).
 
 ### Read template requirements (optional)
 
