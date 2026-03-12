@@ -18,6 +18,7 @@ import { executeIssueCredential } from "./services/issueCredential.js";
 import { getCredentialById } from "./services/getCredential.js";
 import { getEntityById } from "./services/getEntity.js";
 import { createVerificationRequest } from "./services/createVerificationRequest.js";
+import { deductCredit, createKey, listKeys, addCredits } from "./services/apiKeys.js";
 import { approveEntity } from "./services/approveEntity.js";
 import { isPlatformAuthorized, upsertIssuerAuthorization } from "./services/issuerAuthorization.js";
 import { supabase } from "./supabase.js";
@@ -65,7 +66,10 @@ export function createApp(options = {}) {
     const isPaidRoute = isIssueCredential || isVerificationRequest;
     if (!isPaidRoute) return next();
     const hasPayment = req.get("payment-signature") || req.get("x-payment");
-    if (hasPayment) return next();
+    const hasApiKey =
+      isIssueCredential &&
+      (req.get("authorization")?.startsWith("Bearer ") || req.get("x-api-key"));
+    if (hasPayment || hasApiKey) return next();
     noPaymentRateLimit(req, res, next);
   });
 
@@ -84,6 +88,30 @@ export function createApp(options = {}) {
   app.post("/issueCredential", async (req, res) => {
     try {
       const payload = req.body;
+
+      // API key (prepaid): bind issuer to the key's entity and skip wallet checks
+      if (req.apiKey) {
+        const keyEntity = await getEntityById(req.apiKey.entity_id);
+        if (!keyEntity) {
+          return res.status(400).json({ error: "API key entity not found" });
+        }
+        if (keyEntity.status === "suspended") {
+          return res.status(403).json({
+            error: "This entity is suspended and cannot issue credentials.",
+          });
+        }
+        payload.issuer_entity_id = req.apiKey.entity_id;
+        payload.issuer = payload.issuer || {};
+        const expectedSlug = (keyEntity.slug || "").toLowerCase();
+        const sentSlug = (payload.issuer.slug || "").trim().toLowerCase();
+        if (sentSlug && sentSlug !== expectedSlug) {
+          return res.status(403).json({
+            error: "API key is for a different issuer. Use issuer.slug matching your key's entity.",
+          });
+        }
+        payload.issuer.slug = keyEntity.slug;
+        payload.issuer.display_name = payload.issuer.display_name || keyEntity.display_name;
+      }
 
       // Consistency: if entity IDs are provided, they must match the slugs in issuer/platform objects.
       const normalizeSlug = (s) =>
@@ -112,8 +140,8 @@ export function createApp(options = {}) {
         }
       }
 
-      // Enforce issuer access control based on entity status
-      if (payload.issuer_entity_id) {
+      // Enforce issuer access control based on entity status (skip when using API key)
+      if (payload.issuer_entity_id && !req.apiKey) {
         const VERIFIED_STATUSES = ["individual_verified", "organization_verified"];
 
         const [issuerEntity, platformEntity] = await Promise.all([
@@ -180,6 +208,14 @@ export function createApp(options = {}) {
       }
 
       const result = await executeIssueCredential(payload);
+
+      if (req.apiKey) {
+        const deduct = await deductCredit(req.apiKey.id);
+        if (!deduct.ok) {
+          console.error("[issueCredential] API key credit deduction failed — check DB permissions on api_keys (UPDATE). keyId:", req.apiKey.id);
+        }
+      }
+
       return res.json(result);
     } catch (err) {
       console.error("[issueCredential] error:", err.message);
@@ -518,6 +554,65 @@ export function createApp(options = {}) {
       return res.json(result);
     } catch (err) {
       console.error("[admin/issuer-authorizations] error:", err.message);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Admin: API keys (prepaid credits for institutions, no crypto) ─────────
+  const requireAdmin = (req, res, next) => {
+    const adminSecret = process.env.ADMIN_SECRET;
+    const authHeader = req.get("Authorization") || "";
+    if (!adminSecret || authHeader !== `Bearer ${adminSecret}`) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    next();
+  };
+
+  app.post("/admin/api-keys", requireAdmin, async (req, res) => {
+    try {
+      const { entity_id, initial_credits, name } = req.body || {};
+      if (!entity_id) {
+        return res.status(400).json({ error: "entity_id is required" });
+      }
+      const credits = Math.max(0, Number(initial_credits) ?? 0);
+      const key = await createKey(entity_id, credits, name || null);
+      return res.status(201).json({
+        id: key.id,
+        entity_id: key.entity_id,
+        name: key.name,
+        credits_balance: key.credits_balance,
+        api_key: key.secret,
+        message: "Store the api_key securely. It is shown only once.",
+      });
+    } catch (err) {
+      console.error("[admin/api-keys] error:", err.message);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/admin/api-keys", requireAdmin, async (_req, res) => {
+    try {
+      const keys = await listKeys();
+      return res.json(keys);
+    } catch (err) {
+      console.error("[admin/api-keys list] error:", err.message);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.patch("/admin/api-keys/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { add_credits } = req.body || {};
+      const amount = Math.max(0, Number(add_credits) ?? 0);
+      if (amount === 0) {
+        return res.status(400).json({ error: "add_credits must be a positive number" });
+      }
+      await addCredits(id, amount);
+      const { data } = await supabase.from("api_keys").select("credits_balance").eq("id", id).single();
+      return res.json({ id, credits_balance: data?.credits_balance ?? 0 });
+    } catch (err) {
+      console.error("[admin/api-keys patch] error:", err.message);
       return res.status(500).json({ error: err.message });
     }
   });

@@ -268,6 +268,33 @@ create index entity_verification_requests_status_idx
   on entity_verification_requests (status);
 
 -- =========================================================
+-- API KEYS (prepaid credits for institutions, no crypto)
+-- One key per entity; 1 credit = 1 credential. HashProof assumes cost.
+-- =========================================================
+
+create table api_keys (
+  id uuid primary key default gen_random_uuid(),
+
+  entity_id uuid not null references entities(id),
+
+  key_hash text not null,
+  name text,
+
+  credits_balance int not null default 0 check (credits_balance >= 0),
+  credits_used int not null default 0,
+
+  created_at timestamptz not null default now(),
+  last_used_at timestamptz
+);
+
+create unique index api_keys_key_hash_idx on api_keys (key_hash);
+create index api_keys_entity_id_idx on api_keys (entity_id);
+
+-- Migration for existing DBs:
+-- create table if not exists api_keys ( ... );  -- run full table def or:
+-- alter table api_keys add column if not exists credits_balance int not null default 0;
+
+-- =========================================================
 -- UPDATED_AT trigger
 -- =========================================================
 

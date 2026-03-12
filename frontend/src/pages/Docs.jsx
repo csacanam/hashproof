@@ -111,6 +111,7 @@ const NAV = [
   { id: "entities",            label: "GET /entities/:id" },
   { id: "custom-templates",    label: "Custom Templates" },
   { id: "entity-verification", label: "Entity Verification" },
+  { id: "enterprise",          label: "Enterprise plans" },
   // { id: "issuer-auth",         label: "Issuer Authorizations" },
 ];
 
@@ -346,11 +347,20 @@ export default function Docs() {
               <code className="docs-path">{API_BASE}/issueCredential</code>
             </div>
             <p className="docs-p">
-              Issues one verifiable credential. Paid — $0.10 USDC via x402.
+              Issues one verifiable credential. Paid — <strong>$0.10 USDC via x402</strong>.
+              There is no API key by default. If you need to issue without crypto, see{" "}
+              <button
+                className="docs-link-btn"
+                onClick={() => document.getElementById("enterprise")?.scrollIntoView({ behavior: "smooth" })}
+              >
+                Enterprise plans
+              </button>
+              .
+            </p>
+            <p className="docs-p">
               The minimal example below uses the default template. To use your own certificate design,
               see <button className="docs-link-btn" onClick={() => document.getElementById("custom-templates")?.scrollIntoView({ behavior: "smooth" })}>Custom Templates</button>.
             </p>
-
             <SubSection id="issue-body" title="Request body">
               <ParamTable rows={[
                 ["issuer.display_name", "string", true, "Name of the issuing organization"],
@@ -392,7 +402,8 @@ export default function Docs() {
             <SubSection id="issue-errors" title="Errors">
               <ParamTable rows={[
                 ["400", "", false, "Missing required field or invalid value"],
-                ["402", "", false, "Payment required — x402 challenge in PAYMENT-REQUIRED header"],
+                ["401", "", false, "Invalid API key (when using Authorization or X-API-Key)"],
+                ["402", "", false, "Payment required — x402 challenge, or API key has no credits (insufficient_credits)"],
                 ["403", "", false, "Entity suspended, or paying wallet not in authorized_wallets"],
                 ["500", "", false, "IPFS, on-chain, or DB error"],
               ]} />
@@ -600,6 +611,33 @@ export default function Docs() {
             </SubSection>
           </Section>
 
+          {/* enterprise */}
+          <Section id="enterprise" title="Enterprise plans (API key, no crypto)">
+            <p className="docs-p">
+              By default, HashProof uses <strong>x402</strong>: each call to <code>POST /issueCredential</code> is paid with
+              <strong> USDC</strong> and there is <strong>no API key</strong>.
+            </p>
+            <p className="docs-p">
+              If your institution can’t or doesn’t want to handle crypto, HashProof offers <strong>enterprise plans</strong>:
+              you purchase <strong>prepaid credits</strong>, and we issue an <strong>API key</strong> tied to your entity.
+              One credit = one credential; HashProof assumes the on-chain costs.
+            </p>
+            <p className="docs-p">
+              Contact <a href="mailto:hi@hashproof.dev">hi@hashproof.dev</a> to purchase credits and receive your API key.
+            </p>
+            <SubSection id="enterprise-auth" title="How API key auth works">
+              <p className="docs-p">Send one of these headers:</p>
+              <ul className="docs-ol">
+                <li><code>Authorization: Bearer YOUR_API_KEY</code></li>
+                <li><code>X-API-Key: YOUR_API_KEY</code></li>
+              </ul>
+              <p className="docs-p">
+                The key is tied to a single issuer entity. Each successful issuance deducts <strong>1 credit</strong>.
+                If you run out of credits, the API returns <code>402</code> with <code>code: "insufficient_credits"</code>.
+              </p>
+            </SubSection>
+          </Section>
+
           {/* Issuer Authorizations — commented out for now
           <Section id="issuer-auth" title="Issuer Authorizations">
             <p className="docs-p">
@@ -619,7 +657,7 @@ export default function Docs() {
               <p className="docs-p">
                 Authorizations are managed by HashProof. To grant a platform permission to issue
                 on your behalf — or to revoke an existing authorization — contact us at{" "}
-                <a href="mailto:hello@hashproof.dev">hello@hashproof.dev</a> with:
+                <a href="mailto:hi@hashproof.dev">hi@hashproof.dev</a> with:
               </p>
               <ul className="docs-ol">
                 <li>Your entity ID (issuer)</li>

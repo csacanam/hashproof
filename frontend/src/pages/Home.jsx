@@ -147,6 +147,9 @@ export default function Home() {
               <p className="home-code-note">
                 Returns a <code>verification_url</code> to share with the credential holder.
               </p>
+              <p className="home-code-note" style={{ marginTop: "0.5rem" }}>
+                Need to issue without crypto? <a href="mailto:hi@hashproof.dev">Contact us for enterprise plans</a> (API key + prepaid credits).
+              </p>
             </>
           )}
 

@@ -2,7 +2,7 @@
 
 Base URL: `https://api.hashproof.dev` (or `http://localhost:4022` for local dev)
 
-Paid endpoints require an x402 payment header. See [`X402-PAYMENT-FLOW.md`](./X402-PAYMENT-FLOW.md) for how payments work.
+By default, HashProof uses **x402** (USDC) and there is **no API key**. For enterprise plans, HashProof can provide a **prepaid API key** for `POST /issueCredential`. See [API key (prepaid)](#api-key-prepaid-credits) and [`X402-PAYMENT-FLOW.md`](./X402-PAYMENT-FLOW.md).
 
 ---
 
@@ -11,7 +11,7 @@ Paid endpoints require an x402 payment header. See [`X402-PAYMENT-FLOW.md`](./X4
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | GET | `/` | — | Service info |
-| POST | `/issueCredential` | x402 $0.10 USDC | Issue one credential |
+| POST | `/issueCredential` | x402 $0.10 USDC **or** API key (prepaid) | Issue one credential |
 | GET | `/verify/:id` | — | Full verification (contract + IPFS + DB) |
 | GET | `/verify/:id/contract` | — | Blockchain-only status |
 | GET | `/verify/:id/ipfs` | — | IPFS vs DB integrity check |
@@ -20,12 +20,30 @@ Paid endpoints require an x402 payment header. See [`X402-PAYMENT-FLOW.md`](./X4
 | POST | `/entities/:id/verificationRequests` | x402 $49 USDC | Submit a verification request |
 | POST | `/admin/entities/:id/verify` | `ADMIN_SECRET` header | Approve a pending verification request |
 | POST | `/admin/issuer-authorizations` | `ADMIN_SECRET` header | Grant or revoke a platform's right to issue on behalf of an issuer |
+| POST | `/admin/api-keys` | `ADMIN_SECRET` header | Create an API key for an entity (prepaid credits) |
+| GET | `/admin/api-keys` | `ADMIN_SECRET` header | List API keys and balances |
+| PATCH | `/admin/api-keys/:id` | `ADMIN_SECRET` header | Add credits to an API key |
 
 ---
 
 ## POST /issueCredential
 
-Issues one verifiable credential. Requires x402 payment.
+Issues one verifiable credential. Requires **x402 payment** (USDC) **or** a valid **API key** with prepaid credits.
+
+### API key (prepaid credits)
+
+**Enterprise plans:** To issue without x402 or crypto, contact [hi@hashproof.dev](mailto:hi@hashproof.dev) to purchase prepaid credits and receive an API key tied to your entity.
+
+For institutions that don't use crypto, HashProof can issue an **API key** tied to an entity and a **prepaid credit balance**. One credit = one credential; HashProof assumes the cost.
+
+- **Header:** `Authorization: Bearer <api_key>` or `X-API-Key: <api_key>`
+- The key is bound to a single **entity** (issuer). The request's `issuer` must match that entity (by `issuer.slug` or omit `issuer` and it is filled from the key's entity).
+- Each successful issuance deducts **1 credit**. If balance is 0, the API returns `402` with `code: "insufficient_credits"`.
+- Admin: create keys and top up credits via `POST /admin/api-keys`, `GET /admin/api-keys`, `PATCH /admin/api-keys/:id` (see [Admin API keys](#admin-api-keys)).
+
+### x402 payment
+
+If no API key is sent, the client must pay **$0.10 USDC** via the x402 protocol (see [`X402-PAYMENT-FLOW.md`](./X402-PAYMENT-FLOW.md)).
 
 ### Authorization rules
 
@@ -546,6 +564,28 @@ See [`ADMIN-GUIDE.md`](./ADMIN-GUIDE.md) for the full review and approval proces
 
 ---
 
+## Admin API keys
+
+Prepaid credits for institutions (no crypto). **Auth:** `Authorization: Bearer <ADMIN_SECRET>`.
+
+### POST /admin/api-keys — Create key
+
+**Body:** `{ "entity_id": "uuid", "initial_credits": 100, "name": "Acme Corp production" }`
+
+**Response 201:** `{ "id", "entity_id", "name", "credits_balance", "api_key", "message": "Store the api_key securely. It is shown only once." }` — the `api_key` value is the secret and is returned only on create.
+
+### GET /admin/api-keys — List keys
+
+**Response 200:** Array of `{ id, entity_id, entity_slug, entity_display_name, name, credits_balance, created_at, last_used_at }` (no secrets).
+
+### PATCH /admin/api-keys/:id — Add credits
+
+**Body:** `{ "add_credits": 50 }`
+
+**Response 200:** `{ "id", "credits_balance" }`
+
+---
+
 ## Error format
 
 All errors return JSON with a single `error` field:
@@ -557,7 +597,7 @@ All errors return JSON with a single `error` field:
 | Status | Meaning |
 |--------|---------|
 | 400 | Bad request — missing or invalid fields |
-| 402 | Payment required — x402 challenge in `PAYMENT-REQUIRED` header |
+| 402 | Payment required — x402 challenge, or API key has no credits (`code: "insufficient_credits"`) |
 | 403 | Forbidden — entity suspended or wallet not authorized |
 | 404 | Resource not found |
 | 429 | Rate limit exceeded |

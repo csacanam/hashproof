@@ -145,6 +145,46 @@ Clearing `authorized_wallets` immediately prevents any further credential issuan
 
 ---
 
+## API keys (prepaid credits)
+
+For institutions that don't use crypto, you can create **API keys** tied to an entity and a **prepaid credit balance**. They call `POST /issueCredential` with `Authorization: Bearer <api_key>` (or `X-API-Key`); each successful issuance deducts 1 credit. You assume the cost (USDC) on your side.
+
+**Prerequisites:** The entity must exist in `entities`. Get its UUID from Supabase (Table Editor → `entities`).
+
+### Create an API key
+
+```bash
+curl -X POST https://your-api-url/admin/api-keys \
+  -H "Authorization: Bearer YOUR_ADMIN_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "entity_id": "uuid-of-the-entity",
+    "initial_credits": 100,
+    "name": "Acme Corp production"
+  }'
+```
+
+Response includes **`api_key`** — the secret. **Show it only once** to the institution; it cannot be retrieved again. They store it and send it as `Authorization: Bearer <api_key>` or `X-API-Key: <api_key>`.
+
+### List API keys and balances
+
+```bash
+curl -H "Authorization: Bearer YOUR_ADMIN_SECRET" https://your-api-url/admin/api-keys
+```
+
+Returns id, entity_slug, entity_display_name, name, credits_balance, last_used_at (no secrets).
+
+### Top up credits
+
+```bash
+curl -X PATCH https://your-api-url/admin/api-keys/{key_id} \
+  -H "Authorization: Bearer YOUR_ADMIN_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{ "add_credits": 50 }'
+```
+
+---
+
 ## How wallet authorization works on issuance
 
 When `POST /issueCredential` is called, the backend applies the following rules in order:

@@ -2,10 +2,11 @@
  * x402 payment middleware.
  *
  * Flow:
- *   - No payment header → use Thirdweb settlePayment to generate the 402
- *     challenge (PAYMENT-REQUIRED header). No on-chain action here.
+ *   - For POST /issueCredential: if Authorization Bearer or X-API-Key is present,
+ *     validate API key (prepaid credits). If valid and balance >= 1, set req.apiKey and next().
  *   - Payment header present → validate and execute transferWithAuthorization
  *     directly via our EOA settler (no Thirdweb bundler / billing required).
+ *   - No payment and no valid API key → 402 with PAYMENT-REQUIRED challenge.
  */
 
 import { settlePayment, facilitator } from "thirdweb/x402";
@@ -13,6 +14,7 @@ import { createThirdwebClient } from "thirdweb";
 import { Buffer } from "node:buffer";
 import { ISSUE_CREDENTIAL_PRICE_USD, ENTITY_VERIFICATION_PRICE_USD } from "../utils/constants.js";
 import { createEOASettler, usdToUsdcAtoms } from "../services/settleEOA.js";
+import { getByPlainKey } from "../services/apiKeys.js";
 import { getActiveChains } from "../utils/chains.js";
 
 export function createThirdwebPaymentMiddleware(skipPayment = false) {
@@ -59,6 +61,28 @@ export function createThirdwebPaymentMiddleware(skipPayment = false) {
   return async (req, res, next) => {
     const config = getRouteConfig(req.path);
     if (!config) return next();
+
+    // ── API key (prepaid credits) for issueCredential only ───────────────────
+    if (req.method === "POST" && req.path === "/issueCredential") {
+      const rawKey =
+        req.get("authorization")?.replace(/^Bearer\s+/i, "").trim() ||
+        req.get("x-api-key")?.trim();
+      if (rawKey) {
+        const keyRow = await getByPlainKey(rawKey);
+        if (!keyRow) {
+          return res.status(401).json({ error: "Invalid API key" });
+        }
+        if (keyRow.credits_balance < 1) {
+          return res.status(402).json({
+            error: "Insufficient credits",
+            code: "insufficient_credits",
+            message: "Top up your prepaid credits to continue issuing credentials.",
+          });
+        }
+        req.apiKey = keyRow;
+        return next();
+      }
+    }
 
     const paymentData = req.get("X-PAYMENT") || req.get("PAYMENT-SIGNATURE") || null;
     const resourceUrl = `${req.protocol}://${req.get("host") || "localhost"}${req.originalUrl}`;

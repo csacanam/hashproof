@@ -133,9 +133,11 @@ Issue your **first credential** with your human's name as the holder. Same paylo
 
 ---
 
-## Authentication (x402)
+## Authentication (x402 or API key)
 
-There is no API key. Paid endpoints return `402 Payment Required` with a payment challenge. You sign a USDC transfer authorization (off-chain, no gas) and resend the request with the payment header. Supported networks: **Base**, **Celo**. 0.10 USDC per credential.
+**Most users:** No API key. Paid endpoints return `402 Payment Required` with a payment challenge.
+
+**Institutions with prepaid agreement:** HashProof may provide an **API key** and prepaid credits (1 credit = 1 credential). Send `Authorization: Bearer <api_key>` or `X-API-Key: <api_key>`; no x402 or wallet needed. If the human says they have an API key from HashProof, use that instead of x402. **For enterprise plans (no crypto):** the human should contact HashProof (e.g. hi@hashproof.dev) to purchase prepaid credits and receive an API key tied to their entity.
 
 **Node (Thirdweb):** Install `thirdweb`, then use `wrapFetchWithPayment` so the first request (402) is retried with the signed payment. Example:
 
@@ -277,7 +279,7 @@ For `private` templates: no auth required (requirements are public).
 
 **Response 200:** `id`, `verification_url`, `tx_hash`, `ipfs_cid`, `ipfs_uri`. Share `verification_url` with the holder.
 
-**Errors:** `400` (missing/invalid field, or e.g. template slug already exists), `402` (payment required — retry with x402), `403` (entity suspended or wallet not authorized), `500` (server error).
+**Errors:** `400` (missing/invalid field, or e.g. template slug already exists), `401` (invalid API key), `402` (payment required — retry with x402, or API key has no credits: `code: "insufficient_credits"`), `403` (entity suspended or wallet not authorized), `500` (server error).
 
 **Verified issuers:** If the issuer is a verified entity, the paying wallet must be in that entity's `authorized_wallets`. HashProof verifies people and organizations; agents use wallets authorized by those entities. To request verification, the human goes to https://hashproof.dev and their entity page (e.g. `/entities/your-slug`). Entity verification costs **$49 USDC** (one-time, via x402).
 

@@ -1,6 +1,8 @@
 # Issuing Credentials
 
-**Endpoint:** `POST /issueCredential` — paid, $0.10 USDC via x402.
+**Endpoint:** `POST /issueCredential` — paid, $0.10 USDC via x402 (or API key for enterprise plans).
+
+**Enterprise plans (no crypto):** Contact [hi@hashproof.dev](mailto:hi@hashproof.dev) to purchase prepaid credits and receive an API key tied to your entity.
 
 This doc is intentionally short. For the full field spec and allowed values, see [API-REFERENCE.md](./API-REFERENCE.md). For **template use cases** (default, existing template by slug/id, inline template, same layout with different background), see [TEMPLATES.md](./TEMPLATES.md).
 
