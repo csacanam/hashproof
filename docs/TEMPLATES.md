@@ -54,14 +54,14 @@ You must supply `values` for every field in that template that has `required: tr
 {
   "issuer":   { "display_name": "Acme Corp", "slug": "acme-corp" },
   "platform": { "display_name": "Acme Corp", "slug": "acme-corp" },
-  "holder":   { "full_name": "Juan Pérez" },
+  "holder":   { "full_name": "Jane Doe" },
   "context":  { "type": "event", "title": "Expo 2026" },
   "credential_type": "attendance",
-  "title": "Certificado de Relacionamiento",
+  "title": "Certificate of Attendance",
   "template_slug": "acme-expo-2026-v1",
   "values": {
-    "holder_name": "Juan Pérez",
-    "details": "Por su participación en el stand."
+    "holder_name": "Jane Doe",
+    "details": "For attending the event booth."
   }
 }
 ```
@@ -88,7 +88,7 @@ Minimal inline example:
   "holder":   { "full_name": "Diana Prieto" },
   "context":  { "type": "event", "title": "Expo 2026" },
   "credential_type": "attendance",
-  "title": "Certificado de Relacionamiento",
+  "title": "Certificate of Attendance",
   "template": {
     "slug": "acme-expo-2026-v1",
     "name": "Acme Expo 2026 v1",
@@ -102,7 +102,7 @@ Minimal inline example:
   },
   "values": {
     "holder_name": "Diana Prieto",
-    "details": "Por habernos conocido en Expo..."
+    "details": "For meeting us at Expo..."
   }
 }
 ```

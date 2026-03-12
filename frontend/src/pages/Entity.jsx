@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import SiteHeader from "../components/SiteHeader.jsx";
 import SiteFooter from "../components/SiteFooter.jsx";
 import {
@@ -91,6 +92,13 @@ export default function Entity() {
   if (loading) {
     return (
       <div className="page verify-page verify-page--loading">
+        <Helmet>
+          <title>Entity profile | HashProof</title>
+          <meta
+            name="description"
+            content="View a public entity profile on HashProof. Entities on HashProof can issue or manage verifiable credentials with an API."
+          />
+        </Helmet>
         <main className="verify-main">
           <div className="verify-loader">
             <div className="verify-loader__spinner" />
@@ -104,6 +112,13 @@ export default function Entity() {
   if (error) {
     return (
       <div className="page verify-page">
+        <Helmet>
+          <title>Entity not found | HashProof</title>
+          <meta
+            name="description"
+            content="View a public entity profile on HashProof. Entities on HashProof can issue or manage verifiable credentials with an API."
+          />
+        </Helmet>
         <SiteHeader plain />
         <main className="verify-main">
           <p className="verify-error">{error}</p>
@@ -117,6 +132,9 @@ export default function Entity() {
   }
 
   const e = data?.entity ?? data ?? {};
+  const entityName = e.display_name || e.slug || "Entity";
+  const metaTitle = `${entityName} on HashProof`;
+  const metaDescription = `View the public profile of ${entityName} on HashProof. Entities on HashProof can issue or manage verifiable credentials with an API.`;
   const status = data?.status ?? e.status ?? "unverified";
   const isVerified = data?.is_verified ?? false;
 
@@ -354,6 +372,10 @@ export default function Entity() {
 
   return (
     <div className="page verify-page">
+      <Helmet>
+        <title>{metaTitle}</title>
+        <meta name="description" content={metaDescription} />
+      </Helmet>
       <SiteHeader plain />
 
       <main className="verify-main">

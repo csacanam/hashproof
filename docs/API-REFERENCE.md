@@ -93,7 +93,7 @@ Links the credential to a registered entity in HashProof.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `display_name` | string | yes | Name of the issuing organization |
-| `slug` | string | yes | URL-safe identifier, e.g. `universidad-icesi` |
+| `slug` | string | yes | URL-safe identifier, e.g. `acme-university` |
 | `website` | string | no | Website URL |
 | `logo_url` | string | no | Logo image URL |
 
@@ -181,12 +181,12 @@ Send `template_slug` and the usual issuance fields; no `template` object. The la
 {
   "issuer":   { "display_name": "Acme Corp", "slug": "acme-corp" },
   "platform": { "display_name": "Acme Corp", "slug": "acme-corp" },
-  "holder":   { "full_name": "Juan Pérez" },
+  "holder":   { "full_name": "Jane Doe" },
   "context":  { "type": "event", "title": "Expo 2026" },
   "credential_type": "attendance",
-  "title": "Certificado",
+  "title": "Certificate of Attendance",
   "template_slug": "acme-expo-2026-v1",
-  "values": { "holder_name": "Juan Pérez", "details": "Participación en stand." }
+  "values": { "holder_name": "Jane Doe", "details": "Attended the event booth." }
 }
 ```
 
@@ -400,9 +400,9 @@ Returns entity info and verification status. `:id` can be a UUID or a slug.
 ```json
 {
   "id": "uuid",
-  "display_name": "Universidad Icesi",
-  "slug": "universidad-icesi",
-  "website": "https://icesi.edu.co",
+  "display_name": "Acme University",
+  "slug": "acme-university",
+  "website": "https://acme.example",
   "logo_url": null,
   "status": "organization_verified",
   "is_verified": true,

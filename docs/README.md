@@ -8,6 +8,7 @@
 | [ISSUING-CREDENTIALS.md](./ISSUING-CREDENTIALS.md) | Minimal, copy-paste issuance examples |
 | [TEMPLATES.md](./TEMPLATES.md) | Template use cases (default, by slug/id, inline, background override), field definitions, QR placement |
 | [X402-PAYMENT-FLOW.md](./X402-PAYMENT-FLOW.md) | How x402 works (useful for agents and integrations) |
+| [API key / Enterprise plans](./API-REFERENCE.md#api-key-prepaid-credits) | Prepaid credits + API key (no crypto) for institutions (enterprise agreements) |
 
 ## If you operate the platform
 

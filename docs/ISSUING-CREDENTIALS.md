@@ -16,13 +16,13 @@ Set `SKIP_PAYMENT=true` in `backend/.env` and restart the server to bypass x402 
 curl -s -X POST http://localhost:4022/issueCredential \
   -H "Content-Type: application/json" \
   -d '{
-    "issuer":   { "display_name": "Universidad Icesi", "slug": "universidad-icesi" },
-    "platform": { "display_name": "Universidad Icesi", "slug": "universidad-icesi" },
-    "holder":   { "full_name": "María García" },
-    "context":  { "type": "event", "title": "Blockchain Summit 2025" },
+    "issuer":   { "display_name": "Acme University", "slug": "acme-university" },
+    "platform": { "display_name": "Acme University", "slug": "acme-university" },
+    "holder":   { "full_name": "Jane Doe" },
+    "context":  { "type": "event", "title": "Blockchain Summit 2026" },
     "credential_type": "attendance",
-    "title": "Certificate of Attendance — Blockchain Summit 2025",
-    "values": { "holder_name": "María García" }
+    "title": "Certificate of Attendance — Blockchain Summit 2026",
+    "values": { "holder_name": "Jane Doe" }
   }' | jq .
 ```
 
@@ -44,13 +44,13 @@ curl -s -X POST http://localhost:4022/issueCredential \
   -d '{
     "issuer_entity_id":   "uuid-of-verified-entity",
     "platform_entity_id": "uuid-of-verified-entity",
-    "issuer":   { "display_name": "Universidad Icesi", "slug": "universidad-icesi" },
-    "platform": { "display_name": "Universidad Icesi", "slug": "universidad-icesi" },
-    "holder":   { "full_name": "María García" },
-    "context":  { "type": "event", "title": "Blockchain Summit 2025" },
+    "issuer":   { "display_name": "Acme University", "slug": "acme-university" },
+    "platform": { "display_name": "Acme University", "slug": "acme-university" },
+    "holder":   { "full_name": "Jane Doe" },
+    "context":  { "type": "event", "title": "Blockchain Summit 2026" },
     "credential_type": "attendance",
-    "title": "Certificate of Attendance — Blockchain Summit 2025",
-    "values": { "holder_name": "María García" }
+    "title": "Certificate of Attendance — Blockchain Summit 2026",
+    "values": { "holder_name": "Jane Doe" }
   }' | jq .
 ```
 
@@ -87,11 +87,11 @@ curl -s -X POST http://localhost:4022/issueCredential \
     "issuer":   { "display_name": "My Org", "slug": "my-org" },
     "platform": { "display_name": "My Org", "slug": "my-org" },
     "holder":   { "full_name": "Jane Doe" },
-    "context":  { "type": "event", "title": "Summit 2025" },
+    "context":  { "type": "event", "title": "Summit 2026" },
     "credential_type": "attendance",
     "title": "Certificate of Attendance",
-    "template_slug": "evento-layout-generico",
-    "background_url_override": "https://cdn.example.com/eventos/summit-2025-bg.png",
+    "template_slug": "event-layout-generic",
+    "background_url_override": "https://cdn.example.com/events/summit-2026-bg.png",
     "values": { "holder_name": "Jane Doe" }
   }' | jq .
 ```

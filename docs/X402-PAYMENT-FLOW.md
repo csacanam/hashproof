@@ -46,7 +46,7 @@ sequenceDiagram
 
 | Party | What they pay | How |
 |-------|--------------|-----|
-| **Client** (user / agent) | $0.10 USDC | Signs off-chain — no gas, no blockchain transaction |
+| **Client** (user / agent) | $0.10 USDC (issue) or $49 USDC (entity verification) | Signs off-chain — no gas, no blockchain transaction |
 | **Backend** (`SETTLER_PRIVATE_KEY`) | ~$0.001 ETH in gas | Calls `transferWithAuthorization` on-chain |
 
 The client is completely gasless. The backend pays a negligible amount of gas to collect the payment.

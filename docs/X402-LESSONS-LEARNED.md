@@ -6,7 +6,7 @@ This document captures the real problems we hit integrating x402 payments and ho
 
 ## Context
 
-We wanted paid API endpoints: a client pays $0.10 USDC per call, no API key, no subscription. The x402 protocol does this — the server returns `402 Payment Required`, the client signs an off-chain authorization, resends, and gets access.
+We wanted paid API endpoints: a client pays per call via x402 (e.g. $0.10 USDC for issuing a credential), no API key, no subscription. The x402 protocol does this — the server returns `402 Payment Required`, the client signs an off-chain authorization, resends, and gets access.
 
 We used Thirdweb as the x402 stack because it has both a server-side SDK (`thirdweb/x402`) and a React hook (`useFetchWithPayment`) that handles the full flow in the browser.
 

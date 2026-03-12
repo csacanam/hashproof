@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import CodeHighlight from "../components/CodeHighlight.jsx";
 
 const API_BASE = "https://api.hashproof.dev";
@@ -243,6 +244,13 @@ export default function Docs() {
 
   return (
     <div className="docs-page">
+      <Helmet>
+        <title>Verifiable Credentials API Documentation | HashProof</title>
+        <meta
+          name="description"
+          content="Learn how to issue and verify blockchain-backed credentials using a simple API and pay-per-credential model."
+        />
+      </Helmet>
       {/* Top bar */}
       <header className="docs-topbar">
         <Link to="/" className="docs-logo">HashProof</Link>

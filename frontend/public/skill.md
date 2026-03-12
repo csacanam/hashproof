@@ -26,6 +26,8 @@ Issue verifiable credentials with one API call. Pay per credential via x402 (USD
 - **Wallet with USDC** on Base or Celo. The agent (or the human) must have access to a wallet that can sign transactions and that holds at least **0.10 USDC** per credential to be issued.
 - **Ability to sign** the x402 payment from that wallet using any compatible EVM wallet stack. No gas is required on your side; payment is off-chain and the backend settles it.
 
+**Enterprise plans (no crypto):** Some institutions use a prepaid API key instead of x402. If your human says they have an API key from HashProof, you do not need a wallet or x402.
+
 **Don't have a wallet with USDC?** HashProof does not create or hold wallets. Your human must provide a wallet that holds USDC on Base or Celo (e.g. MetaMask or another wallet the agent can sign from). Once the agent can sign from that wallet, follow the Quick start below.
 
 Thirdweb is one supported example, but not required by HashProof itself.

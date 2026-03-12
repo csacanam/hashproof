@@ -198,7 +198,7 @@ When `POST /issueCredential` is called, the backend applies the following rules 
 
 ## Authorizing a platform to issue on behalf of an issuer
 
-Use this when a platform (e.g. Peewah) issues credentials on behalf of a verified issuer (e.g. Universidad Icesi).
+Use this when a platform (e.g. Peewah) issues credentials on behalf of a verified issuer (e.g. Acme University).
 
 **Step 1 — The platform and the issuer should both be verified** (or at minimum the issuer must be verified for the check to apply).
 

@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import PdfViewer from "../components/PdfViewer.jsx";
 import SiteHeader from "../components/SiteHeader.jsx";
 import SiteFooter from "../components/SiteFooter.jsx";
@@ -27,6 +28,26 @@ export default function Verify() {
   });
   const wrapperRef = useRef(null);
   const verifyCardRef = useRef(null);
+
+  const holderName =
+    data?.credential?.credentialSubject?.holder_name ||
+    data?.credential?.credentialSubject?.full_name ||
+    data?.credential?.credentialSubject?.name ||
+    null;
+
+  const contextTitle =
+    data?.credential?.context?.title ||
+    data?.context_title ||
+    null;
+
+  const metaTitle =
+    holderName && contextTitle
+      ? `${holderName} - ${contextTitle} | HashProof`
+      : "Verify credential | HashProof";
+
+  const metaDescription = contextTitle
+    ? `Verify the credential issued to ${holderName || "the holder"} for ${contextTitle}. This credential is publicly verifiable through HashProof.`
+    : "Verify a HashProof credential. This credential is publicly verifiable through HashProof.";
 
   useEffect(() => {
     if (!id) return;
@@ -139,6 +160,10 @@ export default function Verify() {
   if (loading) {
     return (
       <div className="page verify-page verify-page--loading">
+        <Helmet>
+          <title>{metaTitle}</title>
+          <meta name="description" content={metaDescription} />
+        </Helmet>
         <SiteHeader plain />
         <main className="verify-main">
           <div className="verify-loader">
@@ -177,6 +202,10 @@ export default function Verify() {
   if (error) {
     return (
       <div className="page verify-page">
+        <Helmet>
+          <title>{metaTitle}</title>
+          <meta name="description" content={metaDescription} />
+        </Helmet>
         <SiteHeader plain />
         <main className="verify-main">
           <p className="verify-error">{displayError}</p>
@@ -215,6 +244,10 @@ export default function Verify() {
 
   return (
     <div className="page verify-page">
+      <Helmet>
+        <title>{metaTitle}</title>
+        <meta name="description" content={metaDescription} />
+      </Helmet>
       <SiteHeader plain />
 
       <main className="verify-main">

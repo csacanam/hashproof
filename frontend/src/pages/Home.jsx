@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { Helmet } from "react-helmet-async";
 import ResponsiveCode from "../components/ResponsiveCode.jsx";
 import SiteHeader from "../components/SiteHeader.jsx";
 import SiteFooter from "../components/SiteFooter.jsx";
@@ -65,6 +66,13 @@ export default function Home() {
 
   return (
     <div className="page">
+      <Helmet>
+        <title>Issue Verifiable Credentials with One API Call | HashProof</title>
+        <meta
+          name="description"
+          content="HashProof lets developers and platforms create certificates anyone can verify."
+        />
+      </Helmet>
       <SiteHeader />
 
       <main>
