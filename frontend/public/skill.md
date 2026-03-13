@@ -199,7 +199,13 @@ A template is the **definition of how to paint the credential data onto a canvas
 | **Create a new template and use it** (first time only) | `template`: `{ "slug", "name", "background_url", "page_width", "page_height", "fields_json" }`. Inline is **create-only**. After the first issuance, reuse with `template_slug` for all following credentials. |
 | **Same template, different background per credential** | `template_slug` or `template_id` **plus** `background_url_override`: `"https://..."`. Layout from template; PDF uses the override URL as background for that issuance only. |
 
-To discover required keys: `GET https://api.hashproof.dev/templates/:slug_or_id/requirements` (no auth). Full guide: [docs/TEMPLATES.md](https://github.com/csacanam/hashproof/blob/main/docs/TEMPLATES.md).
+To discover required keys, call:
+
+```bash
+GET https://api.hashproof.dev/templates/:slug_or_id/requirements
+```
+
+(no auth). Full guide: [docs/TEMPLATES.md](https://github.com/csacanam/hashproof/blob/main/docs/TEMPLATES.md).
 
 ### Example: issue with an existing template (reuse)
 
