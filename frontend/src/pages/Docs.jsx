@@ -539,7 +539,7 @@ export default function Docs() {
                 To define a new design, pass a <code>template</code> object in the request. The API creates the template and issues the credential. For every <strong>next</strong> credential with the same layout, use <code>template_slug</code> (as in the example above) instead of sending <code>template</code> again. Inline is <strong>create-only</strong>: if <code>template.slug</code> already exists, the request is rejected.
               </p>
               <p className="docs-p">
-                QR: the verification QR is drawn near the bottom-right corner. Leave that area empty in your background. Required keys: <code>GET {API_BASE}/templates/:slug_or_uuid/requirements</code>.
+                QR: the verification QR is drawn near the top-right corner. Leave that area empty in your background. Required keys: call <code>GET /templates/:slug_or_id/requirements</code> (base URL <code>{API_BASE}</code>).
               </p>
             </SubSection>
 

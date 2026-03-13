@@ -201,10 +201,8 @@ A template is the **definition of how to paint the credential data onto a canvas
 
 To discover required keys, call:
 
-Base URL: `https://api.hashproof.dev`
-
 ```bash
-GET /templates/:slug_or_id/requirements
+GET https://api.hashproof.dev/templates/:slug_or_id/requirements
 ```
 
 (no auth). Full guide: [docs/TEMPLATES.md](https://github.com/csacanam/hashproof/blob/main/docs/TEMPLATES.md).
