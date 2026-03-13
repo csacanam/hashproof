@@ -98,6 +98,22 @@ export default function Entity() {
             name="description"
             content="View a public entity profile on HashProof. Entities on HashProof can issue or manage verifiable credentials with an API."
           />
+          <meta property="og:type" content="website" />
+          <meta property="og:url" content={`https://hashproof.dev/entities/${id || ""}`} />
+          <meta property="og:title" content="Entity profile | HashProof" />
+          <meta
+            property="og:description"
+            content="View a public entity profile on HashProof. Entities on HashProof can issue or manage verifiable credentials with an API."
+          />
+          <meta property="og:image" content="https://hashproof.dev/thumbnail.png" />
+          <meta name="twitter:card" content="summary_large_image" />
+          <meta name="twitter:url" content={`https://hashproof.dev/entities/${id || ""}`} />
+          <meta name="twitter:title" content="Entity profile | HashProof" />
+          <meta
+            name="twitter:description"
+            content="View a public entity profile on HashProof. Entities on HashProof can issue or manage verifiable credentials with an API."
+          />
+          <meta name="twitter:image" content="https://hashproof.dev/thumbnail.png" />
         </Helmet>
         <main className="verify-main">
           <div className="verify-loader">
@@ -118,6 +134,22 @@ export default function Entity() {
             name="description"
             content="View a public entity profile on HashProof. Entities on HashProof can issue or manage verifiable credentials with an API."
           />
+          <meta property="og:type" content="website" />
+          <meta property="og:url" content={`https://hashproof.dev/entities/${id || ""}`} />
+          <meta property="og:title" content="Entity not found | HashProof" />
+          <meta
+            property="og:description"
+            content="View a public entity profile on HashProof. Entities on HashProof can issue or manage verifiable credentials with an API."
+          />
+          <meta property="og:image" content="https://hashproof.dev/thumbnail.png" />
+          <meta name="twitter:card" content="summary_large_image" />
+          <meta name="twitter:url" content={`https://hashproof.dev/entities/${id || ""}`} />
+          <meta name="twitter:title" content="Entity not found | HashProof" />
+          <meta
+            name="twitter:description"
+            content="View a public entity profile on HashProof. Entities on HashProof can issue or manage verifiable credentials with an API."
+          />
+          <meta name="twitter:image" content="https://hashproof.dev/thumbnail.png" />
         </Helmet>
         <SiteHeader plain />
         <main className="verify-main">
@@ -375,6 +407,16 @@ export default function Entity() {
       <Helmet>
         <title>{metaTitle}</title>
         <meta name="description" content={metaDescription} />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content={`https://hashproof.dev/entities/${id || ""}`} />
+        <meta property="og:title" content={metaTitle} />
+        <meta property="og:description" content={metaDescription} />
+        <meta property="og:image" content="https://hashproof.dev/thumbnail.png" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:url" content={`https://hashproof.dev/entities/${id || ""}`} />
+        <meta name="twitter:title" content={metaTitle} />
+        <meta name="twitter:description" content={metaDescription} />
+        <meta name="twitter:image" content="https://hashproof.dev/thumbnail.png" />
       </Helmet>
       <SiteHeader plain />
 

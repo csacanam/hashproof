@@ -250,6 +250,28 @@ export default function Docs() {
           name="description"
           content="Learn how to issue and verify blockchain-backed credentials using a simple API and pay-per-credential model."
         />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://hashproof.dev/docs" />
+        <meta
+          property="og:title"
+          content="Verifiable Credentials API Documentation | HashProof"
+        />
+        <meta
+          property="og:description"
+          content="Learn how to issue and verify blockchain-backed credentials using a simple API and pay-per-credential model."
+        />
+        <meta property="og:image" content="https://hashproof.dev/thumbnail.png" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:url" content="https://hashproof.dev/docs" />
+        <meta
+          name="twitter:title"
+          content="Verifiable Credentials API Documentation | HashProof"
+        />
+        <meta
+          name="twitter:description"
+          content="Learn how to issue and verify blockchain-backed credentials using a simple API and pay-per-credential model."
+        />
+        <meta name="twitter:image" content="https://hashproof.dev/thumbnail.png" />
       </Helmet>
       {/* Top bar */}
       <header className="docs-topbar">
