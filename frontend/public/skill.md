@@ -9,6 +9,8 @@ metadata: {"api_base": "https://api.hashproof.dev", "payment": "x402", "currency
 
 Issue verifiable credentials with one API call. Pay per credential via x402 (USDC); no account or API key. Credentials are backed by IPFS and a public blockchain registry on Celo.
 
+For full, human‑oriented documentation (examples, screenshots, and explanations), see `https://hashproof.dev/docs`.
+
 ## Skill file
 
 | File | URL |
@@ -109,29 +111,71 @@ When asked to issue a credential:
 
 ---
 
+## Questions to ask your human
+
+Before issuing a credential, always ask your human to confirm at least:
+
+- **Purpose and type**
+  - What is this credential for? (e.g. course, event, membership, certification)
+  - Which `credential_type` should we use? (attendance, completion, achievement, participation, membership, certification)
+- **Holder details**
+  - Exact full name to print on the certificate.
+  - Optional: email (for delivery) and preferred language if relevant.
+- **Template choice**
+  - Do you want to use the **default certificate** (standard layout),
+    an **existing template** (provide `template_slug` or `template_id`),
+    or **create a new template inline**?
+  - If using an existing template: provide the template slug/ID and, if unsure about required fields, allow the agent to call  
+    `GET https://api.hashproof.dev/templates/:slug_or_id/requirements` to discover required keys.
+  - If creating a template inline: the human must provide `background_url`, `page_width`, `page_height`, and a list of fields (`fields_json`) with positions and sizes. The agent should not invent a layout without explicit instructions.
+- **Values to print**
+  - For each field that will appear on the PDF (name, role, event name, dates, etc.), confirm the exact text.
+  - If a template has required keys, confirm a value for each required key.
+- **Payment / authentication**
+  - Will we pay with **x402** (wallet with USDC on Base or Celo) or use an **API key** with prepaid credits?
+  - If x402: confirm the network (Base or Celo) and that the wallet has at least **0.10 USDC** per credential.
+  - If API key: confirm the key value and that it is allowed to issue on behalf of the intended issuer/entity.
+- **Issuer / platform identity**
+  - Which issuer and platform should appear on the credential (`issuer.display_name`, `issuer.slug`, `platform.display_name`, `platform.slug`)?
+  - If the issuer is a verified entity on HashProof, ensure the paying wallet or API key is authorized for that entity.
+
+If any of these answers are missing or ambiguous, ask follow‑up questions instead of guessing or fabricating data.
+
+---
+
 ## Quick start
 
-Issue your **first credential** with your human's name as the holder. Same payload as in the [web docs](https://hashproof.dev/docs).
+Issue your **first credential** after confirming details with your human. Same payload shape as in the [web docs](https://hashproof.dev/docs).
 
-1. Call `POST https://api.hashproof.dev/issueCredential` with x402 payment (see [Authentication](#authentication-x402)).
-2. Use this body (replace `YOUR_HUMAN_NAME` with your human's full name):
+1. Ask your human:
+   - **Holder name**: exact full name to print on the certificate.
+   - **Subtitle/details**: short line to show under the name (or confirm they want to leave it empty).
+   - **Template choice**:
+     - Use the **default certificate** (standard layout), or
+     - Use an **existing template** (provide `template_slug` or `template_id`), or
+     - **Create a new template inline** (provide `background_url`, `page_width`, `page_height`, and `fields_json` for each field).
+2. Confirm which network to pay on (**Base** or **Celo**) and that you have either:
+   - A wallet with at least **0.10 USDC** on that network (for x402), or
+   - An **API key** with prepaid credits from HashProof.
+3. Call `POST https://api.hashproof.dev/issueCredential` with x402 payment or API key (see [Authentication](#authentication-x402-or-api-key)).
+4. For the **default template** (no `template`, `template_slug`, or `template_id`), use a body like this (replace placeholders with the values you just confirmed):
 
 ```json
 {
   "issuer":   { "display_name": "HashProof Demo", "slug": "hashproof-demo" },
   "platform": { "display_name": "HashProof Demo", "slug": "hashproof-demo" },
-  "holder":   { "full_name": "YOUR_HUMAN_NAME" },
+  "holder":   { "full_name": "HOLDER_FULL_NAME" },
   "context":  { "type": "certification", "title": "HashProof API Quickstart" },
   "credential_type": "completion",
   "title": "First Credential Issued",
   "values": {
-    "holder_name": "YOUR_HUMAN_NAME",
-    "details": "For successfully issuing a verifiable credential using the HashProof API."
+    "holder_name": "HOLDER_FULL_NAME",
+    "details": "ONE_SHORT_SENTENCE_ABOUT_WHY_THIS_WAS_ISSUED"
   }
 }
 ```
 
-3. From the response, take `verification_url` and open it (or send it to your human). The credential is live and verifiable.
+5. From the response, take `verification_url` and open it (or send it to your human). The credential is live and verifiable.
 
 ---
 
