@@ -72,6 +72,28 @@ export default function Home() {
           name="description"
           content="HashProof lets developers and platforms create certificates anyone can verify."
         />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://hashproof.dev/" />
+        <meta
+          property="og:title"
+          content="Issue Verifiable Credentials with One API Call | HashProof"
+        />
+        <meta
+          property="og:description"
+          content="HashProof lets developers and platforms create certificates anyone can verify."
+        />
+        <meta property="og:image" content="https://hashproof.dev/thumbnail.png" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:url" content="https://hashproof.dev/" />
+        <meta
+          name="twitter:title"
+          content="Issue Verifiable Credentials with One API Call | HashProof"
+        />
+        <meta
+          name="twitter:description"
+          content="HashProof lets developers and platforms create certificates anyone can verify."
+        />
+        <meta name="twitter:image" content="https://hashproof.dev/thumbnail.png" />
       </Helmet>
       <SiteHeader />
 
