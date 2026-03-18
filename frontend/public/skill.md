@@ -179,6 +179,16 @@ Each issuance deducts 1 credit. Contact `hi@hashproof.dev` to get an API key.
 
 Send **only one** of `template_slug`, `template_id`, or `template`. Sending more than one returns `400`.
 
+### Using an existing template
+
+If your human says "use the template I already have" or gives you a template slug, **always call the requirements endpoint first**:
+
+```
+GET https://api.hashproof.dev/templates/:slug/requirements
+```
+
+This tells you exactly which `values` keys are required. Never guess the required fields — always check.
+
 ### Discover required fields
 
 ```
@@ -222,6 +232,8 @@ Important:
 - `x`, `y`, `width` use the same units as the page.
 - The QR code is drawn automatically in the top-right corner. Leave that area empty in the background.
 - Do NOT invent field positions — always ask your human for the exact coordinates or use the preview to verify.
+
+**If the human wants a custom template:** They MUST provide the background image URL AND the field coordinates (x, y, width, font_size for each field). You cannot calculate or estimate these values — they depend entirely on the visual design of the background image. If they don't know the coordinates, suggest they use the preview page to test different positions.
 
 ### Preview a template
 

@@ -76,14 +76,12 @@ Thirdweb's facilitator uses Account Abstraction (ERC-4337) to submit transaction
 ## Supported networks
 
 Configured via `X402_NETWORKS` in `backend/.env` (and `VITE_X402_NETWORKS` in `frontend/.env`).  
-**Both must match.** To change network, update both env vars — no code changes needed.
+**Both must match.** To change network, update both env vars — no code changes needed. The code supports additional networks (Polygon, Arbitrum), but only Base and Celo are active in production.
 
 | Key | Network | Gas token |
 |-----|---------|-----------|
 | `base` | Base mainnet (eip155:8453) | ETH |
 | `celo` | Celo mainnet (eip155:42220) | CELO |
-| `polygon` | Polygon mainnet (eip155:137) | MATIC |
-| `arbitrum` | Arbitrum One (eip155:42161) | ETH |
 
 USDC addresses and RPC URLs for each network are in `backend/src/utils/chains.js` and `frontend/src/chains.js`.
 

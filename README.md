@@ -10,7 +10,7 @@ HashProof is a credential issuance API. Organizations and Individuals (entities)
 - Registered on-chain in the `CredentialRegistry` contract on Celo
 - Verifiable via a public URL: `https://hashproof.dev/verify/:id`
 
-Calling the API requires a micropayment in USDC via the x402 protocol — no API keys, no subscriptions. AI agents can call the API directly using a funded wallet.
+Two ways to pay: micropayment in USDC via x402 (Base or Celo) — no API keys, no subscriptions — or a prepaid API key for enterprise clients (no crypto needed). AI agents can call the API directly using a funded wallet.
 
 ## Project structure
 
@@ -34,9 +34,19 @@ docs/          Architecture and flow documentation
 | `POST /issueCredential`                   | $0.10 USDC | Issue one verifiable credential |
 | `POST /entities/:id/verificationRequests` | $49 USDC | Submit a verification request   |
 
-Payment is in USDC on Base (configurable). The client signs an off-chain authorization — no gas required.
+Payment is in USDC on Base or Celo via x402. The client signs an off-chain authorization — no gas required.
+
+## Free endpoints
+
+| Endpoint                             | Description                                    |
+| ------------------------------------ | ---------------------------------------------- |
+| `GET /verify/:id`                    | Full 3-layer verification                      |
+| `GET /templates/:ref/requirements`   | Get required fields for a template             |
+| `POST /templates/:ref/preview`       | Generate a preview PDF with watermark (no cost) |
+| `GET /stats`                         | On-chain credential counters                   |
 
 ## Quick start
 
 See `backend/README.md` and `frontend/README.md` for setup instructions.
 See [`docs/README.md`](./docs/README.md) for the full documentation index.
+See `frontend/public/skill.md` for the AI agent skill definition.

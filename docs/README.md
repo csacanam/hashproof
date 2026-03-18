@@ -7,8 +7,15 @@
 | [API-REFERENCE.md](./API-REFERENCE.md) | All endpoints, allowed values, request and response schemas |
 | [ISSUING-CREDENTIALS.md](./ISSUING-CREDENTIALS.md) | Minimal, copy-paste issuance examples |
 | [TEMPLATES.md](./TEMPLATES.md) | Template use cases (default, by slug/id, inline, background override), field definitions, QR placement |
+| [Preview (API)](./API-REFERENCE.md#post-templatesrefpreview) | Generate a preview PDF to check layout before issuing |
 | [X402-PAYMENT-FLOW.md](./X402-PAYMENT-FLOW.md) | How x402 works (useful for agents and integrations) |
 | [API key / Enterprise plans](./API-REFERENCE.md#api-key-prepaid-credits) | Prepaid credits + API key (no crypto) for institutions (enterprise agreements) |
+
+## If you are an AI agent
+
+| Read | Why |
+|------|-----|
+| [skill.md](../frontend/public/skill.md) | Complete agent skill definition — everything you need to issue credentials |
 
 ## If you operate the platform
 

@@ -30,6 +30,29 @@ curl -s -X POST http://localhost:4022/issueCredential \
 
 ---
 
+## Issue with API key (no crypto)
+
+If you have a prepaid API key from HashProof, use it as a Bearer token. No wallet, no x402, no crypto setup needed.
+
+```bash
+curl -s -X POST https://api.hashproof.dev/issueCredential \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -d '{
+    "issuer":   { "display_name": "Acme University", "slug": "acme-university" },
+    "platform": { "display_name": "Acme University", "slug": "acme-university" },
+    "holder":   { "full_name": "Jane Doe" },
+    "context":  { "type": "event", "title": "Blockchain Summit 2026" },
+    "credential_type": "attendance",
+    "title": "Certificate of Attendance — Blockchain Summit 2026",
+    "values": { "holder_name": "Jane Doe" }
+  }' | jq .
+```
+
+Each successful issuance deducts 1 credit from your balance. Contact [hi@hashproof.dev](mailto:hi@hashproof.dev) to purchase credits.
+
+---
+
 ## Verified entity issuance
 
 If the issuer is a verified entity (`individual_verified` or `organization_verified`), include `issuer_entity_id` in the request. The paying wallet must be in that entity's `authorized_wallets` list — otherwise the request is rejected with `403`.
