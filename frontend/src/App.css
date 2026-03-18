@@ -2190,3 +2190,48 @@
     padding: 0.875rem 0.875rem;
   }
 }
+
+/* Docs callout cards */
+.docs-callout-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.docs-callout {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+}
+
+.docs-callout-title {
+  font-weight: 700;
+  font-size: 1rem;
+  margin: 0 0 0.5rem;
+}
+
+.docs-callout-desc {
+  font-size: 0.9rem;
+  margin: 0;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+@media (max-width: 600px) {
+  .docs-callout-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Preview banner */
+.preview-banner {
+  background: #f59e0b;
+  color: #000;
+  text-align: center;
+  padding: 0.625rem 1rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  border-radius: var(--radius);
+}

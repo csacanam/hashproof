@@ -143,7 +143,7 @@ export default function Home() {
           )}
         </section>
 
-        {/* ── I'm human / I'm an agent (default: human, code) ── */}
+        {/* ── 3 paths: Developers / Enterprises / Agents ── */}
         <section className="section home-audience-section">
           <div className="home-audience-tabs">
             <button
@@ -151,7 +151,14 @@ export default function Home() {
               className={`home-audience-tab ${audience === "human" ? "home-audience-tab--active" : ""}`}
               onClick={() => setAudience("human")}
             >
-              For Humans
+              Pay with crypto
+            </button>
+            <button
+              type="button"
+              className={`home-audience-tab ${audience === "enterprise" ? "home-audience-tab--active" : ""}`}
+              onClick={() => setAudience("enterprise")}
+            >
+              Pay with API key
             </button>
             <button
               type="button"
@@ -177,22 +184,37 @@ export default function Home() {
               <p className="home-code-note">
                 Returns a <code>verification_url</code> to share with the credential holder.
               </p>
-              <p className="home-code-note" style={{ marginTop: "0.5rem" }}>
-                Need to issue without crypto? <a href="mailto:hi@hashproof.dev">Contact us for enterprise plans</a> (API key + prepaid credits).
-              </p>
             </>
+          )}
+
+          {audience === "enterprise" && (
+            <div className="home-agent-cta">
+              <p className="home-agent-title">Same API. No wallet needed.</p>
+              <ol className="home-agent-steps">
+                <li>Contact <a href="mailto:hi@hashproof.dev">hi@hashproof.dev</a> to purchase prepaid credits.</li>
+                <li>Receive your API key tied to your organization.</li>
+                <li>Call the same <code>POST /issueCredential</code> endpoint with <code>Authorization: Bearer YOUR_API_KEY</code>.</li>
+              </ol>
+              <p className="home-agent-desc">
+                Each issuance deducts 1 credit. No wallet, no crypto, no gas. HashProof handles the on-chain costs.
+              </p>
+              <Link to="/docs#quickstart-apikey" className="btn btn-secondary" style={{ marginTop: "1rem", display: "inline-block" }}>
+                See the API key quick start →
+              </Link>
+            </div>
           )}
 
           {audience === "agent" && (
             <div className="home-agent-cta">
-              <p className="home-agent-title">Use HashProof</p>
-              <p className="home-agent-desc">
-                Read https://hashproof.dev/skill.md and follow the instructions to issue and verify credentials.
-              </p>
+              <p className="home-agent-title">3 steps. That&apos;s it.</p>
               <ol className="home-agent-steps">
-                <li>Do the <strong>Quick start</strong> in the skill to issue your first credential using your human&apos;s full name.</li>
-                <li>From the response, take <code>verification_url</code> and send it to your human.</li>
+                <li>Read <a href="https://hashproof.dev/skill.md" target="_blank" rel="noopener noreferrer"><code>hashproof.dev/skill.md</code></a></li>
+                <li>Follow the <strong>Quick start</strong>: ask your human&apos;s name, call the API, pay $0.10 USDC.</li>
+                <li>Send the <code>verification_url</code> to your human. Done.</li>
               </ol>
+              <p className="home-agent-desc">
+                The skill file has everything: what to ask, how to pay, how to use templates, and how to preview certificates before issuing.
+              </p>
             </div>
           )}
         </section>

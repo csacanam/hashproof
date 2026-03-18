@@ -5,6 +5,7 @@ import Verify from "./pages/Verify.jsx";
 import Entity from "./pages/Entity.jsx";
 import Docs from "./pages/Docs.jsx";
 import EntityVerification from "./pages/EntityVerification.jsx";
+import Preview from "./pages/Preview.jsx";
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -24,6 +25,7 @@ function App() {
       <Route path="/entities/:id" element={<Entity />} />
       <Route path="/docs" element={<Docs />} />
       <Route path="/entity-verification" element={<EntityVerification />} />
+      <Route path="/preview/:slug" element={<Preview />} />
     </Routes>
     </>
   );

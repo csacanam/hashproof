@@ -115,7 +115,7 @@ How the PDF is rendered: background, size, field positions.
 
 **Template use cases:** Omit template → default; use `template_slug` or `template_id` → existing (public/private); send `template` inline → create-only, then reuse by slug; use `template_slug`/`template_id` + `background_url_override` → same layout, different background per credential. Full guide: [docs/TEMPLATES.md](../../docs/TEMPLATES.md).
 
-**Template design note:** The renderer always draws a verification QR near the bottom-right corner. See [`docs/TEMPLATES.md`](../../docs/TEMPLATES.md) for the exact placement logic and design guidance.
+**Template design note:** The renderer always draws a verification QR near the top-right corner. See [`docs/TEMPLATES.md`](../../docs/TEMPLATES.md) for the exact placement logic and design guidance.
 
 **fields_json** — Array of objects. Each object defines where and how to render a **text field**. The template creator defines the keys; at credential creation the issuer must provide values for required keys. Keys are flexible (e.g. holder_name, holder_document_type, holder_document_number, event_name, date). **QR:** The verification QR is placed in a fixed position on every credential (not defined in the template).
 

@@ -18,6 +18,9 @@ By default, HashProof uses **x402** (USDC) and there is **no API key**. For ente
 | GET | `/verify/:id/pdf` | — | Download credential as PDF |
 | GET | `/entities/:id` | — | Entity info and verification status |
 | POST | `/entities/:id/verificationRequests` | x402 $49 USDC | Submit a verification request |
+| GET | `/templates/:ref/requirements` | — | Get required fields and layout for a template |
+| POST | `/templates/:ref/preview` | — | Generate a preview PDF with watermark (no cost) |
+| GET | `/stats` | — | On-chain credential counters |
 | POST | `/admin/entities/:id/verify` | `ADMIN_SECRET` header | Approve a pending verification request |
 | POST | `/admin/issuer-authorizations` | `ADMIN_SECRET` header | Grant or revoke a platform's right to issue on behalf of an issuer |
 | POST | `/admin/api-keys` | `ADMIN_SECRET` header | Create an API key for an entity (prepaid credits) |
@@ -284,6 +287,53 @@ For template design (PDF size, background, QR placement), see [`TEMPLATES.md`](.
 
 ---
 
+## POST /templates/:ref/preview
+
+Generate a preview PDF with a watermark. No cost, no blockchain, no registration. Use this to check that a background image and field positions look correct before issuing real credentials.
+
+`ref` can be a template `slug` or UUID `id`.
+
+```bash
+POST /templates/:ref/preview
+Content-Type: application/json
+```
+
+**Authorization:** None required.
+
+### Request body
+
+```json
+{
+  "background_url": "https://cdn.example.com/bg.png",
+  "fields": {
+    "holder_name": "Jane Doe",
+    "details": "For completing Intro to Blockchain"
+  },
+  "locale": "en"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `background_url` | string | no | Override the template's default background |
+| `fields` | object | no | Key-value pairs for each template field |
+| `locale` | string | no | `"en"` or `"es"` — controls the watermark language ("PREVIEW" or "VISTA PREVIA") |
+
+### Response `200 OK`
+
+Returns a PDF (`application/pdf`) with the watermark. The QR code in the PDF points to the frontend preview page with the same parameters.
+
+### Errors
+
+| Status | Cause |
+|--------|-------|
+| 404 | Template not found |
+| 500 | Background fetch failed or PDF generation error |
+
+**Frontend preview page:** `https://hashproof.dev/preview/:slug?holder_name=Jane+Doe&background_url=...`
+
+---
+
 ## GET /verify/:id
 
 Full 3-layer verification: blockchain → IPFS → database.
@@ -533,20 +583,20 @@ See [`ADMIN-GUIDE.md`](./ADMIN-GUIDE.md) for the full review and approval proces
 
 | Header | Value |
 |--------|-------|
-| `x-admin-secret` | Value of `ADMIN_SECRET` env var |
+| `Authorization` | `Bearer {ADMIN_SECRET}` |
 
 ### Request body
 
 ```json
 {
-  "request_id": "uuid-of-verification-request",
-  "status": "individual_verified"
+  "type": "organization",
+  "request_id": "uuid-of-verification-request"
 }
 ```
 
-**`status` allowed values:** `individual_verified`, `organization_verified`
+**`type` allowed values:** `organization`, `individual`
 
-`authorized_wallets` are read automatically from the verification request's form payload (`form.wallets`). No need to pass them manually.
+`authorized_wallets` are read automatically from the verification request's form payload (`form.wallets`). To override, pass an explicit `wallets` array. Either `request_id` or `wallets` must be provided (or both).
 
 ### Response `200 OK`
 
@@ -558,8 +608,8 @@ See [`ADMIN-GUIDE.md`](./ADMIN-GUIDE.md) for the full review and approval proces
 
 | Status | Cause |
 |--------|-------|
-| 401 | Missing or invalid `x-admin-secret` |
-| 400 | Missing `request_id` or `status` |
+| 401 | Missing or invalid `Authorization: Bearer` header |
+| 400 | Missing `type` or neither `request_id` nor `wallets` provided |
 | 404 | Entity or verification request not found |
 
 ---

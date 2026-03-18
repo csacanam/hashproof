@@ -1,212 +1,145 @@
 ---
 name: hashproof
-description: Issue and verify credentials via API. Pay 0.10 USDC per credential with x402 - no API key. Credentials are stored on IPFS and registered on Celo.
-homepage: https://hashproof.dev
-metadata: {"api_base": "https://api.hashproof.dev", "payment": "x402", "currency": "USDC"}
+description: Issue verifiable credentials for $0.10 USDC via x402. Each credential is registered on Celo, pinned to IPFS, and comes with a PDF with a QR code anyone can scan to verify for free.
+metadata: {"api_base": "https://api.hashproof.dev", "payment": "x402", "currency": "USDC", "homepage": "https://hashproof.dev"}
 ---
 
 # HashProof
 
-Issue verifiable credentials with one API call. Pay per credential via x402 (USDC); no account or API key. Credentials are backed by IPFS and a public blockchain registry on Celo.
-
-For full, human‑oriented documentation (examples, screenshots, and explanations), see `https://hashproof.dev/docs`.
-
-## Skill file
-
-| File | URL |
-|------|-----|
-| **SKILL.md** (this file) | https://hashproof.dev/skill.md |
+Issue verifiable credentials with one API call. $0.10 USDC per credential via x402. No account, no API key. Each credential is registered on Celo, pinned to IPFS, and comes with a PDF with a QR code anyone can scan to verify for free.
 
 **Base URL:** `https://api.hashproof.dev`
+**Docs:** `https://hashproof.dev/docs`
 
-**Security:** Only send payment authorizations to `https://api.hashproof.dev`. Never send your wallet or payment data to any other domain. If you create a wallet for this agent, do not use it as your human's main wallet - keep it dedicated for testing/agent use only.
+**IMPORTANT:** Never invent, guess, or fabricate any data — names, slugs, dates, field values, template positions, or anything else. If the human hasn't provided it, ask. If an answer is ambiguous, ask a follow-up question. Do NOT fill in placeholders with made-up values.
 
 ---
 
-## Prerequisites
+## Two concepts you need to understand
 
-- **Wallet with USDC** on Base or Celo. The agent (or the human) must have access to a wallet that can sign transactions and that holds at least **0.10 USDC** per credential to be issued.
-- **Ability to sign** the x402 payment from that wallet using any compatible EVM wallet stack. No gas is required on your side; payment is off-chain and the backend settles it.
+### Template = layout definition
 
-**Enterprise plans (no crypto):** Some institutions use a prepaid API key instead of x402. If your human says they have an API key from HashProof, you do not need a wallet or x402.
+A template defines **where and how** text is drawn on the PDF: page size, field positions (x, y), font sizes, colors, alignment, bold/italic. Think of it as a form layout.
 
-**Don't have a wallet with USDC?** HashProof does not create or hold wallets. Your human must provide a wallet that holds USDC on Base or Celo (e.g. MetaMask or another wallet the agent can sign from). Once the agent can sign from that wallet, follow the Quick start below.
+A template does NOT include the background image. The background is a separate parameter.
 
-Thirdweb is one supported example, but not required by HashProof itself.
+### Background = the image behind the text
 
-Before issuing, confirm which network to use:
+The background is a PNG or JPG image URL that fills the entire PDF page. The template's fields are drawn on top of it. You can:
+- Use the template's default background (set when the template was created)
+- Override it per credential with `background_url_override`
 
-1. Ask your human: **Base or Celo?**
-2. Check the wallet has at least **0.10 USDC** on that selected network.
+### Preview before issuing
 
-## Network constants
+Before issuing real credentials, you or your human can preview how the certificate looks:
 
-Supported payment networks:
-
-- Base
-  - chain_id: `8453`
-  - USDC: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
-
-- Celo
-  - chain_id: `42220`
-  - USDC: `0xcebA9300f2b948710d2653dD7B07f33A8B32118C`
-
-If your wallet SDK already exposes these networks/tokens as built-in constants, prefer the SDK constants instead of hardcoding them.
-
-## RPC endpoints (optional)
-
-Agents may need an RPC endpoint to read balances or interact with the network.
-
-Recommended public RPCs:
-
-- Base
-  - chain_id: `8453`
-  - rpc: `https://mainnet.base.org`
-  - USDC: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
-
-- Celo
-  - chain_id: `42220`
-  - rpc: `https://forno.celo.org`
-  - USDC: `0xcebA9300f2b948710d2653dD7B07f33A8B32118C`
-
-If your SDK already provides network providers (e.g. viem, ethers, thirdweb), you may use those instead of manually specifying an RPC.
-
-## If no wallet exists yet
-
-If you do not already control a wallet with USDC on Base or Celo, do this before asking your human for a pre-existing wallet:
-
-1. Generate a new dedicated local EVM wallet.
-2. Store the private key securely for this agent session.
-3. Show the public address to your human.
-4. Ask your human to fund it with at least **0.10 USDC** on **Base** or **Celo**.
-5. Once funded, retry the credential issuance flow.
-
-Example (Node.js with ethers):
-
-```js
-import { Wallet } from "ethers";
-
-const wallet = Wallet.createRandom();
-
-console.log("Address:", wallet.address);
-
-// Store this securely (do not paste into prompts or logs).
-// console.log("Private key:", wallet.privateKey);
+```
+https://hashproof.dev/preview/:template_slug?background_url=URL&holder_name=John+Doe&details=Some+text
 ```
 
-Security notes:
-- Do not use your human's main wallet. Use a dedicated wallet for this agent.
-- Anyone with the private key can move the funds. Fund it with the minimum needed for testing.
+This generates a PDF with a "PREVIEW" watermark — no cost, no blockchain, no registration. Use it to check that the background image and field positions look correct.
 
----
-
-## Agent decision rule
-
-When asked to issue a credential:
-
-1. Check whether you already control a wallet with at least **0.10 USDC** on **Base** or **Celo**.
-2. If not, try to generate a new dedicated local EVM wallet.
-3. If wallet generation is not possible in your current environment, ask your human to provide or fund a wallet you can sign from.
-4. Then continue with the x402 payment flow.
-
----
-
-## Questions to ask your human
-
-Before issuing a credential, always ask your human to confirm at least:
-
-- **Purpose and type**
-  - What is this credential for? (e.g. course, event, membership, certification)
-  - Which `credential_type` should we use? (attendance, completion, achievement, participation, membership, certification)
-- **Holder details**
-  - Exact full name to print on the certificate.
-  - Optional: email (for delivery) and preferred language if relevant.
-- **Template choice**
-  - Do you want to use the **default certificate** (standard layout),
-    an **existing template** (provide `template_slug` or `template_id`),
-    or **create a new template inline**?
-  - If using an existing template: provide the template slug/ID and, if unsure about required fields, allow the agent to call  
-    `GET https://api.hashproof.dev/templates/:slug_or_id/requirements` to discover required keys.
-  - If creating a template inline: the human must provide `background_url`, `page_width`, `page_height`, and a list of fields (`fields_json`) with positions and sizes. The agent should not invent a layout without explicit instructions.
-- **Values to print**
-  - For each field that will appear on the PDF (name, role, event name, dates, etc.), confirm the exact text.
-  - If a template has required keys, confirm a value for each required key.
-- **Payment / authentication**
-  - Will we pay with **x402** (wallet with USDC on Base or Celo) or use an **API key** with prepaid credits?
-  - If x402: confirm the network (Base or Celo) and that the wallet has at least **0.10 USDC** per credential.
-  - If API key: confirm the key value and that it is allowed to issue on behalf of the intended issuer/entity.
-- **Issuer / platform identity**
-  - Which issuer and platform should appear on the credential (`issuer.display_name`, `issuer.slug`, `platform.display_name`, `platform.slug`)?
-  - If the issuer is a verified entity on HashProof, ensure the paying wallet or API key is authorized for that entity.
-
-If any of these answers are missing or ambiguous, ask follow‑up questions instead of guessing or fabricating data.
+When using preview: share the URL with your human and **wait for their approval** before issuing the real credential.
 
 ---
 
 ## Quick start
 
-Issue your **first credential** after confirming details with your human. Same payload shape as in the [web docs](https://hashproof.dev/docs).
+### Step 1 — Ask your human these questions
 
-1. Ask your human:
-   - **Holder name**: exact full name to print on the certificate.
-   - **Subtitle/details**: short line to show under the name (or confirm they want to leave it empty).
-   - **Template choice**:
-     - Use the **default certificate** (standard layout), or
-     - Use an **existing template** (provide `template_slug` or `template_id`), or
-     - **Create a new template inline** (provide `background_url`, `page_width`, `page_height`, and `fields_json` for each field).
-2. Confirm which network to pay on (**Base** or **Celo**) and that you have either:
-   - A wallet with at least **0.10 USDC** on that network (for x402), or
-   - An **API key** with prepaid credits from HashProof.
-3. Call `POST https://api.hashproof.dev/issueCredential` with x402 payment or API key (see [Authentication](#authentication-x402-or-api-key)).
-4. For the **default template** (no `template`, `template_slug`, or `template_id`), use a body like this (replace placeholders with the values you just confirmed):
+Before you do anything, ask your human ALL of these. Do not skip any. Do not assume defaults.
+
+1. **Who is receiving this credential?** Exact full name to print on the certificate.
+2. **What is it for?** Event name, course title, or reason for the credential.
+3. **Who is issuing it?** Organization or person name and a URL-safe slug (e.g. "Acme Corp" → `acme-corp`). This appears as the issuer on the credential.
+4. **What type of event/program is this?** Pick one: `event`, `course`, `diploma`, `training`, `certification`, `membership`, `other`.
+5. **What type of credential?** Pick one: `attendance` (they showed up), `completion` (they finished), `achievement` (they accomplished something), `participation` (they took part), `membership` (they belong), `certification` (they are certified).
+6. **How to pay?** Do they have a wallet with USDC on Base or Celo (x402), or an API key from HashProof?
+7. **Do they want a custom design?** If yes, they need to provide a template slug or create one. If no, the default HashProof template is used.
+
+### Step 2 — Call the API
+
+```
+POST https://api.hashproof.dev/issueCredential
+Content-Type: application/json
+```
+
+Body (default template — replace ALL placeholders with real values from Step 1):
 
 ```json
 {
-  "issuer":   { "display_name": "HashProof Demo", "slug": "hashproof-demo" },
-  "platform": { "display_name": "HashProof Demo", "slug": "hashproof-demo" },
+  "issuer":   { "display_name": "ISSUER_NAME", "slug": "issuer-slug" },
+  "platform": { "display_name": "ISSUER_NAME", "slug": "issuer-slug" },
   "holder":   { "full_name": "HOLDER_FULL_NAME" },
-  "context":  { "type": "certification", "title": "HashProof API Quickstart" },
-  "credential_type": "completion",
-  "title": "First Credential Issued",
+  "context":  { "type": "CONTEXT_TYPE", "title": "EVENT_OR_COURSE_TITLE" },
+  "credential_type": "CREDENTIAL_TYPE",
+  "title": "Certificate of CREDENTIAL_TYPE",
   "values": {
     "holder_name": "HOLDER_FULL_NAME",
-    "details": "ONE_SHORT_SENTENCE_ABOUT_WHY_THIS_WAS_ISSUED"
+    "details": "SHORT_DESCRIPTION_FROM_HUMAN"
   }
 }
 ```
 
-5. From the response, take `verification_url` and open it (or send it to your human). The credential is live and verifiable.
+**About issuer vs platform:**
+- `issuer` = the organization or person granting the credential (e.g. a university, a company).
+- `platform` = the system that manages the issuance (e.g. an event platform, a learning management system).
+- If your human is issuing directly (not through a third-party platform), set both to the same organization.
+- If they are issuing through a platform (e.g. "Acme Corp issues through Peewah"), set `issuer` to "Acme Corp" and `platform` to "Peewah".
+
+**About holder.full_name vs values.holder_name:**
+- `holder.full_name` is stored in the credential metadata (used for verification and search).
+- `values.holder_name` is what gets printed on the PDF certificate.
+- They should almost always be the same value. Always set both.
+
+### Step 3 — Share the result
+
+The response includes `verification_url`. Send it to your human and explain:
+- The credential is live and registered on the blockchain.
+- Anyone can open that URL and verify it.
+- The PDF can be downloaded from that same page.
+- The QR code on the PDF points to that URL.
+
+```json
+{
+  "id": "a1b2c3d4-...",
+  "verification_url": "https://hashproof.dev/verify/a1b2c3d4-...",
+  "tx_hash": "0xabc...",
+  "ipfs_cid": "bafybeig...",
+  "ipfs_uri": "https://gateway.pinata.cloud/ipfs/bafybeig..."
+}
+```
 
 ---
 
-## Authentication (x402 or API key)
+## Authentication
 
-**Most users:** No API key. Paid endpoints return `402 Payment Required` with a payment challenge.
+There are two ways to pay. Ask your human which one they use.
 
-**Institutions with prepaid agreement:** HashProof may provide an **API key** and prepaid credits (1 credit = 1 credential). Send `Authorization: Bearer <api_key>` or `X-API-Key: <api_key>`; no x402 or wallet needed. If the human says they have an API key from HashProof, use that instead of x402. **For enterprise plans (no crypto):** the human should contact HashProof (e.g. hi@hashproof.dev) to purchase prepaid credits and receive an API key tied to their entity.
+### Pay with crypto (x402 — default)
 
-**Node (Thirdweb):** Install `thirdweb`, then use `wrapFetchWithPayment` so the first request (402) is retried with the signed payment. Example:
+The API returns `402 Payment Required`. Your wallet SDK signs a USDC transfer and retries automatically. No gas on your side.
 
-```bash
-npm install thirdweb
-```
+Requirements:
+- A wallet with at least **0.10 USDC** on **Base** or **Celo**
+- A wallet SDK that supports x402 (e.g. thirdweb `wrapFetchWithPayment`)
 
 ```js
 import { createThirdwebClient } from "thirdweb";
 import { wrapFetchWithPayment } from "thirdweb/x402";
 import { privateKeyToAccount } from "thirdweb/wallets";
-import { base, celo } from "thirdweb/chains";
+import { base } from "thirdweb/chains";
 
-const client = createThirdwebClient({ clientId: "YOUR_CLIENT_ID" });
+const client  = createThirdwebClient({ clientId: "YOUR_CLIENT_ID" });
 const account = privateKeyToAccount({ client, privateKey: process.env.PRIVATE_KEY });
 
-// Ask your human: should we pay on Base or Celo?
-let currentChain = base; // or celo
+let currentChain = base; // or: import { celo } from "thirdweb/chains"
 const wallet = {
-  getAccount: () => account,
-  getChain: () => currentChain,
+  getAccount:  () => account,
+  getChain:    () => currentChain,
   switchChain: async (chain) => { currentChain = chain; },
 };
+
 const fetchWithPayment = wrapFetchWithPayment(fetch, client, wallet);
 
 const res = await fetchWithPayment("https://api.hashproof.dev/issueCredential", {
@@ -216,64 +149,47 @@ const res = await fetchWithPayment("https://api.hashproof.dev/issueCredential", 
 });
 ```
 
-You need `PRIVATE_KEY` (wallet with USDC on Base or Celo). A Thirdweb client ID may be optional depending on your setup - leave `clientId: "YOUR_CLIENT_ID"` as-is, and only ask your human to create a real Client ID at thirdweb.com if you hit a Thirdweb auth/config error. Full flow and other languages: [X402-PAYMENT-FLOW](https://github.com/csacanam/hashproof/blob/main/docs/X402-PAYMENT-FLOW.md).
+The `wrapFetchWithPayment` handles the 402 → sign → retry flow automatically. You do NOT need to handle 402 responses manually.
+
+### Pay with API key (no crypto)
+
+For organizations that don't want to handle wallets. They purchase prepaid credits from HashProof and get an API key.
+
+```bash
+curl -X POST https://api.hashproof.dev/issueCredential \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -d '{ ... }'
+```
+
+Each issuance deducts 1 credit. Contact `hi@hashproof.dev` to get an API key.
 
 ---
 
-## Issue a credential
+## Templates
 
-```bash
-POST https://api.hashproof.dev/issueCredential
-Content-Type: application/json
-# Plus x402 payment header after 402 response
+### Which option to use
+
+| Scenario | What to send |
+|----------|-------------|
+| **Default certificate** (quick start) | Omit template fields. Use `values.holder_name` and optionally `values.details`. |
+| **Existing template** | `"template_slug": "my-template"`. Provide `values` for each required field. |
+| **New custom template** (first time) | `"template": { slug, name, background_url, page_width, page_height, fields_json }`. After this, reuse with `template_slug`. |
+| **Same template, different background** | `"template_slug": "my-template"` + `"background_url_override": "https://..."` |
+
+Send **only one** of `template_slug`, `template_id`, or `template`. Sending more than one returns `400`.
+
+### Discover required fields
+
 ```
-
-### What a template is
-
-A template is the **definition of how to paint the credential data onto a canvas**: canvas size, background image, and where and how each value (from `values`) is drawn — position, font, color, alignment, bold/italic, etc. You send the data; the template defines how it is laid out on the PDF.
-
-### Templates — which option to use
-
-**Rule:** Send **only one** of `template_slug`, `template_id`, or `template` per request. Sending more than one returns `400`.
-
-| If you want… | Send |
-|--------------|------|
-| **Default certificate** (quick start, standard layout) | Omit all template fields. Use `values.holder_name` and optionally `values.details`. |
-| **Use an existing template** (already created) | `template_slug`: `"slug"` or `template_id`: `"uuid"`. No `template` object — the layout is stored; you only send credential data and reference the template. Provide `values` for every field with `required: true`. |
-| **Create a new template and use it** (first time only) | `template`: `{ "slug", "name", "background_url", "page_width", "page_height", "fields_json" }`. Inline is **create-only**. After the first issuance, reuse with `template_slug` for all following credentials. |
-| **Same template, different background per credential** | `template_slug` or `template_id` **plus** `background_url_override`: `"https://..."`. Layout from template; PDF uses the override URL as background for that issuance only. |
-
-To discover required keys, call:
-
-```bash
 GET https://api.hashproof.dev/templates/:slug_or_id/requirements
 ```
 
-(no auth). Full guide: [docs/TEMPLATES.md](https://github.com/csacanam/hashproof/blob/main/docs/TEMPLATES.md).
+No auth required. Returns `required_keys` and `fields_json` with positions, sizes, and styles. **Always call this** when using an existing template so you know exactly which `values` keys to provide.
 
-### Example: issue with an existing template (reuse)
+### Creating a template inline
 
-Use this when the template was already created (e.g. in a previous request with inline `template`). You only send the template reference and the data; no `template` object.
-
-```json
-{
-  "issuer":   { "display_name": "Acme Corp", "slug": "acme-corp" },
-  "platform": { "display_name": "Acme Corp", "slug": "acme-corp" },
-  "holder":   { "full_name": "Jane Doe" },
-  "context":  { "type": "event", "title": "Expo 2026" },
-  "credential_type": "attendance",
-  "title": "Certificate of Attendance",
-  "template_slug": "acme-expo-2026-v1",
-  "values": {
-    "holder_name": "Jane Doe",
-    "details": "Attended the expo stand."
-  }
-}
-```
-
-### Example: create a template inline (first time only)
-
-Use this the **first time** you want a custom layout. The API creates the template and issues the credential. For every **next** credential with the same layout, use `template_slug` (as in the example above) instead of sending `template` again.
+When your human provides a background image and field positions, include the `template` object inside the full request body:
 
 ```json
 {
@@ -286,12 +202,12 @@ Use this the **first time** you want a custom layout. The API creates the templa
   "template": {
     "slug": "acme-expo-2026-v1",
     "name": "Acme Expo 2026 v1",
-    "background_url": "https://your-cdn.com/certificate-bg.png",
+    "background_url": "https://cdn.example.com/certificate-bg.png",
     "page_width": 3508,
     "page_height": 2480,
     "fields_json": [
-      { "key": "holder_name", "x": 248, "y": 1200, "width": 3012, "required": true, "font_size": 192, "font_color": "#111827", "align": "center" },
-      { "key": "details", "x": 716, "y": 1488, "width": 2077, "required": false, "font_size": 84, "font_color": "#111827", "align": "center" }
+      { "key": "holder_name", "x": 248, "y": 1200, "width": 3012, "required": true, "font_size": 192, "font_color": "#1a1a2e", "align": "center" },
+      { "key": "details", "x": 716, "y": 1488, "width": 2077, "font_size": 84, "font_color": "#555555", "align": "center" }
     ]
   },
   "values": {
@@ -301,67 +217,109 @@ Use this the **first time** you want a custom layout. The API creates the templa
 }
 ```
 
-QR code: the verification QR is always drawn near the top-right corner. Leave that area empty in your background. [TEMPLATES.md](https://github.com/csacanam/hashproof/blob/main/docs/TEMPLATES.md#qr-placement-design-guideline).
+Important:
+- `page_width` and `page_height` must match the background image dimensions (in pixels).
+- `x`, `y`, `width` use the same units as the page.
+- The QR code is drawn automatically in the top-right corner. Leave that area empty in the background.
+- Do NOT invent field positions — always ask your human for the exact coordinates or use the preview to verify.
 
-### Read template requirements (optional)
+### Preview a template
 
-You can fetch the required keys and full `fields_json`:
+Before issuing, generate a preview to check the layout:
 
-```bash
-GET https://api.hashproof.dev/templates/:template_slug_or_id/requirements
+```
+https://hashproof.dev/preview/:slug?background_url=URL&holder_name=John+Doe
 ```
 
-For `public` templates: no auth required.
+Or call the API directly:
 
-For `private` templates: no auth required (requirements are public).
+```
+POST https://api.hashproof.dev/templates/:slug/preview
+Content-Type: application/json
 
-**Minimal body:**
-
-```json
 {
-  "issuer":   { "display_name": "Acme Corp", "slug": "acme-corp" },
-  "platform": { "display_name": "Acme Corp", "slug": "acme-corp" },
-  "holder":   { "full_name": "Maria Garcia" },
-  "context":  { "type": "course", "title": "Intro to Blockchain" },
-  "credential_type": "completion",
-  "title": "Certificate of Completion",
-  "values":   { "holder_name": "Maria Garcia" }
+  "background_url": "https://cdn.example.com/bg.png",
+  "fields": { "holder_name": "John Doe", "details": "Test text" },
+  "locale": "en"
 }
 ```
 
-**Response 200:** `id`, `verification_url`, `tx_hash`, `ipfs_cid`, `ipfs_uri`. Share `verification_url` with the holder.
+Returns a PDF with a watermark. No cost, nothing is registered. Share the preview URL with your human and wait for confirmation before issuing the real credential.
 
-**Errors:** `400` (missing/invalid field, or e.g. template slug already exists), `401` (invalid API key), `402` (payment required — retry with x402, or API key has no credits: `code: "insufficient_credits"`), `403` (entity suspended or wallet not authorized), `500` (server error).
+---
 
-**Verified issuers:** If the issuer is a verified entity, the paying wallet must be in that entity's `authorized_wallets`. HashProof verifies people and organizations; agents use wallets authorized by those entities. To request verification, the human goes to https://hashproof.dev and their entity page (e.g. `/entities/your-slug`). Entity verification costs **$49 USDC** (one-time, via x402).
+## Request body reference
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `issuer.display_name` | string | yes | Name of the issuing organization |
+| `issuer.slug` | string | yes | URL-safe identifier (e.g. `acme-corp`). Lowercase, hyphens, no spaces. |
+| `platform.display_name` | string | yes | Name of the platform managing issuance |
+| `platform.slug` | string | yes | URL-safe identifier |
+| `holder.full_name` | string | yes | Full name of the credential recipient |
+| `context.type` | enum | yes | `event`, `course`, `diploma`, `training`, `certification`, `membership`, `other` |
+| `context.title` | string | yes | Name of the event, course, or program |
+| `credential_type` | enum | yes | `attendance`, `completion`, `achievement`, `participation`, `membership`, `certification` |
+| `title` | string | yes | Title printed on the credential |
+| `values` | object | yes | Key-value pairs for template fields (e.g. `holder_name`, `details`) |
+| `template_slug` | string | no | Slug of an existing template |
+| `template_id` | UUID | no | UUID of an existing template |
+| `template` | object | no | Inline template definition (create-only) |
+| `background_url_override` | string | no | Override background for this credential only |
+| `issuer_entity_id` | UUID | no | Verified entity ID (shows verified badge) |
+| `platform_entity_id` | UUID | no | Platform entity ID |
+| `expires_at` | ISO 8601 | no | Expiration date. `null` = never expires |
 
 ---
 
 ## Verify a credential
 
-```bash
+```
 GET https://api.hashproof.dev/verify/:id
 ```
 
-No payment. Returns status (`active`, `revoked`, `expired`, `not_found`), issuer/platform verification, IPFS URI, and full credential payload. Use the `id` from the issuance response (or from `verification_url`).
+Free. No auth. Returns `status` (`active`, `revoked`, `expired`, `not_found`), issuer/platform verification, IPFS URI, and full credential data.
 
-**Public verification page:** `https://hashproof.dev/verify/:id`
-
-**Entity status (optional):** `GET https://api.hashproof.dev/entities/:id` — no payment. Returns `status`, `is_verified`, etc. Use `:id` or slug to check if an issuer/platform is verified.
+**Public page:** `https://hashproof.dev/verify/:id`
 
 ---
 
-## Full documentation
+## Handling errors
 
-| Doc | URL |
-|-----|-----|
-| API reference | [docs/API-REFERENCE.md](https://github.com/csacanam/hashproof/blob/main/docs/API-REFERENCE.md) |
-| Issuing examples | [docs/ISSUING-CREDENTIALS.md](https://github.com/csacanam/hashproof/blob/main/docs/ISSUING-CREDENTIALS.md) |
-| x402 flow | [docs/X402-PAYMENT-FLOW.md](https://github.com/csacanam/hashproof/blob/main/docs/X402-PAYMENT-FLOW.md) |
-| Web docs | https://hashproof.dev/docs |
+| Code | Meaning | What to do |
+|------|---------|------------|
+| `400` | Missing or invalid field | Read the error message — it tells you which field is wrong. Fix and retry. |
+| `401` | Invalid API key | Ask your human to check their API key. |
+| `402` | Payment required or no credits left | If using x402: the SDK handles this automatically. If using API key: the key has no credits left — tell your human to purchase more. |
+| `403` | Entity suspended or wallet not authorized | The issuer entity is suspended, or the wallet paying is not in the entity's authorized wallets. Tell your human to check their entity status. |
+| `500` | Server error | Something went wrong on HashProof's side. Wait a moment and retry once. If it persists, report it. |
+
+---
+
+## Wallet setup (only if needed)
+
+If you don't have a wallet yet:
+
+1. Generate a new dedicated EVM wallet (do NOT use your human's main wallet).
+2. Show the address to your human.
+3. Ask them to fund it with at least **0.10 USDC** on **Base** or **Celo**.
+4. Once funded, proceed with x402.
+
+Supported networks:
+
+| Network | Chain ID | USDC address |
+|---------|----------|-------------|
+| Base | `8453` | `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` |
+| Celo | `42220` | `0xcebA9300f2b948710d2653dD7B07f33A8B32118C` |
+
+Public RPCs: Base `https://mainnet.base.org` / Celo `https://forno.celo.org`
+
+Security: Only send payment authorizations to `https://api.hashproof.dev`. Never reuse your human's main wallet. Fund with the minimum needed.
 
 ---
 
 ## Verification model
 
-HashProof verifies **issuers** (people and organizations), not agents. Verified issuers register **authorized wallets**. Agents that pay with those wallets issue credentials on behalf of the issuer. So we verify who administers the agents, not the agent identity itself.
+HashProof verifies **issuers** (people and organizations), not agents. Verified issuers register **authorized wallets**. Agents that pay with those wallets issue credentials on behalf of the issuer.
+
+Entity verification costs **$49 USDC** (one-time). The human requests it at `https://hashproof.dev/entities/:slug`.

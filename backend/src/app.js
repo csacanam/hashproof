@@ -310,6 +310,130 @@ export function createApp(options = {}) {
     }
   });
 
+  // Template preview: generates a PDF with watermark, no blockchain/IPFS.
+  app.post("/templates/:ref/preview", readOnlyRateLimit, async (req, res) => {
+    try {
+      const refRaw = String(req.params.ref || "").trim();
+      const isUuid = UUID_RE.test(refRaw);
+
+      let query = supabase
+        .from("templates")
+        .select("id, name, slug, fields_json, background_url, page_width, page_height")
+        .limit(1);
+      if (isUuid) query = query.eq("id", refRaw);
+      else query = query.eq("slug", normalizeSlug(refRaw));
+
+      const { data: rows, error } = await query;
+      if (error) throw new Error(error.message);
+      const tpl = rows?.[0];
+      if (!tpl) return res.status(404).json({ error: "Template not found" });
+
+      const { background_url, fields: fieldValues, locale } = req.body || {};
+      const bgUrl = background_url || tpl.background_url;
+      const page_width = Number(tpl.page_width) || 595;
+      const page_height = Number(tpl.page_height) || 842;
+      const fieldsSpec = Array.isArray(tpl.fields_json) ? tpl.fields_json : [];
+
+      // Build the preview URL that the QR will point to
+      const baseUrl = process.env.FRONTEND_URL || "https://hashproof.dev";
+      const qrParams = new URLSearchParams();
+      if (bgUrl) qrParams.set("background_url", bgUrl);
+      if (fieldValues && typeof fieldValues === "object") {
+        for (const [k, v] of Object.entries(fieldValues)) {
+          qrParams.set(k, v);
+        }
+      }
+      const previewUrl = `${baseUrl}/preview/${tpl.slug}?${qrParams.toString()}`;
+
+      // Generate PDF with watermark
+      const { default: PDFDocument } = await import("pdfkit");
+      const QRCode = (await import("qrcode")).default;
+
+      const doc = new PDFDocument({
+        size: [page_width, page_height],
+        margins: { top: 0, bottom: 0, left: 0, right: 0 },
+      });
+      const chunks = [];
+      const pdfPromise = new Promise((resolve, reject) => {
+        doc.on("data", (chunk) => chunks.push(chunk));
+        doc.on("end", () => resolve(Buffer.concat(chunks)));
+        doc.on("error", reject);
+      });
+
+      // Background
+      if (bgUrl) {
+        try {
+          const bgRes = await fetch(bgUrl);
+          if (bgRes.ok) {
+            const buf = Buffer.from(await bgRes.arrayBuffer());
+            doc.image(buf, 0, 0, { width: page_width, height: page_height });
+          }
+        } catch (e) {
+          console.warn("[preview] background fetch failed:", e.message);
+        }
+      }
+
+      // Fields
+      for (const f of fieldsSpec) {
+        const key = f?.key;
+        if (!key) continue;
+        const text = String((fieldValues && fieldValues[key]) || "").trim();
+        if (!text) continue;
+        const x = Number(f.x) ?? 0;
+        const y = Number(f.y) ?? 0;
+        const w = Math.max(1, Number(f.width) || page_width - x - 20);
+        const fontSize = Math.min(200, Math.max(6, Number(f.font_size) || 12));
+        const fontColor = f.font_color ?? "#000000";
+        const align = f.align === "center" ? "center" : f.align === "right" ? "right" : "left";
+        const bold = f.bold === true;
+        const italic = f.italic === true;
+        const fontName = bold && italic ? "Helvetica-BoldOblique" : bold ? "Helvetica-Bold" : italic ? "Helvetica-Oblique" : "Helvetica";
+        doc.font(fontName).fontSize(fontSize).fillColor(fontColor).text(text, x, y, {
+          width: w,
+          align,
+          ellipsis: true,
+          ...(f.underline === true && { underline: true }),
+          ...(f.strike === true && { strike: true }),
+        });
+      }
+
+      // QR code (same logic as generatePdf.js)
+      const REFERENCE_PAGE_WIDTH = 3508;
+      const REFERENCE_QR_SIZE = 360;
+      const QR_SIZE_MIN = 96;
+      const QR_SIZE_MAX = 360;
+      const qrSize = Math.round(
+        Math.min(QR_SIZE_MAX, Math.max(QR_SIZE_MIN, REFERENCE_QR_SIZE * (page_width / REFERENCE_PAGE_WIDTH)))
+      );
+      const qrMargin = Math.round(qrSize * 0.4);
+      const qrX = page_width - qrSize - qrMargin;
+      const qrY = qrMargin;
+      const qrDataUrl = await QRCode.toDataURL(previewUrl, { width: qrSize });
+      doc.image(qrDataUrl, qrX, qrY, { width: qrSize, height: qrSize });
+
+      // Watermark: diagonal "PREVIEW" / "VISTA PREVIA"
+      const watermarkText = locale === "es" ? "VISTA PREVIA" : "PREVIEW";
+      doc.save();
+      doc.translate(page_width / 2, page_height / 2);
+      doc.rotate(-45);
+      const wmFontSize = Math.round(page_width * 0.12);
+      doc.font("Helvetica-Bold").fontSize(wmFontSize).fillColor("#000000").opacity(0.12);
+      const wmWidth = doc.widthOfString(watermarkText);
+      doc.text(watermarkText, -wmWidth / 2, -wmFontSize / 2, { lineBreak: false });
+      doc.restore();
+
+      doc.end();
+      const pdfBuffer = await pdfPromise;
+
+      res.set("Content-Type", "application/pdf");
+      res.set("Content-Disposition", `inline; filename="preview-${tpl.slug}.pdf"`);
+      return res.send(pdfBuffer);
+    } catch (err) {
+      console.error("[templates/preview] error:", err.message);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
   app.get("/stats", readOnlyRateLimit, async (req, res) => {
     try {
       const rpcUrl = process.env.CELO_RPC_URL;

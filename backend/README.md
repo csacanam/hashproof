@@ -1,6 +1,6 @@
 # HashProof Backend
 
-Express API for issuing verifiable credentials and handling entity verification requests, with x402 payments in USDC on Base.
+Express API for issuing verifiable credentials and handling entity verification requests. Two payment methods: x402 (USDC on Base or Celo) or prepaid API key.
 
 ## Setup
 
@@ -22,13 +22,16 @@ Express API for issuing verifiable credentials and handling entity verification 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | GET | `/` | — | Service info |
-| POST | `/issueCredential` | x402 ($0.10 USDC) | Issue one credential |
+| POST | `/issueCredential` | x402 ($0.10 USDC) or API key | Issue one credential |
 | GET | `/verify/:id` | — | Full verification (contract + IPFS + DB) |
 | GET | `/verify/:id/contract` | — | Blockchain-only status check |
 | GET | `/verify/:id/ipfs` | — | IPFS data check |
 | GET | `/verify/:id/pdf` | — | Download credential PDF |
 | GET | `/entities/:id` | — | Entity info and verification status |
 | POST | `/entities/:id/verificationRequests` | x402 ($49 USDC) | Submit a verification request |
+| GET | `/templates/:ref/requirements` | — | Get required fields and layout for a template |
+| POST | `/templates/:ref/preview` | — | Generate a preview PDF with watermark (no cost) |
+| GET | `/stats` | — | On-chain credential counters |
 
 For the full API spec with all allowed values, request/response schemas, and error codes, see [`docs/API-REFERENCE.md`](../docs/API-REFERENCE.md).
 

@@ -22,9 +22,12 @@ npm run dev            # runs at http://localhost:5173
 
 | Path | Description |
 |------|-------------|
-| `/` | Home page |
+| `/` | Home page — 3 tabs: Pay with crypto, Pay with API key, For Agents |
 | `/verify/:id` | Credential verification — fetches from API, shows credential, offers PDF download |
 | `/entities/:id` | Entity page — shows verification status, allows submitting a verification request (paid) |
+| `/docs` | API documentation — quick start, authentication, templates, preview |
+| `/entity-verification` | Entity verification info page |
+| `/preview/:slug` | Template preview — generates a PDF with watermark from query params (no cost) |
 
 ## Build
 
