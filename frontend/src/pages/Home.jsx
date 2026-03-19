@@ -12,14 +12,22 @@ const DEMO_CREDENTIAL_ID = "e32183ea-5833-438c-9aae-a2432bcbb53d";
 const CRYPTO_EXAMPLE = `curl -X POST https://api.hashproof.dev/issueCredential \\
   -H "Content-Type: application/json" \\
   -d '{
-    "issuer":          { "display_name": "HashProof Demo", "slug": "hashproof-demo" },
-    "holder":          { "full_name": "YOUR_NAME" },
-    "context":         { "type": "certification", "title": "HashProof API Quickstart" },
+    "issuer": {
+      "display_name": "HashProof Demo",
+      "slug": "hashproof-demo"
+    },
+    "holder": {
+      "full_name": "YOUR_NAME"
+    },
+    "context": {
+      "type": "certification",
+      "title": "HashProof API Quickstart"
+    },
     "credential_type": "completion",
-    "title":           "First Credential Issued",
+    "title": "First Credential Issued",
     "values": {
       "holder_name": "YOUR_NAME",
-      "details":     "For successfully issuing a verifiable credential\\nusing the HashProof API."
+      "details": "For successfully issuing a verifiable credential via the HashProof API."
     }
   }'`;
 
@@ -27,14 +35,22 @@ const APIKEY_EXAMPLE = `curl -X POST https://api.hashproof.dev/issueCredential \
   -H "Content-Type: application/json" \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -d '{
-    "issuer":          { "display_name": "HashProof Demo", "slug": "hashproof-demo" },
-    "holder":          { "full_name": "YOUR_NAME" },
-    "context":         { "type": "certification", "title": "HashProof API Quickstart" },
+    "issuer": {
+      "display_name": "HashProof Demo",
+      "slug": "hashproof-demo"
+    },
+    "holder": {
+      "full_name": "YOUR_NAME"
+    },
+    "context": {
+      "type": "certification",
+      "title": "HashProof API Quickstart"
+    },
     "credential_type": "completion",
-    "title":           "First Credential Issued",
+    "title": "First Credential Issued",
     "values": {
       "holder_name": "YOUR_NAME",
-      "details":     "For successfully issuing a verifiable credential\\nusing the HashProof API."
+      "details": "For successfully issuing a verifiable credential via the HashProof API."
     }
   }'`;
 
