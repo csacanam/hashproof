@@ -243,14 +243,11 @@ export default function Home() {
 
           {audience === "agent" && (
             <div className="home-agent-cta">
-              <p className="home-agent-title">3 steps. That&apos;s it.</p>
-              <ol className="home-agent-steps">
-                <li>Read <a href="https://hashproof.dev/skill.md" target="_blank" rel="noopener noreferrer"><code>hashproof.dev/skill.md</code></a></li>
-                <li>Follow the <strong>Quick start</strong>: ask your human&apos;s name, call the API, pay $0.10 USDC.</li>
-                <li>Send the <code>verification_url</code> to your human. Done.</li>
-              </ol>
+              <p className="home-agent-title">
+                Read <a href="https://hashproof.dev/skill.md" target="_blank" rel="noopener noreferrer"><code>hashproof.dev/skill.md</code></a>
+              </p>
               <p className="home-agent-desc">
-                The skill file has everything: what to ask, how to pay, how to use templates, and how to preview certificates before issuing.
+                That&apos;s it. The skill file has everything: what to ask, how to pay, how to use templates, and how to preview certificates before issuing.
               </p>
             </div>
           )}
