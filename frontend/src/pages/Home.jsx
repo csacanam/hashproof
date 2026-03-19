@@ -8,38 +8,64 @@ import SiteFooter from "../components/SiteFooter.jsx";
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4022";
 
 const DEMO_CREDENTIAL_ID = "e32183ea-5833-438c-9aae-a2432bcbb53d";
-const DEMO_ENTITY_SLUG = "hashproof";
 
-const PAYLOAD_EXAMPLE = `{
-  "issuer": {
-    "display_name": "HashProof Demo",
-    "slug": "hashproof-demo"
-  },
-  "platform": {
-    "display_name": "HashProof Demo",
-    "slug": "hashproof-demo"
-  },
-  "holder": {
-    "full_name": "YOUR_NAME"
-  },
-  "context": {
-    "type": "certification",
-    "title": "HashProof API Quickstart"
-  },
-  "credential_type": "completion",
-  "title": "First Credential Issued",
-  "values": {
-    "holder_name": "YOUR_NAME",
-    "details": "For successfully issuing a verifiable credential\nusing the HashProof API."
-  }
-}`;
+const CRYPTO_EXAMPLE = `import { createThirdwebClient } from "thirdweb";
+import { wrapFetchWithPayment } from "thirdweb/x402";
+import { privateKeyToAccount } from "thirdweb/wallets";
+import { base } from "thirdweb/chains";
+
+const client  = createThirdwebClient({ clientId: "YOUR_CLIENT_ID" });
+const account = privateKeyToAccount({ client, privateKey: process.env.PRIVATE_KEY });
+
+let currentChain = base;
+const wallet = {
+  getAccount:  () => account,
+  getChain:    () => currentChain,
+  switchChain: async (chain) => { currentChain = chain; },
+};
+
+const fetchWithPayment = wrapFetchWithPayment(fetch, client, wallet);
+
+const res = await fetchWithPayment("https://api.hashproof.dev/issueCredential", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    issuer:          { display_name: "HashProof Demo", slug: "hashproof-demo" },
+    holder:          { full_name: "YOUR_NAME" },
+    context:         { type: "certification", title: "HashProof API Quickstart" },
+    credential_type: "completion",
+    title:           "First Credential Issued",
+    values: {
+      holder_name: "YOUR_NAME",
+      details:     "For successfully issuing a verifiable credential\\nusing the HashProof API.",
+    },
+  }),
+});
+
+const data = await res.json();
+console.log(data.verification_url);`;
+
+const APIKEY_EXAMPLE = `curl -X POST https://api.hashproof.dev/issueCredential \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -d '{
+    "issuer":          { "display_name": "HashProof Demo", "slug": "hashproof-demo" },
+    "holder":          { "full_name": "YOUR_NAME" },
+    "context":         { "type": "certification", "title": "HashProof API Quickstart" },
+    "credential_type": "completion",
+    "title":           "First Credential Issued",
+    "values": {
+      "holder_name": "YOUR_NAME",
+      "details":     "For successfully issuing a verifiable credential\\nusing the HashProof API."
+    }
+  }'`;
 
 
 const STEPS = [
   {
     n: "1",
     title: "Call the API",
-    desc: "Send credential data to POST /issueCredential. Pay $0.10 USDC via x402 — no API key, no signup.",
+    desc: "Send credential data to POST /issueCredential. Pay per call with crypto (x402) or use a prepaid API key.",
   },
   {
     n: "2",
@@ -176,32 +202,48 @@ export default function Home() {
                   <span className="home-code-label">POST api.hashproof.dev/issueCredential</span>
                   <span className="home-code-price">$0.10 USDC · x402 · Base or Celo</span>
                 </div>
-                <ResponsiveCode code={PAYLOAD_EXAMPLE} />
+                <ResponsiveCode code={CRYPTO_EXAMPLE} />
               </div>
               <p className="home-code-replace">
-                Replace <span className="home-code-placeholder">YOUR_NAME</span> with the recipient&apos;s full name.
+                No API key, no signup. Your wallet pays $0.10 USDC per credential via{" "}
+                <a href="https://www.x402.org/" target="_blank" rel="noopener noreferrer">x402</a>.
               </p>
               <p className="home-code-note">
                 Returns a <code>verification_url</code> to share with the credential holder.
               </p>
+              <Link to="/docs#quickstart-x402" className="btn btn-secondary" style={{ marginTop: "1rem", display: "inline-block" }}>
+                See the full x402 quick start →
+              </Link>
             </>
           )}
 
           {audience === "enterprise" && (
-            <div className="home-agent-cta">
-              <p className="home-agent-title">Same API. No wallet needed.</p>
-              <ol className="home-agent-steps">
-                <li>Contact <a href="mailto:hi@hashproof.dev">hi@hashproof.dev</a> to purchase prepaid credits.</li>
-                <li>Receive your API key tied to your organization.</li>
-                <li>Call the same <code>POST /issueCredential</code> endpoint with <code>Authorization: Bearer YOUR_API_KEY</code>.</li>
-              </ol>
-              <p className="home-agent-desc">
-                Each issuance deducts 1 credit. No wallet, no crypto, no gas. HashProof handles the on-chain costs.
+            <>
+              <div className="home-code-block">
+                <div className="home-code-header">
+                  <span className="home-code-label">POST api.hashproof.dev/issueCredential</span>
+                  <span className="home-code-price">1 credit per credential · no wallet needed</span>
+                </div>
+                <ResponsiveCode code={APIKEY_EXAMPLE} />
+              </div>
+              <p className="home-code-replace">
+                Same API, no crypto. Each call deducts 1 prepaid credit.
               </p>
+              <p className="home-code-note">
+                Returns a <code>verification_url</code> to share with the credential holder.
+              </p>
+              <div className="home-agent-cta" style={{ marginTop: "1.5rem" }}>
+                <p className="home-agent-title">How to get your API key</p>
+                <ol className="home-agent-steps">
+                  <li>Contact <a href="mailto:hi@hashproof.dev">hi@hashproof.dev</a> to purchase prepaid credits.</li>
+                  <li>Receive your API key tied to your organization.</li>
+                  <li>Replace <code>YOUR_API_KEY</code> in the example above and start issuing.</li>
+                </ol>
+              </div>
               <Link to="/docs#quickstart-apikey" className="btn btn-secondary" style={{ marginTop: "1rem", display: "inline-block" }}>
                 See the API key quick start →
               </Link>
-            </div>
+            </>
           )}
 
           {audience === "agent" && (
