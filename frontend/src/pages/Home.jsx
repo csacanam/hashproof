@@ -9,41 +9,19 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4022";
 
 const DEMO_CREDENTIAL_ID = "e32183ea-5833-438c-9aae-a2432bcbb53d";
 
-const CRYPTO_EXAMPLE = `import { createThirdwebClient } from "thirdweb";
-import { wrapFetchWithPayment } from "thirdweb/x402";
-import { privateKeyToAccount } from "thirdweb/wallets";
-import { base } from "thirdweb/chains";
-
-const client  = createThirdwebClient({ clientId: "YOUR_CLIENT_ID" });
-const account = privateKeyToAccount({ client, privateKey: process.env.PRIVATE_KEY });
-
-let currentChain = base;
-const wallet = {
-  getAccount:  () => account,
-  getChain:    () => currentChain,
-  switchChain: async (chain) => { currentChain = chain; },
-};
-
-const fetchWithPayment = wrapFetchWithPayment(fetch, client, wallet);
-
-const res = await fetchWithPayment("https://api.hashproof.dev/issueCredential", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    issuer:          { display_name: "HashProof Demo", slug: "hashproof-demo" },
-    holder:          { full_name: "YOUR_NAME" },
-    context:         { type: "certification", title: "HashProof API Quickstart" },
-    credential_type: "completion",
-    title:           "First Credential Issued",
-    values: {
-      holder_name: "YOUR_NAME",
-      details:     "For successfully issuing a verifiable credential\\nusing the HashProof API.",
-    },
-  }),
-});
-
-const data = await res.json();
-console.log(data.verification_url);`;
+const CRYPTO_EXAMPLE = `curl -X POST https://api.hashproof.dev/issueCredential \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "issuer":          { "display_name": "HashProof Demo", "slug": "hashproof-demo" },
+    "holder":          { "full_name": "YOUR_NAME" },
+    "context":         { "type": "certification", "title": "HashProof API Quickstart" },
+    "credential_type": "completion",
+    "title":           "First Credential Issued",
+    "values": {
+      "holder_name": "YOUR_NAME",
+      "details":     "For successfully issuing a verifiable credential\\nusing the HashProof API."
+    }
+  }'`;
 
 const APIKEY_EXAMPLE = `curl -X POST https://api.hashproof.dev/issueCredential \\
   -H "Content-Type: application/json" \\
@@ -200,13 +178,14 @@ export default function Home() {
               <div className="home-code-block">
                 <div className="home-code-header">
                   <span className="home-code-label">POST api.hashproof.dev/issueCredential</span>
-                  <span className="home-code-price">$0.10 USDC · x402 · Base or Celo</span>
+                  <span className="home-code-price">$0.10 USDC · x402 · Celo or Base</span>
                 </div>
                 <ResponsiveCode code={CRYPTO_EXAMPLE} />
               </div>
               <p className="home-code-replace">
-                No API key, no signup. Your wallet pays $0.10 USDC per credential via{" "}
-                <a href="https://www.x402.org/" target="_blank" rel="noopener noreferrer">x402</a>.
+                No API key, no signup. The server responds with a 402 challenge and your{" "}
+                <a href="https://www.x402.org/" target="_blank" rel="noopener noreferrer">x402</a>-compatible
+                client signs the payment automatically — $0.10 USDC per credential.
               </p>
               <p className="home-code-note">
                 Returns a <code>verification_url</code> to share with the credential holder.
