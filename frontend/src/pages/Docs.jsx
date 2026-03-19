@@ -407,7 +407,7 @@ export default function Docs() {
           <Section id="issue-credential" title="POST /issueCredential">
             <div className="docs-endpoint">
               <span className="docs-method docs-method--post">POST</span>
-              <code className="docs-path">{API_BASE}/issueCredential</code>
+              <code className="docs-path">/issueCredential</code>
             </div>
             <p className="docs-p">
               Issues one verifiable credential. Paid via x402 or API key.
@@ -554,7 +554,7 @@ export default function Docs() {
             <SubSection id="tpl-requirements" title="Discover required fields">
               <div className="docs-endpoint">
                 <span className="docs-method docs-method--get">GET</span>
-                <code className="docs-path">{API_BASE}/templates/:slug_or_id/requirements</code>
+                <code className="docs-path">/templates/:slug_or_id/requirements</code>
               </div>
               <p className="docs-p">
                 No auth required. Returns <code>required_keys</code> and the full <code>fields_json</code> so you know
@@ -647,7 +647,7 @@ export default function Docs() {
             <SubSection id="preview-api" title="Preview via API">
               <div className="docs-endpoint">
                 <span className="docs-method docs-method--post">POST</span>
-                <code className="docs-path">{API_BASE}/templates/:slug/preview</code>
+                <code className="docs-path">/templates/:slug/preview</code>
               </div>
               <p className="docs-p">No auth required.</p>
               <CodeBlock code={`{
@@ -671,7 +671,7 @@ export default function Docs() {
           <Section id="verify" title="GET /verify/:id">
             <div className="docs-endpoint">
               <span className="docs-method docs-method--get">GET</span>
-              <code className="docs-path">{API_BASE}/verify/:id</code>
+              <code className="docs-path">/verify/:id</code>
             </div>
             <p className="docs-p">
               Full 3-layer verification: blockchain contract, IPFS content hash, database.
@@ -715,7 +715,7 @@ export default function Docs() {
           <Section id="entities" title="GET /entities/:id">
             <div className="docs-endpoint">
               <span className="docs-method docs-method--get">GET</span>
-              <code className="docs-path">{API_BASE}/entities/:id</code>
+              <code className="docs-path">/entities/:id</code>
             </div>
             <p className="docs-p">
               Returns entity info and verification status. <code>:id</code> can be a UUID or slug.
