@@ -137,15 +137,26 @@ const res = await fetchWithPayment("${API_BASE}/issueCredential", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
-    issuer:          { display_name: "HashProof Demo", slug: "hashproof-demo" },
-    platform:        { display_name: "HashProof Demo", slug: "hashproof-demo" },
-    holder:          { full_name: process.env.YOUR_NAME },
-    context:         { type: "certification", title: "HashProof API Quickstart" },
+    issuer: {
+      display_name: "HashProof Demo",
+      slug: "hashproof-demo",
+    },
+    platform: {
+      display_name: "HashProof Demo",
+      slug: "hashproof-demo",
+    },
+    holder: {
+      full_name: process.env.YOUR_NAME,
+    },
+    context: {
+      type: "certification",
+      title: "HashProof API Quickstart",
+    },
     credential_type: "completion",
-    title:           "First Credential Issued",
+    title: "First Credential Issued",
     values: {
       holder_name: process.env.YOUR_NAME,
-      details:     "For successfully issuing a verifiable credential\\nusing the HashProof API.",
+      details: "For successfully issuing a verifiable credential via the HashProof API.",
     },
   }),
 });
@@ -159,10 +170,21 @@ function apiKeyExample() {
   -H "Content-Type: application/json" \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -d '{
-    "issuer":   { "display_name": "Acme Corp", "slug": "acme-corp" },
-    "platform": { "display_name": "Acme Corp", "slug": "acme-corp" },
-    "holder":   { "full_name": "Jane Doe" },
-    "context":  { "type": "certification", "title": "Intro to Blockchain" },
+    "issuer": {
+      "display_name": "Acme Corp",
+      "slug": "acme-corp"
+    },
+    "platform": {
+      "display_name": "Acme Corp",
+      "slug": "acme-corp"
+    },
+    "holder": {
+      "full_name": "Jane Doe"
+    },
+    "context": {
+      "type": "certification",
+      "title": "Intro to Blockchain"
+    },
     "credential_type": "completion",
     "title": "Certificate of Completion",
     "values": {
