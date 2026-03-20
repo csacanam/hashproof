@@ -1,0 +1,14 @@
+{
+  "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+  "name": "HashProof",
+  "description": "Verifiable credentials API on Celo and Base. Issue trusted digital certificates with one API call for $0.10 USDC via x402. Each credential is registered on the blockchain, pinned to IPFS, and stored in a database. Comes with a PDF with a QR code that anyone can scan to verify for free against three independent sources. Use the default template or create your own.",
+  "image": "https://www.hashproof.dev/hashproof-favicon.png",
+  "services": [
+    {
+      "name": "Web",
+      "endpoint": "https://api.hashproof.dev/issueCredential",
+      "version": "v1"
+    }
+  ],
+  "x402Support": true
+}
