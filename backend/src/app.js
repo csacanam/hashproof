@@ -23,6 +23,7 @@ import { approveEntity } from "./services/approveEntity.js";
 import { isPlatformAuthorized, upsertIssuerAuthorization } from "./services/issuerAuthorization.js";
 import { supabase } from "./supabase.js";
 import { CHAIN_CONFIG } from "./utils/chains.js";
+import { createCronRouter } from "./routes/cron.js";
 import { Buffer } from "node:buffer";
 import { generateCredentialPdf } from "./services/generatePdf.js";
 import {
@@ -740,6 +741,9 @@ export function createApp(options = {}) {
       return res.status(500).json({ error: err.message });
     }
   });
+
+  // ── Cron / monitoring ──────────────────────────────────────────────────
+  app.use("/cron", createCronRouter());
 
   app.get("/", readOnlyRateLimit, (_req, res) => {
     res.json({
