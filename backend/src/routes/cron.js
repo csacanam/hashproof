@@ -51,7 +51,7 @@ function formatAlert(level, label, balance, unit, warningThreshold, criticalThre
     `Critical threshold: ${criticalThreshold} ${unit}`,
     `Warning threshold: ${warningThreshold} ${unit}`,
     "",
-    `Wallet: <code>${address}</code>`,
+    `Wallet: ${address}`,
     explorerBase ? `${explorerBase}/address/${address}` : "",
     "",
     `<b>${action}:</b> Send ${unit} to this wallet.`,
@@ -71,9 +71,9 @@ function formatStatusReport(balances) {
     `<b>PAY_TO USDC (Celo):</b> ${balances.payToUsdc} USDC`,
     "",
     "Wallets:",
-    `SETTLER: <code>${balances.settlerAddress}</code>`,
-    `REGISTRY: <code>${balances.registryAddress}</code>`,
-    `PAY_TO: <code>${balances.payToAddress}</code>`,
+    `SETTLER: ${balances.settlerAddress}`,
+    `REGISTRY: ${balances.registryAddress}`,
+    `PAY_TO: ${balances.payToAddress}`,
   ].join("\n");
 }
 
@@ -208,6 +208,57 @@ export function createCronRouter() {
       });
     } catch (err) {
       console.error("[cron/health]", err);
+      res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
+  // ── Test endpoint: simulate all alert types with real balances ────────
+  router.get("/test-alerts", async (_req, res) => {
+    try {
+      const celoProvider = new ethers.JsonRpcProvider(CHAIN_CONFIG.celo.getRpcUrl());
+      const baseProvider = new ethers.JsonRpcProvider(CHAIN_CONFIG.base.getRpcUrl());
+
+      const [settlerCeloRaw, settlerBaseRaw, registryCeloRaw] = await Promise.all([
+        celoProvider.getBalance(settlerAddress),
+        baseProvider.getBalance(settlerAddress),
+        celoProvider.getBalance(registryAddress),
+      ]);
+
+      const settlerCelo = parseFloat(ethers.formatEther(settlerCeloRaw));
+      const settlerBase = parseFloat(ethers.formatEther(settlerBaseRaw));
+      const registryCelo = parseFloat(ethers.formatEther(registryCeloRaw));
+
+      const usdc = new ethers.Contract(CHAIN_CONFIG.celo.usdcAddress, ERC20_BALANCE_ABI, celoProvider);
+      const payToRaw = await usdc.balanceOf(payToAddress);
+      const payToUsdc = parseFloat(ethers.formatUnits(payToRaw, 6)).toFixed(2);
+
+      const messages = [
+        { key: "warning", msg: formatAlert("warning", "SETTLER (Celo)", settlerCelo.toFixed(4), "CELO", SETTLER_CELO_WARNING, SETTLER_CELO_CRITICAL, settlerAddress, "https://celoscan.io") },
+        { key: "critical", msg: formatAlert("critical", "SETTLER (Base)", settlerBase.toFixed(6), "ETH", SETTLER_BASE_WARNING, SETTLER_BASE_CRITICAL, settlerAddress, "https://basescan.org") },
+        { key: "critical_reg", msg: formatAlert("critical", "REGISTRY (Celo)", registryCelo.toFixed(4), "CELO", REGISTRY_CELO_WARNING, REGISTRY_CELO_CRITICAL, registryAddress, "https://celoscan.io") },
+        {
+          key: "status_report",
+          msg: formatStatusReport({
+            settlerCelo: { balance: settlerCelo.toFixed(4), level: evaluateLevel(settlerCelo, SETTLER_CELO_WARNING, SETTLER_CELO_CRITICAL) },
+            settlerBase: { balance: settlerBase.toFixed(6), level: evaluateLevel(settlerBase, SETTLER_BASE_WARNING, SETTLER_BASE_CRITICAL) },
+            registryCelo: { balance: registryCelo.toFixed(4), level: evaluateLevel(registryCelo, REGISTRY_CELO_WARNING, REGISTRY_CELO_CRITICAL) },
+            payToUsdc,
+            settlerAddress,
+            registryAddress,
+            payToAddress,
+          }),
+        },
+      ];
+
+      const results = [];
+      for (const m of messages) {
+        const sent = await sendTelegramAlert(m.key, m.msg);
+        results.push({ key: m.key, sent });
+      }
+
+      res.json({ ok: true, results });
+    } catch (err) {
+      console.error("[cron/test-alerts]", err);
       res.status(500).json({ ok: false, error: err.message });
     }
   });
