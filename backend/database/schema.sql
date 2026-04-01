@@ -428,3 +428,15 @@ create policy "anon insert"
   for insert
   to anon
   with check (true);
+
+-- =========================================================
+-- ROW LEVEL SECURITY (remaining tables)
+-- Backend uses service_role key which bypasses RLS.
+-- =========================================================
+
+alter table entities enable row level security;
+alter table holders enable row level security;
+alter table contexts enable row level security;
+alter table templates enable row level security;
+alter table credentials enable row level security;
+alter table api_keys enable row level security;
