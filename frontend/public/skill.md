@@ -116,24 +116,52 @@ The response includes `verification_url`. Send it to your human and explain:
 
 There are two ways to pay. Ask your human which one they use.
 
-### Pay with crypto (x402 — default)
+### Option A — API key (simplest for agents)
 
-The API returns `402 Payment Required`. Your wallet SDK signs a USDC transfer and retries automatically. No gas on your side.
+For organizations that purchase prepaid credits. One header, no wallet, no SDK.
+
+```bash
+curl -X POST https://api.hashproof.dev/issueCredential \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -d '{ ... }'
+```
+
+Each issuance deducts 1 credit. Contact `hi@hashproof.dev` to get an API key.
+
+### Option B — Pay with crypto (x402)
+
+The API returns `402 Payment Required` with payment requirements. An x402-compatible client signs a USDC authorization (no gas on your side) and retries automatically.
 
 Requirements:
 - A wallet with at least **0.10 USDC** on **Base** or **Celo**
-- A wallet SDK that supports x402 (e.g. thirdweb `wrapFetchWithPayment`)
+- An x402-compatible SDK (see examples below)
+
+#### How x402 works (protocol level)
+
+1. You POST to the API without any payment header.
+2. The API responds `402` with a `PAYMENT-REQUIRED` header (base64-encoded JSON). This contains `accepts[]` — one entry per supported network with: `network`, `asset` (USDC address), `maxAmountRequired`, `payTo`, and `extra` (EIP-3009 signing params).
+3. Your client picks a network it has USDC on, signs a `TransferWithAuthorization` (EIP-3009) for the required amount, and retries the same POST with the signed payload in an `X-PAYMENT` header.
+4. The server verifies and settles the payment on-chain, then returns the credential.
+
+Any SDK that implements this flow will work. Here are two known options:
+
+#### Example A: Thirdweb SDK
+
+```bash
+npm install thirdweb
+```
 
 ```js
 import { createThirdwebClient } from "thirdweb";
 import { wrapFetchWithPayment } from "thirdweb/x402";
 import { privateKeyToAccount } from "thirdweb/wallets";
-import { base } from "thirdweb/chains";
+import { celo } from "thirdweb/chains"; // or: import { base } from "thirdweb/chains"
 
-const client  = createThirdwebClient({ clientId: "YOUR_CLIENT_ID" });
+const client  = createThirdwebClient({ clientId: "YOUR_THIRDWEB_CLIENT_ID" });
 const account = privateKeyToAccount({ client, privateKey: process.env.PRIVATE_KEY });
 
-let currentChain = base; // or: import { celo } from "thirdweb/chains"
+let currentChain = celo;
 const wallet = {
   getAccount:  () => account,
   getChain:    () => currentChain,
@@ -147,22 +175,55 @@ const res = await fetchWithPayment("https://api.hashproof.dev/issueCredential", 
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify(payload),
 });
+
+const data = await res.json();
+console.log(data.verification_url);
 ```
 
-The `wrapFetchWithPayment` handles the 402 → sign → retry flow automatically. You do NOT need to handle 402 responses manually.
+Requires a free Thirdweb client ID from https://thirdweb.com/dashboard.
 
-### Pay with API key (no crypto)
-
-For organizations that don't want to handle wallets. They purchase prepaid credits from HashProof and get an API key.
+#### Example B: @x402/fetch + @x402/evm
 
 ```bash
-curl -X POST https://api.hashproof.dev/issueCredential \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_API_KEY" \
-  -d '{ ... }'
+npm install @x402/fetch @x402/evm viem
 ```
 
-Each issuance deducts 1 credit. Contact `hi@hashproof.dev` to get an API key.
+```js
+import { wrapFetchWithPaymentFromConfig } from "@x402/fetch";
+import { ExactEvmScheme } from "@x402/evm";
+import { privateKeyToAccount } from "viem/accounts";
+
+const account = privateKeyToAccount(process.env.PRIVATE_KEY);
+
+const fetchWithPayment = wrapFetchWithPaymentFromConfig(fetch, {
+  schemes: [
+    {
+      network: "eip155:42220", // Celo. Use "eip155:8453" for Base
+      client: new ExactEvmScheme(account),
+    },
+  ],
+});
+
+const res = await fetchWithPayment("https://api.hashproof.dev/issueCredential", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(payload),
+});
+
+const data = await res.json();
+console.log(data.verification_url);
+```
+
+Both SDKs handle the 402 → sign → retry flow automatically. You do NOT need to handle 402 responses manually.
+
+**If neither SDK works**, implement the protocol manually: parse the base64 `PAYMENT-REQUIRED` header, sign a `TransferWithAuthorization` (EIP-3009) using the params in `accepts[].extra`, and resend with the `X-PAYMENT` header. See https://www.x402.org for the full spec.
+
+### Rate limits
+
+- Requests **with valid payment** (x402 or API key): **60 requests/minute**
+- Requests **without payment** (e.g. failed x402, missing API key): **10 requests/minute**
+
+For bulk issuance, add a **2-second delay** between calls to stay well within limits.
 
 ---
 
@@ -308,14 +369,15 @@ Free. No auth. Returns `status` (`active`, `revoked`, `expired`, `not_found`), i
 
 ---
 
-## Wallet setup (only if needed)
+## Wallet setup (only if paying with x402)
 
-If you don't have a wallet yet:
+If your human doesn't have a wallet yet:
 
 1. Generate a new dedicated EVM wallet (do NOT use your human's main wallet).
-2. Show the address to your human.
-3. Ask them to fund it with at least **0.10 USDC** on **Base** or **Celo**.
-4. Once funded, proceed with x402.
+2. **NEVER display the private key in chat.** Write it directly to a `.env` file.
+3. Show only the **address** to your human.
+4. Ask them to fund it with at least **0.10 USDC** on **Base** or **Celo**.
+5. Once funded, proceed with x402.
 
 Supported networks:
 
