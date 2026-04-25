@@ -15,10 +15,20 @@ function ScrollToTop() {
   return null;
 }
 
+function MiniPayConnect() {
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.ethereum?.isMiniPay) {
+      window.ethereum.request({ method: "eth_requestAccounts" }).catch(() => {});
+    }
+  }, []);
+  return null;
+}
+
 function App() {
   return (
     <>
       <ScrollToTop />
+      <MiniPayConnect />
       <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/verify/:id" element={<Verify />} />
