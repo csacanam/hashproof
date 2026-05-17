@@ -82,6 +82,11 @@ function formatStatusReport(balances) {
 export function createCronRouter() {
   const router = Router();
 
+  if (!process.env.SETTLER_PRIVATE_KEY || !process.env.REGISTRY_PRIVATE_KEY) {
+    router.get("/health", (_req, res) => res.status(503).json({ ok: false, error: "Cron disabled: missing wallet keys" }));
+    return router;
+  }
+
   // Derive addresses once
   const settlerAddress = new ethers.Wallet(process.env.SETTLER_PRIVATE_KEY).address;
   const registryAddress = new ethers.Wallet(process.env.REGISTRY_PRIVATE_KEY).address;
