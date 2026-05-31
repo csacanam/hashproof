@@ -54,7 +54,9 @@ vi.mock("ethers", () => {
   }));
   const JsonRpcProvider = vi.fn();
   const Wallet = vi.fn().mockImplementation(() => ({}));
-  return { Contract, JsonRpcProvider, Wallet };
+  const Network = vi.fn();
+  const FetchRequest = vi.fn();
+  return { Contract, JsonRpcProvider, Wallet, Network, FetchRequest };
 });
 
 import { supabase } from "../supabase.js";

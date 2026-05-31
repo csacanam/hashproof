@@ -10,7 +10,8 @@
 import { supabase } from "../supabase.js";
 import { pinJsonToIpfs, unpinCid } from "./pinata.js";
 import crypto from "node:crypto";
-import { Contract, JsonRpcProvider, Wallet } from "ethers";
+import { Contract, Wallet } from "ethers";
+import { getCeloProvider } from "../utils/celoProvider.js";
 
 const REGISTRY_ABI = [
   "function register(string credentialId, string cid, uint256 issuedAt, uint256 validUntil) external",
@@ -21,15 +22,13 @@ async function registerOnChain({ credentialId, cid, issuedAt, validUntil }) {
     return `0x${crypto.randomBytes(32).toString("hex")}`;
   }
 
-  const rpcUrl = process.env.CELO_RPC_URL;
   const contractAddress = process.env.REGISTRY_CONTRACT_ADDRESS;
   const pk = process.env.REGISTRY_PRIVATE_KEY;
 
-  if (!rpcUrl) throw new Error("CELO_RPC_URL missing");
   if (!contractAddress) throw new Error("REGISTRY_CONTRACT_ADDRESS missing");
   if (!pk) throw new Error("REGISTRY_PRIVATE_KEY missing");
 
-  const provider = new JsonRpcProvider(rpcUrl);
+  const provider = getCeloProvider();
   const wallet = new Wallet(pk, provider);
   const registry = new Contract(contractAddress, REGISTRY_ABI, wallet);
 

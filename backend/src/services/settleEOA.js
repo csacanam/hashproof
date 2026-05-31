@@ -109,14 +109,19 @@ export function createEOASettler(settlerPrivateKey) {
     if (!chainConfig) {
       throw new Error(`Unsupported payment network: ${network}`);
     }
-    const { usdcAddress, getRpcUrl } = chainConfig;
-    const rpcUrl = getRpcUrl();
+    const { usdcAddress, getRpcUrl, caip2 } = chainConfig;
 
     // 6. Parse ECDSA signature into v, r, s
     const sig = ethers.Signature.from(signature);
 
-    // 7. Submit transferWithAuthorization
-    const provider = new ethers.JsonRpcProvider(rpcUrl);
+    // 7. Submit transferWithAuthorization (Celo uses failover provider)
+    let provider;
+    if (caip2 === "eip155:42220") {
+      const { getCeloProvider } = await import("../utils/celoProvider.js");
+      provider = getCeloProvider();
+    } else {
+      provider = new ethers.JsonRpcProvider(getRpcUrl());
+    }
     const wallet = new ethers.Wallet(settlerPrivateKey, provider);
     const contract = new ethers.Contract(usdcAddress, TRANSFER_WITH_AUTH_ABI, wallet);
 

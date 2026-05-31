@@ -437,14 +437,14 @@ export function createApp(options = {}) {
 
   app.get("/stats", readOnlyRateLimit, async (req, res) => {
     try {
-      const rpcUrl = process.env.CELO_RPC_URL;
       const contractAddress = process.env.REGISTRY_CONTRACT_ADDRESS;
-      if (!rpcUrl || !contractAddress) {
+      if (!contractAddress) {
         return res.status(503).json({ error: "Chain not configured" });
       }
 
-      const { Contract, JsonRpcProvider } = await import("ethers");
-      const provider = new JsonRpcProvider(rpcUrl);
+      const { Contract } = await import("ethers");
+      const { getCeloProvider } = await import("./utils/celoProvider.js");
+      const provider = getCeloProvider();
       const registry = new Contract(
         contractAddress,
         ["function totalIssued() view returns (uint256)"],

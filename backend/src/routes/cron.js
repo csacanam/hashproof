@@ -11,6 +11,7 @@
 import { Router } from "express";
 import { ethers } from "ethers";
 import { CHAIN_CONFIG } from "../utils/chains.js";
+import { getCeloProvider } from "../utils/celoProvider.js";
 import { sendTelegramAlert } from "../utils/notify.js";
 import {
   SETTLER_CELO_WARNING,
@@ -94,7 +95,7 @@ export function createCronRouter() {
 
   router.get("/health", async (_req, res) => {
     try {
-      const celoProvider = new ethers.JsonRpcProvider(CHAIN_CONFIG.celo.getRpcUrl());
+      const celoProvider = getCeloProvider();
       const baseProvider = new ethers.JsonRpcProvider(CHAIN_CONFIG.base.getRpcUrl());
 
       // Step 1: Fetch native balances in parallel
@@ -220,7 +221,7 @@ export function createCronRouter() {
   // ── Test endpoint: simulate all alert types with real balances ────────
   router.get("/test-alerts", async (_req, res) => {
     try {
-      const celoProvider = new ethers.JsonRpcProvider(CHAIN_CONFIG.celo.getRpcUrl());
+      const celoProvider = getCeloProvider();
       const baseProvider = new ethers.JsonRpcProvider(CHAIN_CONFIG.base.getRpcUrl());
 
       const [settlerCeloRaw, settlerBaseRaw, registryCeloRaw] = await Promise.all([

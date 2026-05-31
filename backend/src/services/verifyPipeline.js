@@ -7,7 +7,8 @@
  *   3. Database (Supabase) — display metadata (recipient, template, issuer)
  */
 
-import { Contract, JsonRpcProvider } from "ethers";
+import { Contract } from "ethers";
+import { getCeloProvider } from "../utils/celoProvider.js";
 
 const REGISTRY_READ_ABI = [
   "function getRecord(string credentialId) view returns (string cid, uint256 issuedAt, uint256 validUntil, uint256 revokedAt)",
@@ -86,10 +87,9 @@ async function checkContractLayer({ credentialId, nowSeconds }) {
     error: null,
   };
 
-  const rpcUrl = process.env.CELO_RPC_URL;
   const contractAddress = process.env.REGISTRY_CONTRACT_ADDRESS;
 
-  if (rpcUrl && contractAddress && credentialId) {
+  if (contractAddress && credentialId) {
     const cached = getCachedContractRecord(credentialId);
     let cid, issuedAt, validUntil, revokedAt;
 
@@ -97,7 +97,7 @@ async function checkContractLayer({ credentialId, nowSeconds }) {
       ({ cid, issuedAt, validUntil, revokedAt } = cached);
     } else {
       try {
-        const provider = new JsonRpcProvider(rpcUrl);
+        const provider = getCeloProvider();
         const registry = new Contract(contractAddress, REGISTRY_READ_ABI, provider);
         const [c, issuedAtBn, validUntilBn, revokedAtBn] = await registry.getRecord(credentialId);
         cid = c;
