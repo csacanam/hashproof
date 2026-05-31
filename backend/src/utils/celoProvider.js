@@ -87,14 +87,13 @@ export class FailoverCeloProvider extends JsonRpcProvider {
     }
   }
 
-  async _send(payload) {
+  async _attemptAll(payload, ignoreBlocks) {
     let lastErr;
-    // First pass: skip blocked URLs
     for (const url of this._urls) {
-      if (this._isBlocked(url)) continue;
+      if (!ignoreBlocks && this._isBlocked(url)) continue;
       try {
         const r = await this._tryUrl(url, payload);
-        if (r.ok) return r.result;
+        if (r.ok) return { ok: true, result: r.result };
         if (r.capacity) this._markBlocked(url);
         lastErr = r.err;
       } catch (err) {
@@ -102,15 +101,21 @@ export class FailoverCeloProvider extends JsonRpcProvider {
         lastErr = err;
       }
     }
-    // Failsafe: if everything was blocked or failed, retry all (ignoring blocks)
-    for (const url of this._urls) {
-      try {
-        const r = await this._tryUrl(url, payload);
-        if (r.ok) return r.result;
-        lastErr = r.err;
-      } catch (err) {
-        lastErr = err;
+    return { ok: false, err: lastErr };
+  }
+
+  async _send(payload) {
+    // Retry with exponential backoff for transient rate limits on the public RPC
+    const delays = [0, 250, 750, 2000];
+    let lastErr;
+    for (let i = 0; i < delays.length; i++) {
+      if (delays[i] > 0) {
+        const jitter = Math.floor(delays[i] * (0.5 + Math.random()));
+        await new Promise((r) => setTimeout(r, jitter));
       }
+      const r = await this._attemptAll(payload, i >= 1);
+      if (r.ok) return r.result;
+      lastErr = r.err;
     }
     throw lastErr || new Error("All Celo RPC URLs exhausted");
   }
