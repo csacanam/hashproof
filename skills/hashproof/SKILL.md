@@ -294,7 +294,28 @@ Important:
 - The QR code is drawn automatically in the top-right corner. Leave that area empty in the background.
 - Do NOT invent field positions — always ask your human for the exact coordinates or use the preview to verify.
 
-**If the human wants a custom template:** They MUST provide the background image URL AND the field coordinates (x, y, width, font_size for each field). You cannot calculate or estimate these values — they depend entirely on the visual design of the background image. If they don't know the coordinates, suggest they use the preview page to test different positions.
+**If the human wants a custom template:** They provide the background image URL; the coordinates you can work out yourself. Use the **stateless inline preview** (below) to iterate: propose positions, render the PDF, and — if you can view PDFs/images — inspect the result and adjust until the layout is right. It's free and nothing is stored, so iterate as much as needed. Show the final preview to your human and **wait for their approval** before issuing (the template is created at issuance and cannot be edited afterwards). If you cannot view images, ask your human for the coordinates or send them preview links to check.
+
+### Preview an inline template (before it exists — iterate here)
+
+```
+POST https://api.hashproof.dev/template-previews
+Content-Type: application/json
+
+{
+  "background_url": "https://cdn.example.com/certificate-bg.png",
+  "page_width": 3508,
+  "page_height": 2480,
+  "fields_json": [
+    { "key": "holder_name", "x": 248, "y": 1200, "width": 3012, "font_size": 192, "font_color": "#1a1a2e", "align": "center" },
+    { "key": "details", "x": 716, "y": 1488, "width": 2077, "font_size": 84, "font_color": "#555555", "align": "center" }
+  ],
+  "values": { "holder_name": "Jane Doe", "details": "For attending Expo 2026." },
+  "locale": "en"
+}
+```
+
+Free, no auth, no payment, nothing stored. Returns a watermarked PDF rendered with the exact same rules, QR position and size as a real credential — what you see is what gets issued. Starting point for a landscape certificate: title centered in the upper third, `holder_name` large and centered slightly above the vertical middle, `details` smaller below it, and keep the top-right corner clear (the QR goes there).
 
 ### Preview a template
 

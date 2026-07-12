@@ -11,8 +11,8 @@ Contexto: HashProof es el proyecto más agent-ready del portafolio (emisión 100
 
 El bloqueo real del flujo "certificados con mi marca vía agente" NO es hostear la imagen (eso se resuelve en 30s con cualquier URL) sino el **ciclo de diseño de posiciones**: el preview con `:ref` exige template existente en DB, los templates solo se crean dentro de una emisión pagada, y son create-only (no editables) → iterar un diseño = quemar slugs y emisiones de $0.10.
 
-- [x] **`POST /template-previews` (stateless)**: preview desde template INLINE — sin DB, sin pago, mismas reglas de render, QR placeholder y watermark. Implementado con 3 tests (suite 30/31 verde). Aditivo: no toca ninguna ruta existente ni el pipeline de emisión que usa Peewah. **PENDIENTE: confirmar cómo se deploya api.hashproof.dev antes de pushear** (el commit está local).
-- [ ] Tras el deploy: actualizar los DOS skill.md (web + `skills/`) enseñando el loop visual — "si puedes ver imágenes, itera tú: propone posiciones → POST /template-previews → inspecciona el PDF → ajusta → pide aprobación humana solo al final".
+- [x] **`POST /template-previews` (stateless)**: preview desde template INLINE — sin DB, sin pago, mismas reglas de render, QR placeholder y watermark. 3 tests, suite verde. Aditivo. **Deployado y verificado en producción el 12 jul** (DigitalOcean auto-deploy; rutas existentes intactas durante el rollout).
+- [x] Skill.md (web + `skills/`) actualizado con el loop visual: el agente itera posiciones con /template-previews e inspecciona el PDF si tiene visión; aprobación humana solo al final.
 - [ ] Presets de layout (3-4 diseños calculados según dimensiones de la imagen) para que el 80% de los casos no necesite iterar.
 - [ ] Nice-to-have (ya no prioritario): endpoint de upload de fondos a Pinata (`POST /backgrounds`).
 
