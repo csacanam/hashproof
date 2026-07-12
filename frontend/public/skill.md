@@ -55,7 +55,7 @@ Before you do anything, ask your human ALL of these. Do not skip any. Do not ass
 4. **What type of event/program is this?** Pick one: `event`, `course`, `diploma`, `training`, `certification`, `membership`, `other`.
 5. **What type of credential?** Pick one: `attendance` (they showed up), `completion` (they finished), `achievement` (they accomplished something), `participation` (they took part), `membership` (they belong), `certification` (they are certified).
 6. **How to pay?** Do they have a wallet with USDC on Base or Celo (x402), or an API key from HashProof?
-7. **Do they want a custom design?** If yes, they need to provide a template slug or create one. If no, the default HashProof template is used.
+7. **Do they want a custom design with their branding?** If no, the default HashProof template is used — skip to Step 2. If yes, follow the **custom template flow** (see the Templates section below): (a) get a background image — either your human provides one (e.g. a Canva export without the recipient's name) or **you generate it yourself** if you have an image-generation tool; (b) work out the field positions yourself, iterating with the free inline preview (`POST /template-previews`) until the layout looks right; (c) show the final preview to your human, and only after their approval issue with the inline `template`. If they already have a template from before, just ask for its slug.
 
 ### Step 2 — Call the API
 
