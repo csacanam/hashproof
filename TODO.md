@@ -4,7 +4,7 @@ Contexto: HashProof es el proyecto más agent-ready del portafolio (emisión 100
 
 ## Prioridad 1
 
-- [ ] **Registro ERC-8004 on-chain** — es la mejora de mayor retorno/esfuerzo: el metadata.json existe pero ningún explorador lo indexa. Runbook completo en `docs/ERC8004-REGISTRATION.md`. Falta decidir la wallet dueña de la identidad (sugerida: payTo `0x0a25C912…3f0d`). Después de registrar: agregar `registrations` al metadata + crear `.well-known/agent-registration.json` + redeploy.
+- [x] **Registro ERC-8004 HECHO (12 jul)**: agente **#9669** en Celo, owner = wallet settler del proyecto `0x2170bc5E…2ab6` (tx `0x5b898a38…132b`). Verificación circular cerrada: `registrations` en metadata.json + `.well-known/agent-registration.json`. Perfil: https://www.8004scan.io/agents/celo/9669
 - [ ] **Demo en X** con output real: "Claude emitió este diploma verificable on-chain en 2 prompts" — PDF con QR real + `npx skills add csacanam/hashproof` en el post. El demo es 10× mejor con plantilla propia → depende del punto siguiente.
 
 ## Plantillas propias para agentes (diagnóstico 12 jul 2026)
