@@ -29,7 +29,8 @@ El bloqueo real del flujo "certificados con mi marca vía agente" NO es hostear 
 - [ ] Evaluar migrar el settle del EOA propio (`backend/src/services/settleEOA.js`) al facilitator de Coinbase CDP → entra al Bazaar de CDP de paso.
 - [x] MCP server construido y probado (12 jul): `mcp/` con 4 tools (get_template_requirements, preview_template, issue_credential, verify_credential), pago por API key o x402 (Base/Celo), smoke test del protocolo completo contra producción. Instalable con `claude mcp add hashproof -- npx -y hashproof-mcp` una vez publicado.
 - [x] `hashproof-mcp@0.1.0` PUBLICADO en npm (12 jul) — cold-install verificado: `npx -y hashproof-mcp` hace handshake MCP y expone los 4 tools. Instalación: `claude mcp add hashproof -- npx -y hashproof-mcp`.
-- [ ] **Listarlo en registros MCP**: oficial (registry.modelcontextprotocol.io — `mcp-publisher` CLI con auth GitHub; el `mcp/server.json` ya está listo), y reclamar en Smithery/Glama/PulseMCP + PR a punkpeye/awesome-mcp-servers.
+- [x] **Registro MCP oficial: PUBLICADO** (12 jul) — `io.github.csacanam/hashproof` v0.1.1 verificado en la API pública del registro. Los directorios (Smithery, Glama, PulseMCP, mcp.so) lo crawlean de ahí.
+- [ ] Reclamar el listing en Smithery/Glama cuando aparezca + PR a punkpeye/awesome-mcp-servers (refuerzo de training data).
 
 ## Mantenimiento
 
