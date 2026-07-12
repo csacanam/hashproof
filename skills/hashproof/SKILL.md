@@ -294,6 +294,21 @@ Important:
 - The QR code is drawn automatically in the top-right corner. Leave that area empty in the background.
 - Do NOT invent field positions — always ask your human for the exact coordinates or use the preview to verify.
 
+### Getting a background image (the branding layer)
+
+The background carries ALL the visual design — logos, borders, colors, seals, signatures. HashProof only renders the dynamic text fields and the QR on top. Three ways to get one, in order of preference:
+
+1. **The human has a design or designer**: export from Canva/Figma/Photoshop as PNG or JPG. Canva has hundreds of certificate templates — tell them to export it **without** the recipient's name (that's a field you render).
+2. **You generate it** (if you have an image-generation tool): prompt along the lines of *"elegant certificate background, [their brand colors], subtle decorative border, organization name '[X]' as a header, no recipient name, large clean empty band across the middle, clean empty top-right corner, A4 landscape, flat design"*. Show it to your human before using it.
+3. **No design**: skip custom templates entirely and use the default template.
+
+Rules that make any background work:
+
+- **Bake everything static into the image** (title, org name, signatures, seals) — maximum design fidelity. Use fields ONLY for what changes per credential (holder name, details, date).
+- **Leave the top-right corner clean** — the QR is drawn there automatically (~10% of page width).
+- **Leave visually quiet bands** where the dynamic fields will go — the holder name needs a wide, uncluttered strip.
+- Recommended size: **3508×2480 px** (A4 landscape at 300 DPI) or 2480×3508 (portrait). PNG or JPG.
+
 **If the human wants a custom template:** They provide the background image URL; the coordinates you can work out yourself. First, measure the image: `page_width` and `page_height` MUST match its pixel dimensions — download it and check (e.g. `file bg.png` or any image tool); don't ask the human, they rarely know. Use the **stateless inline preview** (below) to iterate: propose positions, render the PDF, and — if you can view PDFs/images — inspect the result and adjust until the layout is right. It's free and nothing is stored, so iterate as much as needed. Show the final preview to your human and **wait for their approval** before issuing (the template is created at issuance and cannot be edited afterwards). If you cannot view images, ask your human for the coordinates or send them preview links to check.
 
 ### Preview an inline template (before it exists — iterate here)

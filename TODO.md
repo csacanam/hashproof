@@ -13,7 +13,9 @@ El bloqueo real del flujo "certificados con mi marca vía agente" NO es hostear 
 
 - [x] **`POST /template-previews` (stateless)**: preview desde template INLINE — sin DB, sin pago, mismas reglas de render, QR placeholder y watermark. 3 tests, suite verde. Aditivo. **Deployado y verificado en producción el 12 jul** (DigitalOcean auto-deploy; rutas existentes intactas durante el rollout).
 - [x] Skill.md (web + `skills/`) actualizado con el loop visual: el agente itera posiciones con /template-previews e inspecciona el PDF si tiene visión; aprobación humana solo al final.
-- [ ] Presets de layout (3-4 diseños calculados según dimensiones de la imagen) para que el 80% de los casos no necesite iterar.
+- [x] Guía de fondos en el skill (12 jul): división de trabajo clara — el fondo/marca lo hace el humano o su agente (Canva o generación de imágenes con prompt incluido); HashProof da la spec (estático horneado en la imagen, campos solo para lo variable, esquina QR libre, 3508×2480).
+- [ ] Presets de layout (3-4 diseños calculados según dimensiones de la imagen) para que el 80% de los casos no necesite iterar — también sirve a agentes sin visión.
+- [ ] Galería de fondos default hosteados por HashProof (3-5 profesionales) — elimina la ruta "no tengo diseño" como fricción.
 - [ ] Nice-to-have (ya no prioritario): endpoint de upload de fondos a Pinata (`POST /backgrounds`).
 
 ## Comercial (vender a humanos mientras la economía de agentes madura)
