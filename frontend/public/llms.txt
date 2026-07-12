@@ -1,0 +1,25 @@
+# HashProof
+
+> Verifiable credentials API. Issue trusted digital certificates (diplomas, course completions, attendance, memberships) with one API call for $0.10 USDC via x402 — no account, no API key. Each credential is registered on-chain on Celo, pinned to IPFS, and comes with a PDF with a QR code anyone can scan to verify for free against three independent sources.
+
+Key facts:
+
+- Base URL: `https://api.hashproof.dev`. Payment: x402 with USDC on Base (`eip155:8453`) or Celo (`eip155:42220`), or prepaid API key for institutions.
+- Fully agent-usable: no human onboarding required to issue. Discover a template's required fields at `GET /templates/:ref/requirements` (free), then `POST /issueCredential` paying via x402.
+- On-chain registry: `CredentialRegistry` at `0x7a1B759A602Aba72a70f99Dffd0a386d7504ce9B` (Celo mainnet).
+- Verification is free and public: `GET /verify/:id` or `https://hashproof.dev/verify/:id`.
+
+## Docs
+
+- [Agent skill (complete integration guide)](https://hashproof.dev/skill.md): step-by-step for AI agents — payment options, templates, request reference, errors
+- [Documentation](https://hashproof.dev/docs): human-readable docs
+- [Agent metadata (ERC-8004 registration-v1)](https://hashproof.dev/metadata.json): identity, services, capabilities
+- [Service descriptor (JSON)](https://api.hashproof.dev/): endpoints and prices
+
+## API summary
+
+- `POST /issueCredential` — $0.10 USDC (x402) or 1 API-key credit: issue one credential
+- `GET /templates/:ref/requirements` — free: required fields for a template
+- `POST /templates/:ref/preview` — free: watermarked preview PDF, nothing registered
+- `GET /verify/:id` — free: full 3-layer verification (database, IPFS, blockchain)
+- `GET /stats` — free: on-chain credential counters
