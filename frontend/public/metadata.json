@@ -1,14 +1,39 @@
 {
   "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
   "name": "HashProof",
-  "description": "Verifiable credentials API on Celo and Base. Issue trusted digital certificates with one API call for $0.10 USDC via x402. Each credential is registered on the blockchain, pinned to IPFS, and stored in a database. Comes with a PDF with a QR code that anyone can scan to verify for free against three independent sources. Use the default template or create your own.",
+  "description": "Verifiable credentials API on Celo and Base. Issue trusted digital certificates with one API call for $0.10 USDC via x402 — no account, no API key. Each credential is registered on-chain in the CredentialRegistry contract on Celo (0x7a1B759A602Aba72a70f99Dffd0a386d7504ce9B), pinned to IPFS, and comes with a PDF with a QR code anyone can scan to verify for free against three independent sources. Agent-usable end to end: discover required fields at GET /templates/:ref/requirements (free), then POST /issueCredential paying x402 with USDC on Base (eip155:8453) or Celo (eip155:42220). Full agent guide at https://hashproof.dev/skill.md.",
   "image": "https://www.hashproof.dev/hashproof-favicon.png",
   "services": [
     {
-      "name": "Web",
+      "name": "web",
+      "endpoint": "https://hashproof.dev"
+    },
+    {
+      "name": "x402-issue-credential",
       "endpoint": "https://api.hashproof.dev/issueCredential",
-      "version": "v1"
+      "version": "x402-v2"
+    },
+    {
+      "name": "skill",
+      "endpoint": "https://hashproof.dev/skill.md"
+    },
+    {
+      "name": "agentWallet",
+      "endpoint": "eip155:42220:0x0a25C91209a158D0a4922837cdd590aCe0D13f0d"
+    },
+    {
+      "name": "OASF",
+      "endpoint": "https://api.hashproof.dev/",
+      "version": "0.8.0",
+      "skills": [
+        "tool_use_and_automation/workflow_automation",
+        "science_and_specialized_domains/blockchain_and_web3"
+      ],
+      "domains": ["technology/blockchain"]
     }
   ],
-  "x402Support": true
+  "active": true,
+  "x402Support": true,
+  "supportedTrust": ["reputation"],
+  "updatedAt": 1783728000
 }
