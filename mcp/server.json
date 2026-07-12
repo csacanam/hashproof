@@ -1,0 +1,40 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
+  "name": "io.github.csacanam/hashproof",
+  "description": "Issue verifiable credentials (diplomas, certificates, badges) from any AI agent for $0.10 USDC via x402 or an API key. Registered on-chain on Celo, pinned to IPFS, verifiable by anyone via QR.",
+  "repository": {
+    "url": "https://github.com/csacanam/hashproof",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "hashproof-mcp",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "HASHPROOF_API_KEY",
+          "description": "Prepaid API key (alternative to wallet). One of the two payment methods is required only for issue_credential.",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "HASHPROOF_WALLET_PRIVATE_KEY",
+          "description": "EVM private key of a dedicated wallet holding USDC on Base or Celo — pays $0.10 per issuance via x402.",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "HASHPROOF_X402_NETWORK",
+          "description": "base (default) or celo",
+          "isRequired": false,
+          "isSecret": false
+        }
+      ]
+    }
+  ]
+}

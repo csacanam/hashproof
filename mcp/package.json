@@ -1,0 +1,40 @@
+{
+  "name": "hashproof-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for HashProof — issue verifiable credentials (diplomas, certificates, badges) from any AI agent for $0.10 USDC via x402 or an API key. Each credential is registered on-chain on Celo, pinned to IPFS, and verifiable by anyone via QR.",
+  "type": "module",
+  "bin": {
+    "hashproof-mcp": "./src/index.js"
+  },
+  "files": [
+    "src"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/csacanam/hashproof.git",
+    "directory": "mcp"
+  },
+  "homepage": "https://hashproof.dev",
+  "license": "MIT",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "verifiable-credentials",
+    "certificates",
+    "diplomas",
+    "x402",
+    "celo",
+    "ipfs",
+    "ai-agents"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "@x402/evm": "^2.17.0",
+    "@x402/fetch": "^2.17.0",
+    "viem": "^2.21.0",
+    "zod": "^3.23.0"
+  }
+}
