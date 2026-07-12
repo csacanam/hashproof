@@ -11,7 +11,7 @@ Issue verifiable credentials with one API call. $0.10 USDC per credential via x4
 **Base URL:** `https://api.hashproof.dev`
 **Docs:** `https://hashproof.dev/docs`
 
-**IMPORTANT:** Never invent, guess, or fabricate any data — names, slugs, dates, field values, template positions, or anything else. If the human hasn't provided it, ask. If an answer is ambiguous, ask a follow-up question. Do NOT fill in placeholders with made-up values.
+**IMPORTANT:** Never invent, guess, or fabricate any data — names, slugs, dates, field values, or anything else. If the human hasn't provided it, ask. If an answer is ambiguous, ask a follow-up question. Do NOT fill in placeholders with made-up values. **One deliberate exception:** template field *coordinates* are yours to work out — propose them and validate with the free inline preview (never ask the human for x/y values), getting their approval on the final preview before issuing.
 
 ---
 
@@ -292,14 +292,17 @@ Important:
 - `page_width` and `page_height` must match the background image dimensions (in pixels).
 - `x`, `y`, `width` use the same units as the page.
 - The QR code is drawn automatically in the top-right corner. Leave that area empty in the background.
-- Do NOT invent field positions — always ask your human for the exact coordinates or use the preview to verify.
+- Never issue with unverified positions — derive them yourself with the inline preview loop (`POST /template-previews`, free) and get your human's approval on the final preview first.
+- With a custom template, `title` is **metadata** (shown on the verification page) — it is NOT drawn on the PDF unless you add a field for it. Recommended: bake the title text into the background image.
 
 ### Getting a background image (the branding layer)
 
 The background carries ALL the visual design — logos, borders, colors, seals, signatures. HashProof only renders the dynamic text fields and the QR on top. Three ways to get one, in order of preference:
 
 1. **The human has a design or designer**: export from Canva/Figma/Photoshop as PNG or JPG. Canva has hundreds of certificate templates — tell them to export it **without** the recipient's name (that's a field you render).
-2. **You generate it** (if you have an image-generation tool): prompt along the lines of *"elegant certificate background, [their brand colors], subtle decorative border, organization name '[X]' as a header, no recipient name, large clean empty band across the middle, clean empty top-right corner, A4 landscape, flat design"*. Show it to your human before using it.
+2. **You generate it** (if you have an image-generation tool): prompt along the lines of *"elegant certificate background, [their brand colors], subtle decorative border, organization name '[X]' as a header, no recipient name, large clean empty band across the middle, clean empty top-right corner, A4 landscape, flat design"*. Image generators can't reproduce a real logo — if the human has one, composite it onto the generated background with an image tool (ImageMagick, PIL). Show the result to your human before using it.
+
+**Hosting:** the API needs the background as a public URL (`background_url`) — there is no upload endpoint. Use whatever the human already has (their website, CDN, a public GitHub repo, an image host); if you generated the file locally, ask your human where to host it or push it to a repo they control.
 3. **No design**: skip custom templates entirely and use the default template.
 
 Rules that make any background work:
@@ -331,6 +334,8 @@ Content-Type: application/json
 ```
 
 Free, no auth, no payment, nothing stored. Returns a watermarked PDF rendered with the exact same rules, QR position and size as a real credential — what you see is what gets issued. Starting point for a landscape certificate: title centered in the upper third, `holder_name` large and centered slightly above the vertical middle, `details` smaller below it, and keep the top-right corner clear (the QR goes there).
+
+To show it to your human: save the PDF response to a file and share that file — the `hashproof.dev/preview/:slug` URL only works for templates that already exist in the database, not for inline ones. (`locale` only changes the watermark language; the issued PDF renders exactly your fields and background, in whatever language they contain.)
 
 ### Preview a template
 
