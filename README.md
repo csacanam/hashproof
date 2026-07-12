@@ -18,6 +18,8 @@ Two ways to pay: micropayment in USDC via x402 (Base or Celo) — no API keys, n
 backend/       Express API — credential issuance, verification, payments
 frontend/      React app — landing page, credential verification, entity pages
 contracts/     CredentialRegistry smart contract (Celo)
+mcp/           MCP server (hashproof-mcp on npm) — use HashProof from any AI agent
+skills/        Agent skill (npx skills add csacanam/hashproof)
 docs/          Architecture and flow documentation
 ```
 
@@ -45,8 +47,24 @@ Payment is in USDC on Base or Celo via x402. The client signs an off-chain autho
 | `POST /templates/:ref/preview`       | Generate a preview PDF with watermark (no cost) |
 | `GET /stats`                         | On-chain credential counters                   |
 
+## For AI agents
+
+HashProof is fully agent-usable — no account, no human onboarding. Three ways in:
+
+- **MCP server** (listed on the [official MCP registry](https://registry.modelcontextprotocol.io) as `io.github.csacanam/hashproof`):
+
+  ```bash
+  claude mcp add hashproof -- npx -y hashproof-mcp
+  ```
+
+  Tools: `preview_template` (free — iterate custom layouts, PDF saved locally), `issue_credential` ($0.10 via x402 or API key), `verify_credential` and `get_template_requirements` (free). See [`mcp/README.md`](mcp/README.md).
+
+- **Agent skill**: `npx skills add csacanam/hashproof` — or read it at [hashproof.dev/skill.md](https://hashproof.dev/skill.md).
+- **Plain HTTP + x402**: `POST /issueCredential` returns a 402 challenge any x402-v2 client can pay (USDC on Base or Celo). LLM index: [hashproof.dev/llms.txt](https://hashproof.dev/llms.txt).
+
+Agent identity metadata (ERC-8004 registration-v1): [hashproof.dev/metadata.json](https://hashproof.dev/metadata.json).
+
 ## Quick start
 
 See `backend/README.md` and `frontend/README.md` for setup instructions.
 See [`docs/README.md`](./docs/README.md) for the full documentation index.
-See `frontend/public/skill.md` for the AI agent skill definition.
