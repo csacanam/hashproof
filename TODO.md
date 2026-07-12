@@ -25,7 +25,7 @@ El bloqueo real del flujo "certificados con mi marca vía agente" NO es hostear 
 
 ## Distribución
 
-- [ ] Listar en índices x402 (x402scan, awesome-x402) y PR a awesome-erc8004.
+- [x] PRs abiertos (12 jul): awesome-agentic-commerce#442 + awesome-erc8004#80 + awesome-mcp-servers#9909 + awesome-celo#1. Pendiente aparte: x402scan/índices automáticos.
 - [ ] Evaluar migrar el settle del EOA propio (`backend/src/services/settleEOA.js`) al facilitator de Coinbase CDP → entra al Bazaar de CDP de paso.
 - [x] MCP server construido y probado (12 jul): `mcp/` con 4 tools (get_template_requirements, preview_template, issue_credential, verify_credential), pago por API key o x402 (Base/Celo), smoke test del protocolo completo contra producción. Instalable con `claude mcp add hashproof -- npx -y hashproof-mcp` una vez publicado.
 - [x] `hashproof-mcp@0.1.0` PUBLICADO en npm (12 jul) — cold-install verificado: `npx -y hashproof-mcp` hace handshake MCP y expone los 4 tools. Instalación: `claude mcp add hashproof -- npx -y hashproof-mcp`.
