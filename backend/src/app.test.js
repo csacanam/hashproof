@@ -193,6 +193,43 @@ describe("HashProof API", () => {
     });
   });
 
+
+  describe("POST /template-previews", () => {
+    it("returns 400 when fields_json is missing", async () => {
+      const res = await request(app)
+        .post("/template-previews")
+        .send({ page_width: 3508, page_height: 2480 });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toMatch(/fields_json/);
+    });
+
+    it("returns 400 when page dimensions are out of range", async () => {
+      const res = await request(app)
+        .post("/template-previews")
+        .send({ page_width: 10, page_height: 2480, fields_json: [{ key: "holder_name", x: 0, y: 0 }] });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toMatch(/page_width/);
+    });
+
+    it("renders a PDF from an inline template without touching the database", async () => {
+      const res = await request(app)
+        .post("/template-previews")
+        .send({
+          page_width: 842,
+          page_height: 595,
+          fields_json: [
+            { key: "holder_name", x: 100, y: 250, width: 642, font_size: 40, align: "center", bold: true },
+            { key: "details", x: 100, y: 320, width: 642, font_size: 16, align: "center" },
+          ],
+          values: { holder_name: "Jane Doe", details: "For testing inline previews." },
+        });
+      expect(res.status).toBe(200);
+      expect(res.headers["content-type"]).toBe("application/pdf");
+      expect(res.body.length).toBeGreaterThan(1000);
+      expect(res.body.slice(0, 5).toString()).toBe("%PDF-");
+    });
+  });
+
   describe("GET /verify/:id", () => {
     it("returns 404 when credential not found", async () => {
       const res = await request(app).get("/verify/00000000-0000-0000-0000-000000000000");

@@ -5,7 +5,16 @@ Contexto: HashProof es el proyecto más agent-ready del portafolio (emisión 100
 ## Prioridad 1
 
 - [ ] **Registro ERC-8004 on-chain** — es la mejora de mayor retorno/esfuerzo: el metadata.json existe pero ningún explorador lo indexa. Runbook completo en `docs/ERC8004-REGISTRATION.md`. Falta decidir la wallet dueña de la identidad (sugerida: payTo `0x0a25C912…3f0d`). Después de registrar: agregar `registrations` al metadata + crear `.well-known/agent-registration.json` + redeploy.
-- [ ] **Demo en X** con output real: "Claude emitió este diploma verificable on-chain en 2 prompts" — PDF con QR real + `npx skills add csacanam/hashproof` en el post.
+- [ ] **Demo en X** con output real: "Claude emitió este diploma verificable on-chain en 2 prompts" — PDF con QR real + `npx skills add csacanam/hashproof` en el post. El demo es 10× mejor con plantilla propia → depende del punto siguiente.
+
+## Plantillas propias para agentes (diagnóstico 12 jul 2026)
+
+El bloqueo real del flujo "certificados con mi marca vía agente" NO es hostear la imagen (eso se resuelve en 30s con cualquier URL) sino el **ciclo de diseño de posiciones**: el preview con `:ref` exige template existente en DB, los templates solo se crean dentro de una emisión pagada, y son create-only (no editables) → iterar un diseño = quemar slugs y emisiones de $0.10.
+
+- [x] **`POST /template-previews` (stateless)**: preview desde template INLINE — sin DB, sin pago, mismas reglas de render, QR placeholder y watermark. Implementado con 3 tests (suite 30/31 verde). Aditivo: no toca ninguna ruta existente ni el pipeline de emisión que usa Peewah. **PENDIENTE: confirmar cómo se deploya api.hashproof.dev antes de pushear** (el commit está local).
+- [ ] Tras el deploy: actualizar los DOS skill.md (web + `skills/`) enseñando el loop visual — "si puedes ver imágenes, itera tú: propone posiciones → POST /template-previews → inspecciona el PDF → ajusta → pide aprobación humana solo al final".
+- [ ] Presets de layout (3-4 diseños calculados según dimensiones de la imagen) para que el 80% de los casos no necesite iterar.
+- [ ] Nice-to-have (ya no prioritario): endpoint de upload de fondos a Pinata (`POST /backgrounds`).
 
 ## Comercial (vender a humanos mientras la economía de agentes madura)
 

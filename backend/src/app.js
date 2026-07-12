@@ -435,6 +435,121 @@ export function createApp(options = {}) {
     }
   });
 
+  // Stateless preview: render a watermarked PDF from an INLINE template definition,
+  // without touching the database and without payment. Complements
+  // POST /templates/:ref/preview (which requires an existing template): since
+  // templates are create-only and only created at issuance, this is the only way
+  // to iterate field positions before committing to a paid issuance.
+  app.post("/template-previews", readOnlyRateLimit, async (req, res) => {
+    try {
+      const { background_url, page_width, page_height, fields_json, values, locale } = req.body || {};
+
+      const pageWidth = Number(page_width) || 595;
+      const pageHeight = Number(page_height) || 842;
+      if (
+        !Number.isFinite(pageWidth) || !Number.isFinite(pageHeight) ||
+        pageWidth < 100 || pageWidth > 10000 || pageHeight < 100 || pageHeight > 10000
+      ) {
+        return res.status(400).json({ error: "page_width and page_height must be numbers between 100 and 10000" });
+      }
+      if (!Array.isArray(fields_json) || fields_json.length === 0) {
+        return res.status(400).json({ error: "fields_json must be a non-empty array of field definitions" });
+      }
+      if (fields_json.length > 50) {
+        return res.status(400).json({ error: "fields_json supports at most 50 fields" });
+      }
+      const fieldValues = values && typeof values === "object" ? values : {};
+
+      const baseUrl = process.env.FRONTEND_URL || "https://hashproof.dev";
+
+      const { default: PDFDocument } = await import("pdfkit");
+      const QRCode = (await import("qrcode")).default;
+
+      const doc = new PDFDocument({
+        size: [pageWidth, pageHeight],
+        margins: { top: 0, bottom: 0, left: 0, right: 0 },
+      });
+      const chunks = [];
+      const pdfPromise = new Promise((resolve, reject) => {
+        doc.on("data", (chunk) => chunks.push(chunk));
+        doc.on("end", () => resolve(Buffer.concat(chunks)));
+        doc.on("error", reject);
+      });
+
+      // Background
+      if (background_url) {
+        try {
+          const bgRes = await fetch(background_url);
+          if (bgRes.ok) {
+            const buf = Buffer.from(await bgRes.arrayBuffer());
+            doc.image(buf, 0, 0, { width: pageWidth, height: pageHeight });
+          }
+        } catch (e) {
+          console.warn("[template-previews] background fetch failed:", e.message);
+        }
+      }
+
+      // Fields (same rendering rules as the stored-template preview)
+      for (const f of fields_json) {
+        const key = f?.key;
+        if (!key) continue;
+        const text = String((fieldValues && fieldValues[key]) || "").trim();
+        if (!text) continue;
+        const x = Number(f.x) ?? 0;
+        const y = Number(f.y) ?? 0;
+        const w = Math.max(1, Number(f.width) || pageWidth - x - 20);
+        const fontSize = Math.min(200, Math.max(6, Number(f.font_size) || 12));
+        const fontColor = f.font_color ?? "#000000";
+        const align = f.align === "center" ? "center" : f.align === "right" ? "right" : "left";
+        const bold = f.bold === true;
+        const italic = f.italic === true;
+        const fontName = bold && italic ? "Helvetica-BoldOblique" : bold ? "Helvetica-Bold" : italic ? "Helvetica-Oblique" : "Helvetica";
+        doc.font(fontName).fontSize(fontSize).fillColor(fontColor).text(text, x, y, {
+          width: w,
+          align,
+          ellipsis: true,
+          ...(f.underline === true && { underline: true }),
+          ...(f.strike === true && { strike: true }),
+        });
+      }
+
+      // QR placeholder (same size/position as issued PDFs, so the layout is honest)
+      const REFERENCE_PAGE_WIDTH = 3508;
+      const REFERENCE_QR_SIZE = 360;
+      const QR_SIZE_MIN = 96;
+      const QR_SIZE_MAX = 360;
+      const qrSize = Math.round(
+        Math.min(QR_SIZE_MAX, Math.max(QR_SIZE_MIN, REFERENCE_QR_SIZE * (pageWidth / REFERENCE_PAGE_WIDTH)))
+      );
+      const qrMargin = Math.round(qrSize * 0.4);
+      const qrX = pageWidth - qrSize - qrMargin;
+      const qrY = qrMargin;
+      const qrDataUrl = await QRCode.toDataURL(baseUrl, { width: qrSize });
+      doc.image(qrDataUrl, qrX, qrY, { width: qrSize, height: qrSize });
+
+      // Watermark: diagonal "PREVIEW" / "VISTA PREVIA"
+      const watermarkText = locale === "es" ? "VISTA PREVIA" : "PREVIEW";
+      doc.save();
+      doc.translate(pageWidth / 2, pageHeight / 2);
+      doc.rotate(-45);
+      const wmFontSize = Math.round(pageWidth * 0.12);
+      doc.font("Helvetica-Bold").fontSize(wmFontSize).fillColor("#000000").opacity(0.12);
+      const wmWidth = doc.widthOfString(watermarkText);
+      doc.text(watermarkText, -wmWidth / 2, -wmFontSize / 2, { lineBreak: false });
+      doc.restore();
+
+      doc.end();
+      const pdfBuffer = await pdfPromise;
+
+      res.set("Content-Type", "application/pdf");
+      res.set("Content-Disposition", 'inline; filename="template-preview.pdf"');
+      return res.send(pdfBuffer);
+    } catch (err) {
+      console.error("[template-previews] error:", err.message);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
   app.get("/stats", readOnlyRateLimit, async (req, res) => {
     try {
       const contractAddress = process.env.REGISTRY_CONTRACT_ADDRESS;
