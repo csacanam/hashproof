@@ -1,6 +1,7 @@
 {
   "name": "hashproof-mcp",
-  "version": "0.1.0",
+  "mcpName": "io.github.csacanam/hashproof",
+  "version": "0.1.1",
   "description": "MCP server for HashProof — issue verifiable credentials (diplomas, certificates, badges) from any AI agent for $0.10 USDC via x402 or an API key. Each credential is registered on-chain on Celo, pinned to IPFS, and verifiable by anyone via QR.",
   "type": "module",
   "bin": {

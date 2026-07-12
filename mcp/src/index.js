@@ -73,7 +73,7 @@ function errorText(message) {
 }
 
 // ---------------------------------------------------------------- server
-const server = new McpServer({ name: "hashproof", version: "0.1.0" });
+const server = new McpServer({ name: "hashproof", version: "0.1.1" });
 
 server.tool(
   "get_template_requirements",
