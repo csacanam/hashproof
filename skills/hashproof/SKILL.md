@@ -294,7 +294,7 @@ Important:
 - The QR code is drawn automatically in the top-right corner. Leave that area empty in the background.
 - Do NOT invent field positions — always ask your human for the exact coordinates or use the preview to verify.
 
-**If the human wants a custom template:** They provide the background image URL; the coordinates you can work out yourself. Use the **stateless inline preview** (below) to iterate: propose positions, render the PDF, and — if you can view PDFs/images — inspect the result and adjust until the layout is right. It's free and nothing is stored, so iterate as much as needed. Show the final preview to your human and **wait for their approval** before issuing (the template is created at issuance and cannot be edited afterwards). If you cannot view images, ask your human for the coordinates or send them preview links to check.
+**If the human wants a custom template:** They provide the background image URL; the coordinates you can work out yourself. First, measure the image: `page_width` and `page_height` MUST match its pixel dimensions — download it and check (e.g. `file bg.png` or any image tool); don't ask the human, they rarely know. Use the **stateless inline preview** (below) to iterate: propose positions, render the PDF, and — if you can view PDFs/images — inspect the result and adjust until the layout is right. It's free and nothing is stored, so iterate as much as needed. Show the final preview to your human and **wait for their approval** before issuing (the template is created at issuance and cannot be edited afterwards). If you cannot view images, ask your human for the coordinates or send them preview links to check.
 
 ### Preview an inline template (before it exists — iterate here)
 
