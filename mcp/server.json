@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
   "name": "io.github.csacanam/hashproof",
-  "description": "Issue verifiable credentials (diplomas, certificates, badges) from any AI agent for $0.10 USDC via x402 or an API key. Registered on-chain on Celo, pinned to IPFS, verifiable by anyone via QR.",
+  "description": "Issue verifiable credentials from AI agents for $0.10 via x402. On-chain on Celo, IPFS-pinned.",
   "repository": {
     "url": "https://github.com/csacanam/hashproof",
     "source": "github"
