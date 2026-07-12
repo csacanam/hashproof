@@ -4,7 +4,7 @@
   "description": "MCP server for HashProof — issue verifiable credentials (diplomas, certificates, badges) from any AI agent for $0.10 USDC via x402 or an API key. Each credential is registered on-chain on Celo, pinned to IPFS, and verifiable by anyone via QR.",
   "type": "module",
   "bin": {
-    "hashproof-mcp": "./src/index.js"
+    "hashproof-mcp": "src/index.js"
   },
   "files": [
     "src"
