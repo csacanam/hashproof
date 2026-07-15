@@ -37,6 +37,8 @@ claude mcp add hashproof -- npx -y hashproof-mcp
 
 The free tools (`get_template_requirements`, `preview_template`, `verify_credential`) work with **no configuration at all**.
 
+**No wallet yet?** Generate a dedicated EVM wallet for the agent (never reuse your main wallet), put its private key in `HASHPROOF_WALLET_PRIVATE_KEY`, and fund the address with a few USDC on Base or Celo ($0.10 per credential, gasless). Never paste the private key into a chat — write it straight into the config file. Agents: if `issue_credential` fails with "No payment method configured", walk the human through exactly this.
+
 ## Tools
 
 | Tool | Cost | What it does |
@@ -49,7 +51,7 @@ The free tools (`get_template_requirements`, `preview_template`, `verify_credent
 ## Typical flow
 
 1. Human: "issue completion certificates for my workshop, with our branding".
-2. Agent gets/generates a background image, measures it, proposes `fields_json`.
+2. Agent gets/generates a background image, gets it hosted at a **public URL** (there is no upload endpoint — own site, GitHub raw, S3/R2...; warn the human about this upfront), measures it, proposes `fields_json`.
 3. `preview_template` → agent inspects the PDF → adjusts → human approves the final preview.
 4. `issue_credential` once per recipient (first call carries the inline `template`, the rest reuse `template_slug`).
 5. Share each `verification_url` — the QR on the PDF points there.

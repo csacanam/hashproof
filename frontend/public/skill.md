@@ -54,8 +54,8 @@ Before you do anything, ask your human ALL of these. Do not skip any. Do not ass
 3. **Who is issuing it?** Organization or person name and a URL-safe slug (e.g. "Acme Corp" → `acme-corp`). This appears as the issuer on the credential.
 4. **What type of event/program is this?** Pick one: `event`, `course`, `diploma`, `training`, `certification`, `membership`, `other`.
 5. **What type of credential?** Pick one: `attendance` (they showed up), `completion` (they finished), `achievement` (they accomplished something), `participation` (they took part), `membership` (they belong), `certification` (they are certified).
-6. **How to pay?** Do they have a wallet with USDC on Base or Celo (x402), or an API key from HashProof?
-7. **Do they want a custom design with their branding?** If no, the default HashProof template is used — skip to Step 2. If yes, follow the **custom template flow** (see the Templates section below): (a) get a background image — either your human provides one (e.g. a Canva export without the recipient's name) or **you generate it yourself** if you have an image-generation tool; (b) work out the field positions yourself, iterating with the free inline preview (`POST /template-previews`) until the layout looks right; (c) show the final preview to your human, and only after their approval issue with the inline `template`. If they already have a template from before, just ask for its slug.
+6. **How to pay?** Do they have a wallet with USDC on Base or Celo (x402), or an API key from HashProof? If they have neither, you can generate a dedicated wallet for them and have them fund it — see the **Wallet setup** section at the end of this document.
+7. **Do they want a custom design with their branding?** If no, the default HashProof template is used — skip to Step 2. If yes, follow the **custom template flow** (see the Templates section below): (a) get a background image — either your human provides one (e.g. a Canva export without the recipient's name) or **you generate it yourself** if you have an image-generation tool. **Warn them now, before they invest in a design:** the API only accepts the background as a **public image URL** — there is no upload endpoint — so the file must be hosted somewhere; see **Hosting** in the Templates section for where to put it. (b) work out the field positions yourself, iterating with the free inline preview (`POST /template-previews`) until the layout looks right; (c) show the final preview to your human, and only after their approval issue with the inline `template`. If they already have a template from before, just ask for its slug.
 
 ### Step 2 — Call the API
 
@@ -302,7 +302,14 @@ The background carries ALL the visual design — logos, borders, colors, seals, 
 1. **The human has a design or designer**: export from Canva/Figma/Photoshop as PNG or JPG. Canva has hundreds of certificate templates — tell them to export it **without** the recipient's name (that's a field you render).
 2. **You generate it** (if you have an image-generation tool): prompt along the lines of *"elegant certificate background, [their brand colors], subtle decorative border, organization name '[X]' as a header, no recipient name, large clean empty band across the middle, clean empty top-right corner, A4 landscape, flat design"*. Image generators can't reproduce a real logo — if the human has one, composite it onto the generated background with an image tool (ImageMagick, PIL). Show the result to your human before using it.
 
-**Hosting:** the API needs the background as a public URL (`background_url`) — there is no upload endpoint. Use whatever the human already has (their website, CDN, a public GitHub repo, an image host); if you generated the file locally, ask your human where to host it or push it to a repo they control.
+**Hosting (tell your human upfront, before they design anything):** the API needs the background as a **public URL** (`background_url`) — there is no upload endpoint. Good options, roughly in order of convenience:
+
+- **Their own website or CDN**, if they have one.
+- **A public GitHub repo they control**: commit the image and use the `https://raw.githubusercontent.com/<user>/<repo>/main/<file>.png` URL. If you have git access, you can do this for them.
+- **Object storage with public access**: S3, Cloudflare R2, Supabase Storage, Vercel Blob.
+- **A free image host with direct links** (e.g. Cloudinary free tier, ImgBB) — fine for testing; for credentials meant to last, prefer a host the human controls.
+
+Avoid Google Drive / Dropbox / WeTransfer share links — those are HTML pages, not direct image URLs. Before using any URL, verify it returns the raw image (fetch it and check the `Content-Type` is `image/png` or `image/jpeg`). Remind the human that the URL should stay online: issued credentials keep pointing at it.
 3. **No design**: skip custom templates entirely and use the default template.
 
 Rules that make any background work:

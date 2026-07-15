@@ -59,7 +59,8 @@ async function getPaidFetch() {
   }
 
   throw new Error(
-    "No payment method configured. Set HASHPROOF_API_KEY (prepaid credits) or HASHPROOF_WALLET_PRIVATE_KEY (USDC on Base or Celo, x402).",
+    "No payment method configured. Set HASHPROOF_API_KEY (prepaid credits) or HASHPROOF_WALLET_PRIVATE_KEY (USDC on Base or Celo, x402) in this MCP server's env. " +
+      "If the human has no wallet yet: generate a dedicated EVM wallet (never reuse their main wallet), write the private key directly into the MCP config env — NEVER show it in chat — share only the address, ask them to fund it with at least 0.10 USDC on Base or Celo, then restart the MCP server.",
   );
 }
 
@@ -91,7 +92,13 @@ server.tool(
   "preview_template",
   "Render a watermarked preview PDF from an INLINE template definition — free, nothing stored, no payment. Use this to iterate field positions (x, y, width, font_size) until the layout is right, then show the final PDF to the human for approval before issuing. page_width/page_height MUST match the background image's pixel dimensions. The PDF is written to a local file; if you can read PDFs, inspect it and adjust yourself.",
   {
-    background_url: z.string().url().optional().describe("Public URL of the background image (PNG/JPG)"),
+    background_url: z
+      .string()
+      .url()
+      .optional()
+      .describe(
+        "Public URL of the background image (PNG/JPG). There is no upload endpoint — the image must already be hosted (own site/CDN, GitHub raw URL, S3/R2, Cloudinary...). Tell the human this upfront. Share links (Google Drive/Dropbox) don't work; the URL must return the raw image.",
+      ),
     page_width: z.number().describe("Page width in px — must match the background image"),
     page_height: z.number().describe("Page height in px — must match the background image"),
     fields_json: z
@@ -124,7 +131,7 @@ server.tool(
 
 server.tool(
   "issue_credential",
-  "Issue a verifiable credential — COSTS $0.10 USDC (x402) or 1 API-key credit per call. Get explicit human approval before calling. The body follows the HashProof issueCredential schema: issuer{display_name,slug}, platform{display_name,slug}, holder{full_name}, context{type,title}, credential_type, title, values{...}, and optionally template_slug OR an inline template{...} (send only one). Returns id, verification_url, tx_hash and ipfs_cid. Full reference: https://hashproof.dev/skill.md",
+  "Issue a verifiable credential — COSTS $0.10 USDC (x402) or 1 API-key credit per call. Get explicit human approval before calling. Requires HASHPROOF_API_KEY or HASHPROOF_WALLET_PRIVATE_KEY in the MCP server env (if neither is set, the error explains how to set up a dedicated wallet). The body follows the HashProof issueCredential schema: issuer{display_name,slug}, platform{display_name,slug}, holder{full_name}, context{type,title}, credential_type, title, values{...}, and optionally template_slug OR an inline template{...} (send only one). Returns id, verification_url, tx_hash and ipfs_cid. Full reference: https://hashproof.dev/skill.md",
   {
     body: z
       .record(z.any())

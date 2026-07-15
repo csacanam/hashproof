@@ -412,15 +412,18 @@ export function createApp(options = {}) {
       const qrDataUrl = await QRCode.toDataURL(previewUrl, { width: qrSize });
       doc.image(qrDataUrl, qrX, qrY, { width: qrSize, height: qrSize });
 
-      // Watermark: diagonal "PREVIEW" / "VISTA PREVIA"
+      // Watermark: diagonal "PREVIEW" / "VISTA PREVIA".
+      // Dark fill + white outline so it reads on light AND dark backgrounds.
       const watermarkText = locale === "es" ? "VISTA PREVIA" : "PREVIEW";
       doc.save();
       doc.translate(page_width / 2, page_height / 2);
       doc.rotate(-45);
       const wmFontSize = Math.round(page_width * 0.12);
-      doc.font("Helvetica-Bold").fontSize(wmFontSize).fillColor("#000000").opacity(0.12);
+      doc.font("Helvetica-Bold").fontSize(wmFontSize);
       const wmWidth = doc.widthOfString(watermarkText);
-      doc.text(watermarkText, -wmWidth / 2, -wmFontSize / 2, { lineBreak: false });
+      doc.lineWidth(Math.max(2, Math.round(wmFontSize * 0.025)));
+      doc.fillColor("#000000", 0.16).strokeColor("#ffffff", 0.5);
+      doc.text(watermarkText, -wmWidth / 2, -wmFontSize / 2, { lineBreak: false, fill: true, stroke: true });
       doc.restore();
 
       doc.end();
@@ -527,15 +530,18 @@ export function createApp(options = {}) {
       const qrDataUrl = await QRCode.toDataURL(baseUrl, { width: qrSize });
       doc.image(qrDataUrl, qrX, qrY, { width: qrSize, height: qrSize });
 
-      // Watermark: diagonal "PREVIEW" / "VISTA PREVIA"
+      // Watermark: diagonal "PREVIEW" / "VISTA PREVIA".
+      // Dark fill + white outline so it reads on light AND dark backgrounds.
       const watermarkText = locale === "es" ? "VISTA PREVIA" : "PREVIEW";
       doc.save();
       doc.translate(pageWidth / 2, pageHeight / 2);
       doc.rotate(-45);
       const wmFontSize = Math.round(pageWidth * 0.12);
-      doc.font("Helvetica-Bold").fontSize(wmFontSize).fillColor("#000000").opacity(0.12);
+      doc.font("Helvetica-Bold").fontSize(wmFontSize);
       const wmWidth = doc.widthOfString(watermarkText);
-      doc.text(watermarkText, -wmWidth / 2, -wmFontSize / 2, { lineBreak: false });
+      doc.lineWidth(Math.max(2, Math.round(wmFontSize * 0.025)));
+      doc.fillColor("#000000", 0.16).strokeColor("#ffffff", 0.5);
+      doc.text(watermarkText, -wmWidth / 2, -wmFontSize / 2, { lineBreak: false, fill: true, stroke: true });
       doc.restore();
 
       doc.end();
