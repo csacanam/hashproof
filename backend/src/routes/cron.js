@@ -12,6 +12,7 @@ import { Router } from "express";
 import { ethers } from "ethers";
 import { CHAIN_CONFIG } from "../utils/chains.js";
 import { getCeloProvider } from "../utils/celoProvider.js";
+import { getBaseNativeBalance } from "../utils/baseBalance.js";
 import { sendTelegramAlert } from "../utils/notify.js";
 import {
   SETTLER_CELO_WARNING,
@@ -96,12 +97,13 @@ export function createCronRouter() {
   router.get("/health", async (_req, res) => {
     try {
       const celoProvider = getCeloProvider();
-      const baseProvider = new ethers.JsonRpcProvider(CHAIN_CONFIG.base.getRpcUrl());
 
-      // Step 1: Fetch native balances in parallel
+      // Step 1: Fetch native balances in parallel.
+      // Base uses a multi-RPC max read (getBaseNativeBalance) to avoid the public
+      // Base RPC's transient "0 balance" glitch triggering false low-balance alerts.
       const [settlerCeloRaw, settlerBaseRaw, registryCeloRaw] = await Promise.all([
         celoProvider.getBalance(settlerAddress),
-        baseProvider.getBalance(settlerAddress),
+        getBaseNativeBalance(settlerAddress),
         celoProvider.getBalance(registryAddress),
       ]);
 
@@ -222,11 +224,10 @@ export function createCronRouter() {
   router.get("/test-alerts", async (_req, res) => {
     try {
       const celoProvider = getCeloProvider();
-      const baseProvider = new ethers.JsonRpcProvider(CHAIN_CONFIG.base.getRpcUrl());
 
       const [settlerCeloRaw, settlerBaseRaw, registryCeloRaw] = await Promise.all([
         celoProvider.getBalance(settlerAddress),
-        baseProvider.getBalance(settlerAddress),
+        getBaseNativeBalance(settlerAddress),
         celoProvider.getBalance(registryAddress),
       ]);
 
