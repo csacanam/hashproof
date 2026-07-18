@@ -17,6 +17,70 @@ const REGISTRY_ABI = [
   "function register(string credentialId, string cid, uint256 issuedAt, uint256 validUntil) external",
 ];
 
+// Serialize on-chain issuance within this process: a single registry wallet is
+// reused across concurrent requests, so parallel calls would otherwise resolve
+// the same "pending" nonce and collide (REPLACEMENT_UNDERPRICED). Chaining every
+// register on this promise guarantees one tx is confirmed before the next builds
+// its nonce. (Across multiple App Engine instances this isn't enough on its own,
+// which is why sendRegisterTx also retries with a refreshed nonce + bumped gas.)
+let issuanceQueue = Promise.resolve();
+
+// Errors that mean the nonce collided or the tx is stuck; safe to rebuild + resend.
+function isNonceCollision(err) {
+  const code = err?.code;
+  if (code === "REPLACEMENT_UNDERPRICED" || code === "NONCE_EXPIRED") return true;
+  const msg = (err?.message || err?.info?.error?.message || "").toLowerCase();
+  return (
+    msg.includes("replacement transaction underpriced") ||
+    msg.includes("replacement fee too low") ||
+    msg.includes("nonce too low") ||
+    msg.includes("already known")
+  );
+}
+
+// Bump a fee value by ~25% (min +10% is required to replace; 25% gives margin).
+function bumpFee(value) {
+  return (value * 125n) / 100n;
+}
+
+async function sendRegisterTx(registry, provider, wallet, args) {
+  const MAX_ATTEMPTS = 4;
+  const feeData = await provider.getFeeData();
+  let maxFeePerGas = feeData.maxFeePerGas ?? feeData.gasPrice ?? undefined;
+  let maxPriorityFeePerGas = feeData.maxPriorityFeePerGas ?? undefined;
+  let nonce = await provider.getTransactionCount(wallet.address, "pending");
+
+  let lastErr;
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    try {
+      const overrides = { nonce };
+      if (maxFeePerGas !== undefined && maxPriorityFeePerGas !== undefined) {
+        overrides.maxFeePerGas = maxFeePerGas;
+        overrides.maxPriorityFeePerGas = maxPriorityFeePerGas;
+      } else if (maxFeePerGas !== undefined) {
+        overrides.gasPrice = maxFeePerGas;
+      }
+      const tx = await registry.register(args.credentialId, args.cid, args.issuedAt, args.validUntil, overrides);
+      const receipt = await tx.wait(1);
+      if (!receipt || receipt.status !== 1) {
+        throw new Error("On-chain transaction reverted");
+      }
+      return tx.hash;
+    } catch (err) {
+      lastErr = err;
+      if (!isNonceCollision(err) || attempt === MAX_ATTEMPTS - 1) throw err;
+      // Refresh nonce from the network and bump fees before retrying.
+      nonce = await provider.getTransactionCount(wallet.address, "pending");
+      if (maxFeePerGas !== undefined) maxFeePerGas = bumpFee(maxFeePerGas);
+      if (maxPriorityFeePerGas !== undefined) maxPriorityFeePerGas = bumpFee(maxPriorityFeePerGas);
+      console.warn(
+        `[issueCredential] nonce collision (${err?.code || "?"}), retry ${attempt + 1}/${MAX_ATTEMPTS} with nonce=${nonce}`,
+      );
+    }
+  }
+  throw lastErr;
+}
+
 async function registerOnChain({ credentialId, cid, issuedAt, validUntil }) {
   if (process.env.SKIP_CHAIN === "true") {
     return `0x${crypto.randomBytes(32).toString("hex")}`;
@@ -28,16 +92,20 @@ async function registerOnChain({ credentialId, cid, issuedAt, validUntil }) {
   if (!contractAddress) throw new Error("REGISTRY_CONTRACT_ADDRESS missing");
   if (!pk) throw new Error("REGISTRY_PRIVATE_KEY missing");
 
-  const provider = getCeloProvider();
-  const wallet = new Wallet(pk, provider);
-  const registry = new Contract(contractAddress, REGISTRY_ABI, wallet);
-
-  const tx = await registry.register(credentialId, cid, issuedAt, validUntil);
-  const receipt = await tx.wait(1);
-  if (!receipt || receipt.status !== 1) {
-    throw new Error("On-chain transaction reverted");
-  }
-  return tx.hash;
+  // Run inside the serialization queue so only one issuance tx is in flight at
+  // a time (per process). Failures don't break the chain for the next caller.
+  const run = issuanceQueue.then(async () => {
+    const provider = getCeloProvider();
+    const wallet = new Wallet(pk, provider);
+    const registry = new Contract(contractAddress, REGISTRY_ABI, wallet);
+    return sendRegisterTx(registry, provider, wallet, { credentialId, cid, issuedAt, validUntil });
+  });
+  // Keep the queue alive regardless of this call's outcome.
+  issuanceQueue = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
 }
 
 /**

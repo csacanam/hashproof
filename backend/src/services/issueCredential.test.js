@@ -45,6 +45,16 @@ vi.mock("./pinata.js", () => ({
   unpinCid: vi.fn().mockResolvedValue(true),
 }));
 
+vi.mock("../utils/celoProvider.js", () => ({
+  getCeloProvider: vi.fn(() => ({
+    getFeeData: vi.fn().mockResolvedValue({
+      maxFeePerGas: 1000000000n,
+      maxPriorityFeePerGas: 1000000000n,
+    }),
+    getTransactionCount: vi.fn().mockResolvedValue(0),
+  })),
+}));
+
 vi.mock("ethers", () => {
   const Contract = vi.fn().mockImplementation(() => ({
     register: vi.fn().mockResolvedValue({
