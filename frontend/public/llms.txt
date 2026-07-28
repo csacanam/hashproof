@@ -12,6 +12,7 @@ Key facts:
 ## Docs
 
 - [Agent skill (complete integration guide)](https://hashproof.dev/skill.md): step-by-step for AI agents — payment options, templates, request reference, errors
+- [MCP server](https://github.com/csacanam/hashproof/blob/main/mcp/README.md): same operations as MCP tools — remote at `https://api.hashproof.dev/mcp` (Streamable HTTP, API key to issue) or local via `npx -y hashproof-mcp` (x402 with your own wallet)
 - [Documentation](https://hashproof.dev/docs): human-readable docs
 - [Agent metadata (ERC-8004 registration-v1)](https://hashproof.dev/metadata.json): identity, services, capabilities
 - [Service descriptor (JSON)](https://api.hashproof.dev/): endpoints and prices

@@ -11,6 +11,8 @@ Issue verifiable credentials with one API call. $0.10 USDC per credential via x4
 **Base URL:** `https://api.hashproof.dev`
 **Docs:** `https://hashproof.dev/docs`
 
+**Prefer MCP over raw HTTP?** The same four operations are exposed as an MCP server, either remote at `https://api.hashproof.dev/mcp` (Streamable HTTP, nothing to install, needs an API key to issue) or local via `npx -y hashproof-mcp` (can pay per credential with x402 from your own wallet). Everything below still applies — the MCP tools are thin wrappers over these endpoints. See [mcp/README.md](https://github.com/csacanam/hashproof/blob/main/mcp/README.md).
+
 **IMPORTANT:** Never invent, guess, or fabricate any data — names, slugs, dates, field values, or anything else. If the human hasn't provided it, ask. If an answer is ambiguous, ask a follow-up question. Do NOT fill in placeholders with made-up values. **One deliberate exception:** template field *coordinates* are yours to work out — propose them and validate with the free inline preview (never ask the human for x/y values), getting their approval on the final preview before issuing.
 
 ---

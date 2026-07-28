@@ -51,13 +51,17 @@ Payment is in USDC on Base or Celo via x402. The client signs an off-chain autho
 
 HashProof is fully agent-usable — no account, no human onboarding. Three ways in:
 
-- **MCP server** (listed on the [official MCP registry](https://registry.modelcontextprotocol.io) as `io.github.csacanam/hashproof`):
+- **MCP server**, local or remote (listed on the [official MCP registry](https://registry.modelcontextprotocol.io) as `io.github.csacanam/hashproof`):
 
   ```bash
+  # local (stdio) — pays per credential with your own wallet via x402, or an API key
   claude mcp add hashproof -- npx -y hashproof-mcp
+
+  # remote (Streamable HTTP) — nothing to install, API key required to issue
+  claude mcp add --transport http hashproof https://api.hashproof.dev/mcp
   ```
 
-  Tools: `preview_template` (free — iterate custom layouts, PDF saved locally), `issue_credential` ($0.10 via x402 or API key), `verify_credential` and `get_template_requirements` (free). See [`mcp/README.md`](mcp/README.md).
+  Tools: `preview_template` (free — iterate custom layouts), `issue_credential` ($0.10 via x402 or API key), `verify_credential` and `get_template_requirements` (free). The remote server has no wallet, so it can't do x402 — it needs `Authorization: Bearer <api-key>`. See [`mcp/README.md`](mcp/README.md).
 
 - **Agent skill**: `npx skills add csacanam/hashproof` — or read it at [hashproof.dev/skill.md](https://hashproof.dev/skill.md).
 - **Plain HTTP + x402**: `POST /issueCredential` returns a 402 challenge any x402-v2 client can pay (USDC on Base or Celo). LLM index: [hashproof.dev/llms.txt](https://hashproof.dev/llms.txt).

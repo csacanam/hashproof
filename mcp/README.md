@@ -2,7 +2,17 @@
 
 MCP server for [HashProof](https://hashproof.dev) — issue verifiable credentials (diplomas, certificates, badges) from any AI agent for $0.10 USDC via x402 or an API key. Each credential is registered on-chain on Celo, pinned to IPFS, and comes with a PDF + QR anyone can verify for free.
 
-## Install
+## Two ways to connect
+
+| | **Local (stdio)** — this package | **Remote (HTTP)** — `https://api.hashproof.dev/mcp` |
+|---|---|---|
+| Install | `npx -y hashproof-mcp` | nothing to install |
+| Paying for `issue_credential` | your own wallet, $0.10 USDC via x402 — or an API key | **API key only** |
+| `preview_template` output | PDF written to a local file | PDF returned inline (base64, max 800 KB) |
+
+The remote server has no wallet and cannot pay on your behalf, so it can't do x402. Use the local server if you want to pay per credential with USDC; use the remote one if you have a prepaid API key and don't want to run anything.
+
+## Install — local (stdio)
 
 **Claude Code:**
 
@@ -26,6 +36,32 @@ claude mcp add hashproof -- npx -y hashproof-mcp
 }
 ```
 
+## Install — remote (Streamable HTTP)
+
+**Claude Code:**
+
+```bash
+claude mcp add --transport http hashproof https://api.hashproof.dev/mcp
+```
+
+**Any MCP client**, with an API key so `issue_credential` works:
+
+```json
+{
+  "mcpServers": {
+    "hashproof": {
+      "type": "http",
+      "url": "https://api.hashproof.dev/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
+
+Without that header the three free tools still work; `issue_credential` returns an error explaining how to authenticate.
+
 ## Configuration
 
 | Env var | Required | Description |
@@ -34,6 +70,8 @@ claude mcp add hashproof -- npx -y hashproof-mcp
 | `HASHPROOF_WALLET_PRIVATE_KEY` | one of the two | EVM key of a wallet holding USDC — pays $0.10 per issuance via x402, gasless. Use a dedicated wallet with minimal funds. |
 | `HASHPROOF_X402_NETWORK` | no | `base` (default) or `celo` — where your USDC lives. |
 | `HASHPROOF_API_BASE` | no | Default `https://api.hashproof.dev`. |
+
+These env vars apply to the local (stdio) server. The remote server is configured through HTTP headers instead — send `Authorization: Bearer <api-key>`.
 
 The free tools (`get_template_requirements`, `preview_template`, `verify_credential`) work with **no configuration at all**.
 
@@ -44,7 +82,7 @@ The free tools (`get_template_requirements`, `preview_template`, `verify_credent
 | Tool | Cost | What it does |
 |---|---|---|
 | `get_template_requirements` | free | Required fields + layout of an existing template |
-| `preview_template` | free | Watermarked PDF from an **inline** template — iterate field positions without paying or storing anything; the PDF is saved locally so vision-capable agents can inspect and adjust |
+| `preview_template` | free | Watermarked PDF from an **inline** template — iterate field positions without paying or storing anything; saved locally (stdio) or returned inline as base64 (remote) so vision-capable agents can inspect and adjust |
 | `issue_credential` | $0.10 | Issue one credential: registered on Celo, pinned to IPFS, returns `verification_url` |
 | `verify_credential` | free | 3-layer verification (database, IPFS, blockchain) of any credential id |
 
