@@ -24,6 +24,7 @@ import { isPlatformAuthorized, upsertIssuerAuthorization } from "./services/issu
 import { supabase } from "./supabase.js";
 import { CHAIN_CONFIG } from "./utils/chains.js";
 import { createCronRouter } from "./routes/cron.js";
+import { createMcpRouter } from "./routes/mcp.js";
 import { Buffer } from "node:buffer";
 import { generateCredentialPdf } from "./services/generatePdf.js";
 import {
@@ -865,6 +866,9 @@ export function createApp(options = {}) {
 
   // ── Cron / monitoring ──────────────────────────────────────────────────
   app.use("/cron", createCronRouter());
+
+  // ── Remote MCP (Streamable HTTP) ───────────────────────────────────────
+  app.use("/mcp", createMcpRouter());
 
   app.get("/", readOnlyRateLimit, (_req, res) => {
     res.json({
