@@ -5,6 +5,7 @@
 import PDFDocument from "pdfkit";
 import QRCode from "qrcode";
 import { supabase } from "../supabase.js";
+import { getBackgroundImage } from "./backgroundCache.js";
 
 export async function generateCredentialPdf(credentialId, baseUrl) {
   const { data: cred, error } = await supabase
@@ -44,14 +45,11 @@ export async function generateCredentialPdf(credentialId, baseUrl) {
 
     try {
       if (background_url) {
-        try {
-          const res = await fetch(background_url);
-          if (res.ok) {
-            const buf = Buffer.from(await res.arrayBuffer());
-            doc.image(buf, 0, 0, { width: page_width, height: page_height });
-          }
-        } catch (bgErr) {
-          console.warn("[generatePdf] background fetch failed:", bgErr.message);
+        // Cached across credentials: everyone at the same event shares one
+        // background, and re-downloading it per PDF was the main cost here.
+        const buf = await getBackgroundImage(background_url);
+        if (buf) {
+          doc.image(buf, 0, 0, { width: page_width, height: page_height });
         }
       }
 

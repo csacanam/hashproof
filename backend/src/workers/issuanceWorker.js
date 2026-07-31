@@ -19,6 +19,8 @@ import {
 } from "../services/issuanceJobs.js";
 import { executeIssueCredential } from "../services/issueCredential.js";
 import { addCredits } from "../services/apiKeys.js";
+import { generateCredentialPdf } from "../services/generatePdf.js";
+import { storePdf } from "../services/pdfStore.js";
 
 const POLL_INTERVAL_MS = Number(process.env.ISSUANCE_WORKER_POLL_MS) || 1_000;
 const CONCURRENCY = Number(process.env.ISSUANCE_WORKER_CONCURRENCY) || 8;
@@ -33,10 +35,26 @@ let inFlight = 0;
 let consecutiveClaimErrors = 0;
 
 /** Run one job to completion, translating the outcome into a queue transition. */
+/**
+ * Render and store the certificate PDF ahead of the download.
+ *
+ * Fired after the job is marked complete, not before: the spinner should clear
+ * as soon as the credential is sealed. By the time someone clicks download the
+ * PDF is usually already stored, and if they beat us to it the endpoint renders
+ * on demand anyway.
+ */
+function prewarmPdf(credentialId) {
+  const baseUrl = process.env.BASE_URL || "https://hashproof.example.com";
+  generateCredentialPdf(credentialId, baseUrl)
+    .then((pdf) => (pdf ? storePdf(credentialId, pdf) : null))
+    .catch((err) => console.warn(`[issuance-worker] pdf prewarm failed for ${credentialId}:`, err.message));
+}
+
 async function processJob(job) {
   try {
     const result = await executeIssueCredential(job.payload);
     await completeIssuanceJob(job.id, result.id);
+    prewarmPdf(result.id);
     return { ok: true };
   } catch (err) {
     const message = err?.message || String(err);

@@ -28,6 +28,7 @@ import { createCronRouter } from "./routes/cron.js";
 import { createMcpRouter } from "./routes/mcp.js";
 import { Buffer } from "node:buffer";
 import { generateCredentialPdf } from "./services/generatePdf.js";
+import { getStoredPdf, storePdf } from "./services/pdfStore.js";
 import {
   runVerificationPipeline,
   verifyContractOnly,
@@ -342,10 +343,23 @@ export function createApp(options = {}) {
 
   app.get("/verify/:id/pdf", readOnlyRateLimit, async (req, res) => {
     try {
-      const pdf = await generateCredentialPdf(req.params.id, baseUrl);
+      // A certificate is immutable, so it is rendered once and kept. Rendering
+      // per download capped throughput at ~4.6/s, which is what an event with
+      // hundreds of simultaneous downloads runs straight into.
+      let pdf = await getStoredPdf(req.params.id);
+
       if (!pdf) {
-        return res.status(404).json({ error: "Credential not found" });
+        pdf = await generateCredentialPdf(req.params.id, baseUrl);
+        if (!pdf) {
+          return res.status(404).json({ error: "Credential not found" });
+        }
+        // Not awaited: storing is an optimisation for later downloads, and the
+        // person waiting for this one shouldn't pay for it.
+        storePdf(req.params.id, pdf).catch((err) =>
+          console.warn("[verify/pdf] store failed:", err.message),
+        );
       }
+
       const inline = req.query.inline === "1";
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader(
@@ -354,6 +368,8 @@ export function createApp(options = {}) {
           ? `inline; filename="credential-${req.params.id}.pdf"`
           : `attachment; filename="credential-${req.params.id}.pdf"`
       );
+      // Immutable content: let the CDN absorb repeat downloads entirely.
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
       return res.send(pdf);
     } catch (err) {
       console.error("[verify/pdf] error:", err.message);
