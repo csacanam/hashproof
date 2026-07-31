@@ -14,7 +14,8 @@ import cors from "cors";
 import rateLimit from "express-rate-limit";
 import { ISSUE_CREDENTIAL_PRICE_USD, ENTITY_VERIFICATION_PRICE_USD } from "./utils/constants.js";
 import { createThirdwebPaymentMiddleware } from "./middleware/thirdwebPayment.js";
-import { executeIssueCredential, getIssuanceLoad } from "./services/issueCredential.js";
+import { executeIssueCredential, getIssuanceLoad, validateIssuancePayload } from "./services/issueCredential.js";
+import { createIssuanceJob, getIssuanceJob } from "./services/issuanceJobs.js";
 import { getCredentialById } from "./services/getCredential.js";
 import { getEntityById } from "./services/getEntity.js";
 import { createVerificationRequest } from "./services/createVerificationRequest.js";
@@ -80,9 +81,16 @@ export function createApp(options = {}) {
   // at 100s. A 524 is indistinguishable from a failure to the client, so it
   // retries and issues the credential twice. Runs ahead of paymentMw so nobody
   // is charged for a request we reject.
-  // Measured at ~110ms per credential through the broadcast lock, so 500 queued
-  // means ~55s for the last one — comfortably inside the CDN's 100s cutoff.
-  const MAX_ISSUANCE_QUEUE = Number(process.env.MAX_ISSUANCE_QUEUE) || 500;
+  // Sized against the proxy's cutoff, not the CDN's. A 250-request burst showed
+  // every success landing under 24.1s and every failure at 25.4s, so the gateway
+  // gives up around 25s. At ~110ms per credential through the broadcast lock,
+  // 180 queued is ~20s for the last one — it gets an answer just before the
+  // proxy would have killed it.
+  //
+  // Shedding early is what a client wants here: a 429 arrives immediately and
+  // definitely did not issue anything, whereas a 504 arrives after 25s and may
+  // well have issued the credential anyway, which is how duplicates happen.
+  const MAX_ISSUANCE_QUEUE = Number(process.env.MAX_ISSUANCE_QUEUE) || 180;
 
   app.use((req, res, next) => {
     if (!(req.method === "POST" && req.path === "/issueCredential")) return next();
@@ -234,6 +242,42 @@ export function createApp(options = {}) {
         }
       }
 
+      // Async path: answer now, issue in the background. Opt-in, so existing
+      // clients (and x402 agents that want the proof in one call) are unchanged.
+      // Holding the connection open until the chain confirms is what made bursts
+      // die on proxy timeouts and pushed users into clicking again.
+      const wantsAsync =
+        payload.async === true || (req.get("prefer") || "").toLowerCase().includes("respond-async");
+
+      if (wantsAsync) {
+        // Reject malformed payloads while the caller is still here, rather than
+        // accepting and failing later where they'd have to poll to find out.
+        validateIssuancePayload(payload);
+
+        const idempotencyKey = req.get("idempotency-key") || payload.idempotency_key || null;
+        const { job, created } = await createIssuanceJob({
+          payload,
+          issuerEntityId: payload.issuer_entity_id ?? null,
+          apiKeyId: req.apiKey?.id ?? null,
+          idempotencyKey,
+        });
+
+        // Only charge for work we actually queued: a repeat click that collapses
+        // onto an existing job must not cost another credit.
+        if (created && req.apiKey) {
+          const deduct = await deductCredit(req.apiKey.id);
+          if (!deduct.ok) {
+            console.error("[issueCredential] API key credit deduction failed — keyId:", req.apiKey.id);
+          }
+        }
+
+        return res.status(202).json({
+          job_id: job.id,
+          status: job.status,
+          status_url: `${baseUrl.replace(/\/$/, "")}/issuanceJobs/${job.id}`,
+        });
+      }
+
       const result = await executeIssueCredential(payload);
 
       if (req.apiKey) {
@@ -253,6 +297,46 @@ export function createApp(options = {}) {
           ? 400
           : 500;
       return res.status(status).json({ error: err.message });
+    }
+  });
+
+  /**
+   * Status of an async issuance. This is what a "generating your certificate…"
+   * spinner polls; once status is "completed" the download links are live.
+   *
+   * Deliberately cheap and not rate-limited like the read-only routes: hundreds
+   * of attendees polling at the end of an event is the expected load, not abuse.
+   */
+  app.get("/issuanceJobs/:id", async (req, res) => {
+    try {
+      const job = await getIssuanceJob(req.params.id);
+      if (!job) return res.status(404).json({ error: "Job not found" });
+
+      const body = { id: job.id, status: job.status };
+
+      if (job.status === "completed" && job.credential_id) {
+        const base = baseUrl.replace(/\/$/, "");
+        body.credential = {
+          id: job.credential_id,
+          verification_url: `${base}/verify/${job.credential_id}`,
+          pdf_url: `${base}/verify/${job.credential_id}/pdf`,
+        };
+      }
+
+      if (job.status === "failed") {
+        body.error = job.last_error || "Issuance failed";
+      }
+
+      // Surface that a retry is pending so a client can distinguish "still
+      // working" from "stuck", without exposing internals.
+      if (job.status !== "completed" && job.attempts > 1) {
+        body.attempts = job.attempts;
+      }
+
+      return res.json(body);
+    } catch (err) {
+      console.error("[issuanceJobs] error:", err.message);
+      return res.status(500).json({ error: err.message });
     }
   });
 

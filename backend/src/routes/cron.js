@@ -14,6 +14,7 @@ import { CHAIN_CONFIG } from "../utils/chains.js";
 import { getCeloProvider } from "../utils/celoProvider.js";
 import { getBaseNativeBalance } from "../utils/baseBalance.js";
 import { sendTelegramAlert } from "../utils/notify.js";
+import { getQueueStats } from "../services/issuanceJobs.js";
 import {
   SETTLER_CELO_WARNING,
   SETTLER_CELO_CRITICAL,
@@ -23,6 +24,9 @@ import {
   REGISTRY_CELO_CRITICAL,
   STATUS_REPORT_INTERVAL,
 } from "../utils/constants.js";
+
+// A job pending longer than this means the queue is not draining, not that it is busy.
+const STUCK_QUEUE_SECONDS = Number(process.env.STUCK_QUEUE_SECONDS) || 600;
 
 const ERC20_BALANCE_ABI = ["function balanceOf(address) view returns (uint256)"];
 
@@ -197,10 +201,32 @@ export function createCronRouter() {
         statusSent = true;
       }
 
+      // Step 5b: Issuance queue health.
+      // An accepted certificate must end up sealed on-chain. A queue that stops
+      // draining means people are waiting on certificates they already asked for,
+      // so it gets the same treatment as a wallet running dry.
+      let queue = null;
+      try {
+        queue = await getQueueStats();
+        if (queue.oldest_pending_seconds > STUCK_QUEUE_SECONDS) {
+          const minutes = Math.round(queue.oldest_pending_seconds / 60);
+          await sendTelegramAlert(
+            "issuance_queue_stuck",
+            `⚠️ Cola de emisión atascada\n\n` +
+              `Pendientes: ${queue.queued} en cola, ${queue.processing} procesando\n` +
+              `El más antiguo lleva ${minutes} min esperando.\n\n` +
+              `Hay certificados emitidos sin registrar on-chain.`,
+          );
+        }
+      } catch (queueErr) {
+        console.error("[cron/health] queue stats failed:", queueErr.message);
+      }
+
       // Step 6: JSON response
       res.json({
         ok: true,
         timestamp: new Date().toISOString(),
+        issuance_queue: queue,
         settler: {
           address: settlerAddress,
           celo: { balance: settlerCelo, healthy: settlerCelo >= SETTLER_CELO_WARNING },

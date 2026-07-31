@@ -7,6 +7,7 @@
 
 import "dotenv/config";
 import { createApp } from "./app.js";
+import { startIssuanceWorker, stopIssuanceWorker } from "./workers/issuanceWorker.js";
 
 const PORT = process.env.PORT || 4022;
 const SKIP_PAYMENT = process.env.SKIP_PAYMENT === "true";
@@ -43,3 +44,19 @@ const app = createApp({ skipPayment: SKIP_PAYMENT });
 app.listen(PORT, () => {
   console.log(`HashProof API listening at http://localhost:${PORT}`);
 });
+
+// Drain the durable issuance queue. Starting it here (not in createApp) keeps
+// tests from spawning a live worker. Jobs left behind by a previous container
+// are reclaimed automatically once their lease expires.
+if (process.env.ISSUANCE_WORKER_ENABLED !== "false") {
+  startIssuanceWorker();
+}
+
+for (const signal of ["SIGTERM", "SIGINT"]) {
+  process.on(signal, () => {
+    // Stop claiming new work; in-flight jobs keep their lease and are reclaimed
+    // by whichever instance is alive if this one goes away mid-issuance.
+    stopIssuanceWorker();
+    process.exit(0);
+  });
+}

@@ -12,6 +12,7 @@ By default, HashProof uses **x402** (USDC) and there is **no API key**. For ente
 |--------|------|------|-------------|
 | GET | `/` | — | Service info |
 | POST | `/issueCredential` | x402 $0.10 USDC **or** API key (prepaid) | Issue one credential |
+| GET | `/issuanceJobs/:id` | — | Status of an async issuance |
 | GET | `/verify/:id` | — | Full verification (contract + IPFS + DB) |
 | GET | `/verify/:id/contract` | — | Blockchain-only status |
 | GET | `/verify/:id/ipfs` | — | IPFS vs DB integrity check |
@@ -228,6 +229,75 @@ Dimensions are used as-is (no conversion). Use the **same values as your design 
 Inline templates are **create-only**. If a template with the same `slug` already exists, the request is rejected with:
 
 - `Template already exists. Use template_slug or template_id.`
+
+### Asynchronous issuance
+
+By default the request stays open until the credential is registered on-chain, which takes a few seconds. That is fine for one-off calls, but it does not hold up when many people request a certificate at once — the connection can hit a proxy timeout, and a client that reads the timeout as a failure will retry and issue a duplicate.
+
+Send `"async": true` in the body (or the header `Prefer: respond-async`) to get an immediate answer and let the issuance run in the background:
+
+```json
+{
+  "async": true,
+  "issuer":   { "display_name": "Peewah", "slug": "peewah" },
+  "platform": { "display_name": "Peewah", "slug": "peewah" },
+  "holder":   { "full_name": "Diana Prieto" },
+  "context":  { "type": "event", "title": "Gran Evento IA" },
+  "credential_type": "attendance",
+  "title": "Certificado de Asistencia",
+  "values": { "holder_name": "Diana Prieto" }
+}
+```
+
+Response `202 Accepted`:
+
+```json
+{
+  "job_id": "0f1c…",
+  "status": "queued",
+  "status_url": "https://api.hashproof.dev/issuanceJobs/0f1c…"
+}
+```
+
+Poll `status_url` until `status` is `completed`, then use the returned links. A credit is charged when the job is queued, and refunded if it fails permanently.
+
+**Idempotency.** Send an `Idempotency-Key` header (or `idempotency_key` in the body) that identifies the certificate — for example `attendee-42-event-7`. Repeat requests with the same key return the **same job** instead of issuing another credential, so a user clicking "generate" several times gets one certificate and is charged once. Without a key, every call issues a new credential.
+
+Errors that cannot succeed on retry (missing fields, unauthorized issuer) are rejected with `400` before the job is queued. Everything else — RPC outages, network problems — is retried with backoff until it succeeds; an accepted certificate is never abandoned unsealed.
+
+## GET /issuanceJobs/:id
+
+Status of an asynchronous issuance. No authentication required; the job id is the capability.
+
+While the work is in progress:
+
+```json
+{ "id": "0f1c…", "status": "queued" }
+```
+
+`status` is one of `queued`, `processing`, `completed`, `failed`. An `attempts` field appears once a job has been retried, which distinguishes "still working" from "stuck".
+
+Once finished:
+
+```json
+{
+  "id": "0f1c…",
+  "status": "completed",
+  "credential": {
+    "id": "aac7…",
+    "verification_url": "https://hashproof.dev/verify/aac7…",
+    "pdf_url": "https://hashproof.dev/verify/aac7…/pdf"
+  }
+}
+```
+
+The credential only appears once it is registered on-chain, so anything you hand to a user from this response is already verifiable.
+
+On permanent failure:
+
+```json
+{ "id": "0f1c…", "status": "failed", "error": "holder.full_name required" }
+```
 
 ### GET /templates/:ref/requirements
 

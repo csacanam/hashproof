@@ -263,24 +263,18 @@ export function validateTemplateValues(fieldsJson, values) {
 }
 
 /**
- * Execute issuance via Supabase RPC.
+ * Shape checks that don't touch the database.
+ *
+ * Split out so the async path can reject a malformed payload while the caller is
+ * still on the line, instead of accepting it and failing in the worker where the
+ * client would only find out by polling.
+ *
  * @param {object} payload - Full issuance payload
+ * @throws {Error} on the first problem found
  */
-export async function executeIssueCredential(payload) {
-  const {
-    issuer,
-    platform,
-    holder,
-    context,
-    template,
-    template_id,
-    template_slug,
-    background_url_override,
-    credential_type,
-    title,
-    expires_at,
-    values = {},
-  } = payload;
+export function validateIssuancePayload(payload) {
+  const { issuer, platform, holder, context, template, template_id, template_slug, credential_type, title } =
+    payload || {};
 
   if (!issuer?.display_name || !issuer?.slug) throw new Error("issuer.display_name and issuer.slug required");
   if (!platform?.display_name || !platform?.slug) throw new Error("platform.display_name and platform.slug required");
@@ -312,6 +306,29 @@ export async function executeIssueCredential(payload) {
   if (templateSelectors.length > 1) {
     throw new Error("Provide only one of template_id, template_slug, template.");
   }
+}
+
+/**
+ * Execute issuance via Supabase RPC.
+ * @param {object} payload - Full issuance payload
+ */
+export async function executeIssueCredential(payload) {
+  const {
+    issuer,
+    platform,
+    holder,
+    context,
+    template,
+    template_id,
+    template_slug,
+    background_url_override,
+    credential_type,
+    title,
+    expires_at,
+    values = {},
+  } = payload;
+
+  validateIssuancePayload(payload);
 
   // Template optional: base template used when none passed
 
