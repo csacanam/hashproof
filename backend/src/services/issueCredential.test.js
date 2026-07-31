@@ -473,6 +473,53 @@ describe("on-chain issuance pipeline", () => {
     expect(mockProvider.getTransactionCount.mock.calls.length).toBe(1);
   });
 
+  it("recovers a dropped confirmation by looking the receipt up directly", async () => {
+    // Reproduces what the load test hit: the tx mines but ethers' block poller
+    // never delivers the event, so wait() times out on an already-mined tx.
+    const timeout = Object.assign(new Error("wait for transaction timeout"), { code: "TIMEOUT" });
+    Contract.mockImplementationOnce(() => ({
+      register: vi.fn().mockResolvedValue({
+        hash: "0xmined-but-unnotified",
+        wait: vi.fn().mockRejectedValue(timeout),
+      }),
+    }));
+    mockProvider.getTransactionReceipt = vi.fn().mockResolvedValue({ status: 1 });
+
+    const result = await executeIssueCredential(validPayload);
+
+    expect(result.tx_hash).toBe("0xmined-but-unnotified");
+    expect(mockProvider.getTransactionReceipt).toHaveBeenCalledWith("0xmined-but-unnotified");
+    // The credential must be persisted, not orphaned on-chain.
+    expect(supabase.rpc.mock.calls.map((c) => c[0])).toContain("finalize_credential");
+  });
+
+  it("still fails when the tx really has not mined", async () => {
+    const timeout = Object.assign(new Error("wait for transaction timeout"), { code: "TIMEOUT" });
+    Contract.mockImplementationOnce(() => ({
+      register: vi.fn().mockResolvedValue({
+        hash: "0xtruly-pending",
+        wait: vi.fn().mockRejectedValue(timeout),
+      }),
+    }));
+    mockProvider.getTransactionReceipt = vi.fn().mockResolvedValue(null);
+
+    await expect(executeIssueCredential(validPayload)).rejects.toThrow(/timeout/i);
+    expect(supabase.rpc.mock.calls.map((c) => c[0])).not.toContain("finalize_credential");
+  });
+
+  it("treats a reverted tx recovered by lookup as a failure", async () => {
+    const timeout = Object.assign(new Error("wait for transaction timeout"), { code: "TIMEOUT" });
+    Contract.mockImplementationOnce(() => ({
+      register: vi.fn().mockResolvedValue({
+        hash: "0xreverted",
+        wait: vi.fn().mockRejectedValue(timeout),
+      }),
+    }));
+    mockProvider.getTransactionReceipt = vi.fn().mockResolvedValue({ status: 0 });
+
+    await expect(executeIssueCredential(validPayload)).rejects.toThrow("On-chain transaction reverted");
+  });
+
   it("releases load counters once issuance settles", async () => {
     const chain = installChainMock();
     const issuance = executeIssueCredential(validPayload);

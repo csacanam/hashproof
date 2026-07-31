@@ -80,7 +80,9 @@ export function createApp(options = {}) {
   // at 100s. A 524 is indistinguishable from a failure to the client, so it
   // retries and issues the credential twice. Runs ahead of paymentMw so nobody
   // is charged for a request we reject.
-  const MAX_ISSUANCE_QUEUE = Number(process.env.MAX_ISSUANCE_QUEUE) || 120;
+  // Measured at ~110ms per credential through the broadcast lock, so 500 queued
+  // means ~55s for the last one — comfortably inside the CDN's 100s cutoff.
+  const MAX_ISSUANCE_QUEUE = Number(process.env.MAX_ISSUANCE_QUEUE) || 500;
 
   app.use((req, res, next) => {
     if (!(req.method === "POST" && req.path === "/issueCredential")) return next();

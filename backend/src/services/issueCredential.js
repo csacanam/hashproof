@@ -29,7 +29,9 @@ const REGISTRY_ABI = [
 const GAS_LIMIT = BigInt(process.env.REGISTRY_GAS_LIMIT || 300000); // register() measures ~131k on Celo
 const FEE_CACHE_MS = 15_000;
 const NONCE_IDLE_REFRESH_MS = 30_000;
-const CONFIRM_TIMEOUT_MS = Number(process.env.REGISTRY_CONFIRM_TIMEOUT_MS || 75_000);
+const CONFIRM_TIMEOUT_MS = Number(process.env.REGISTRY_CONFIRM_TIMEOUT_MS || 60_000);
+const RECHECK_ATTEMPTS = 3; // direct receipt lookups after the wait times out
+const RECHECK_DELAY_MS = 2_000;
 const MAX_ATTEMPTS = 4;
 
 let sendLock = Promise.resolve(); // serializes broadcast only
@@ -151,6 +153,51 @@ async function broadcastRegisterTx(registry, provider, wallet, args) {
   throw lastErr;
 }
 
+/**
+ * Wait for a tx to confirm, then verify by direct lookup before giving up.
+ *
+ * ethers watches for confirmations through a shared block poller, and under a
+ * burst it occasionally drops one: a load test of 100 concurrent issuances had
+ * 2 requests time out at exactly the deadline while every other finished under
+ * 15s. Both txs had in fact mined — the notification just never arrived, so the
+ * credential ended up on-chain with no DB row.
+ *
+ * Asking the node directly costs one call and does not care why the poller
+ * missed it. Retried briefly because a tx broadcast near the deadline may
+ * genuinely still be pending.
+ */
+async function confirmTx(provider, tx, credentialId) {
+  try {
+    return await tx.wait(1, CONFIRM_TIMEOUT_MS);
+  } catch (err) {
+    if (err?.code !== "TIMEOUT") throw err;
+
+    for (let attempt = 0; attempt < RECHECK_ATTEMPTS; attempt++) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, RECHECK_DELAY_MS));
+      let receipt = null;
+      try {
+        receipt = await provider.getTransactionReceipt(tx.hash);
+      } catch (lookupErr) {
+        console.warn(`[issueCredential] receipt lookup failed for ${tx.hash}: ${lookupErr.message}`);
+        continue;
+      }
+      if (receipt) {
+        console.warn(
+          `[issueCredential] confirmation event missed for credential=${credentialId} tx=${tx.hash}; recovered by direct lookup`,
+        );
+        return receipt;
+      }
+    }
+
+    // Genuinely unconfirmed. It may still mine later and leave a credential
+    // on-chain with no DB row, so log the hash for reconciliation.
+    console.error(
+      `[issueCredential] tx unconfirmed after ${CONFIRM_TIMEOUT_MS}ms + recheck — credential=${credentialId} tx=${tx.hash} may still mine`,
+    );
+    throw err;
+  }
+}
+
 /** Queue a broadcast behind any in-flight one. Failures don't break the chain. */
 function enqueueBroadcast(fn) {
   const run = sendLock.then(fn);
@@ -189,20 +236,11 @@ async function registerOnChain({ credentialId, cid, issuedAt, validUntil }) {
   // Outside the lock: the next credential broadcasts while this one confirms.
   awaitingReceipt++;
   try {
-    const receipt = await tx.wait(1, CONFIRM_TIMEOUT_MS);
+    const receipt = await confirmTx(provider, tx, credentialId);
     if (!receipt || receipt.status !== 1) {
       throw new Error("On-chain transaction reverted");
     }
     return tx.hash;
-  } catch (err) {
-    if (err?.code === "TIMEOUT") {
-      // The tx may still mine after we give up, leaving a credential on-chain
-      // with no DB row. Log the hash so it can be reconciled.
-      console.error(
-        `[issueCredential] confirmation timed out after ${CONFIRM_TIMEOUT_MS}ms — credential=${credentialId} tx=${tx.hash} may still mine`,
-      );
-    }
-    throw err;
   } finally {
     awaitingReceipt--;
   }

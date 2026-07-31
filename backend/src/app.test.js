@@ -160,7 +160,7 @@ describe("HashProof API", () => {
     });
 
     it("sheds with 429 + Retry-After when the issuance queue is full, without issuing", async () => {
-      mockIssuanceLoad = { pendingSends: 120, awaitingReceipt: 3 };
+      mockIssuanceLoad = { pendingSends: 500, awaitingReceipt: 3 };
 
       const res = await request(app)
         .post("/issueCredential")
@@ -176,13 +176,13 @@ describe("HashProof API", () => {
 
       expect(res.status).toBe(429);
       expect(res.headers["retry-after"]).toBe("10");
-      expect(res.body.queued).toBe(120);
+      expect(res.body.queued).toBe(500);
       // Must reject before doing any work — a shed request is never charged.
       expect(mockExecuteIssueCredential).not.toHaveBeenCalled();
     });
 
     it("does not shed while the queue is below the limit", async () => {
-      mockIssuanceLoad = { pendingSends: 119, awaitingReceipt: 40 };
+      mockIssuanceLoad = { pendingSends: 499, awaitingReceipt: 40 };
 
       const res = await request(app)
         .post("/issueCredential")
