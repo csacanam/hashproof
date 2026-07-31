@@ -17,13 +17,43 @@ const REGISTRY_ABI = [
   "function register(string credentialId, string cid, uint256 issuedAt, uint256 validUntil) external",
 ];
 
-// Serialize on-chain issuance within this process: a single registry wallet is
-// reused across concurrent requests, so parallel calls would otherwise resolve
-// the same "pending" nonce and collide (REPLACEMENT_UNDERPRICED). Chaining every
-// register on this promise guarantees one tx is confirmed before the next builds
-// its nonce. (Across multiple App Engine instances this isn't enough on its own,
-// which is why sendRegisterTx also retries with a refreshed nonce + bumped gas.)
-let issuanceQueue = Promise.resolve();
+// A single registry wallet is shared across concurrent requests, so nonce
+// assignment needs mutual exclusion. Only the *broadcast* does — that is what
+// consumes a nonce, and it takes a few hundred ms. Waiting for the receipt does
+// not, so confirmations overlap instead of queueing.
+//
+// Serializing the whole issuance (broadcast + confirmation) capped throughput at
+// one credential per confirmation. Callers past ~#22 in a burst blew through
+// Cloudflare's 100s limit and got a 524 even though their credential was issued
+// fine — which made clients retry and issue duplicates.
+const GAS_LIMIT = BigInt(process.env.REGISTRY_GAS_LIMIT || 300000); // register() measures ~131k on Celo
+const FEE_CACHE_MS = 15_000;
+const NONCE_IDLE_REFRESH_MS = 30_000;
+const CONFIRM_TIMEOUT_MS = Number(process.env.REGISTRY_CONFIRM_TIMEOUT_MS || 75_000);
+const MAX_ATTEMPTS = 4;
+
+let sendLock = Promise.resolve(); // serializes broadcast only
+let nextNonce = null; // next nonce to hand out; null forces a refresh from the network
+let lastSendAt = 0;
+let feeCache = { at: 0, maxFeePerGas: undefined, maxPriorityFeePerGas: undefined };
+
+let pendingSends = 0; // callers waiting for a nonce slot
+let awaitingReceipt = 0; // broadcast, waiting for confirmation
+
+/** Current on-chain pipeline load, used to shed load before Cloudflare times out. */
+export function getIssuanceLoad() {
+  return { pendingSends, awaitingReceipt };
+}
+
+/** Clear cached nonce/fee state. Tests only — the pipeline is module-level. */
+export function resetIssuancePipelineForTests() {
+  sendLock = Promise.resolve();
+  nextNonce = null;
+  lastSendAt = 0;
+  feeCache = { at: 0, maxFeePerGas: undefined, maxPriorityFeePerGas: undefined };
+  pendingSends = 0;
+  awaitingReceipt = 0;
+}
 
 // Errors that mean the nonce collided or the tx is stuck; safe to rebuild + resend.
 function isNonceCollision(err) {
@@ -43,42 +73,92 @@ function bumpFee(value) {
   return (value * 125n) / 100n;
 }
 
-async function sendRegisterTx(registry, provider, wallet, args) {
-  const MAX_ATTEMPTS = 4;
+/** Fee data, cached briefly so a burst doesn't re-query it per credential. */
+async function getFees(provider) {
+  if (Date.now() - feeCache.at < FEE_CACHE_MS) return feeCache;
   const feeData = await provider.getFeeData();
-  let maxFeePerGas = feeData.maxFeePerGas ?? feeData.gasPrice ?? undefined;
-  let maxPriorityFeePerGas = feeData.maxPriorityFeePerGas ?? undefined;
-  let nonce = await provider.getTransactionCount(wallet.address, "pending");
+  feeCache = {
+    at: Date.now(),
+    maxFeePerGas: feeData.maxFeePerGas ?? feeData.gasPrice ?? undefined,
+    maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ?? undefined,
+  };
+  return feeCache;
+}
 
+function feeOverrides({ maxFeePerGas, maxPriorityFeePerGas }) {
+  if (maxFeePerGas !== undefined && maxPriorityFeePerGas !== undefined) {
+    return { maxFeePerGas, maxPriorityFeePerGas };
+  }
+  if (maxFeePerGas !== undefined) return { gasPrice: maxFeePerGas };
+  return {};
+}
+
+/**
+ * Hand out the next nonce. Refreshed from the network when unknown, after an
+ * error, or after an idle gap — another App Engine instance sharing this wallet
+ * may have consumed nonces in the meantime. "pending" counts our own in-flight
+ * txs, so pipelined sends stay correctly numbered.
+ */
+async function reserveNonce(provider, wallet) {
+  if (nextNonce === null || Date.now() - lastSendAt > NONCE_IDLE_REFRESH_MS) {
+    nextNonce = await provider.getTransactionCount(wallet.address, "pending");
+  }
+  return nextNonce;
+}
+
+/**
+ * Build and broadcast one register tx. Runs under sendLock. Returns the pending
+ * tx without waiting for it to mine.
+ */
+async function broadcastRegisterTx(registry, provider, wallet, args) {
+  let fees = await getFees(provider);
   let lastErr;
+
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    const nonce = await reserveNonce(provider, wallet);
     try {
-      const overrides = { nonce };
-      if (maxFeePerGas !== undefined && maxPriorityFeePerGas !== undefined) {
-        overrides.maxFeePerGas = maxFeePerGas;
-        overrides.maxPriorityFeePerGas = maxPriorityFeePerGas;
-      } else if (maxFeePerGas !== undefined) {
-        overrides.gasPrice = maxFeePerGas;
-      }
-      const tx = await registry.register(args.credentialId, args.cid, args.issuedAt, args.validUntil, overrides);
-      const receipt = await tx.wait(1);
-      if (!receipt || receipt.status !== 1) {
-        throw new Error("On-chain transaction reverted");
-      }
-      return tx.hash;
+      // Explicit gasLimit skips an eth_estimateGas round-trip inside the lock;
+      // register() is a fixed-cost write and unused gas is refunded.
+      const tx = await registry.register(args.credentialId, args.cid, args.issuedAt, args.validUntil, {
+        nonce,
+        gasLimit: GAS_LIMIT,
+        ...feeOverrides(fees),
+      });
+      nextNonce = nonce + 1;
+      lastSendAt = Date.now();
+      return tx;
     } catch (err) {
       lastErr = err;
+      // Either way the nonce is now untrustworthy: on a collision someone else
+      // took it, and on any other failure we must not leave a gap that would
+      // strand every later tx as un-mineable.
+      nextNonce = null;
       if (!isNonceCollision(err) || attempt === MAX_ATTEMPTS - 1) throw err;
-      // Refresh nonce from the network and bump fees before retrying.
-      nonce = await provider.getTransactionCount(wallet.address, "pending");
-      if (maxFeePerGas !== undefined) maxFeePerGas = bumpFee(maxFeePerGas);
-      if (maxPriorityFeePerGas !== undefined) maxPriorityFeePerGas = bumpFee(maxPriorityFeePerGas);
+      // Bump fees for the retry and publish them so queued callers start higher
+      // too, instead of each rediscovering the same collision.
+      fees = {
+        at: Date.now(),
+        maxFeePerGas: fees.maxFeePerGas !== undefined ? bumpFee(fees.maxFeePerGas) : undefined,
+        maxPriorityFeePerGas:
+          fees.maxPriorityFeePerGas !== undefined ? bumpFee(fees.maxPriorityFeePerGas) : undefined,
+      };
+      feeCache = fees;
       console.warn(
-        `[issueCredential] nonce collision (${err?.code || "?"}), retry ${attempt + 1}/${MAX_ATTEMPTS} with nonce=${nonce}`,
+        `[issueCredential] nonce collision (${err?.code || "?"}), retry ${attempt + 1}/${MAX_ATTEMPTS}`,
       );
     }
   }
   throw lastErr;
+}
+
+/** Queue a broadcast behind any in-flight one. Failures don't break the chain. */
+function enqueueBroadcast(fn) {
+  const run = sendLock.then(fn);
+  sendLock = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
 }
 
 async function registerOnChain({ credentialId, cid, issuedAt, validUntil }) {
@@ -92,20 +172,40 @@ async function registerOnChain({ credentialId, cid, issuedAt, validUntil }) {
   if (!contractAddress) throw new Error("REGISTRY_CONTRACT_ADDRESS missing");
   if (!pk) throw new Error("REGISTRY_PRIVATE_KEY missing");
 
-  // Run inside the serialization queue so only one issuance tx is in flight at
-  // a time (per process). Failures don't break the chain for the next caller.
-  const run = issuanceQueue.then(async () => {
-    const provider = getCeloProvider();
-    const wallet = new Wallet(pk, provider);
-    const registry = new Contract(contractAddress, REGISTRY_ABI, wallet);
-    return sendRegisterTx(registry, provider, wallet, { credentialId, cid, issuedAt, validUntil });
-  });
-  // Keep the queue alive regardless of this call's outcome.
-  issuanceQueue = run.then(
-    () => undefined,
-    () => undefined,
-  );
-  return run;
+  const provider = getCeloProvider();
+  const wallet = new Wallet(pk, provider);
+  const registry = new Contract(contractAddress, REGISTRY_ABI, wallet);
+
+  let tx;
+  pendingSends++;
+  try {
+    tx = await enqueueBroadcast(() =>
+      broadcastRegisterTx(registry, provider, wallet, { credentialId, cid, issuedAt, validUntil }),
+    );
+  } finally {
+    pendingSends--;
+  }
+
+  // Outside the lock: the next credential broadcasts while this one confirms.
+  awaitingReceipt++;
+  try {
+    const receipt = await tx.wait(1, CONFIRM_TIMEOUT_MS);
+    if (!receipt || receipt.status !== 1) {
+      throw new Error("On-chain transaction reverted");
+    }
+    return tx.hash;
+  } catch (err) {
+    if (err?.code === "TIMEOUT") {
+      // The tx may still mine after we give up, leaving a credential on-chain
+      // with no DB row. Log the hash so it can be reconciled.
+      console.error(
+        `[issueCredential] confirmation timed out after ${CONFIRM_TIMEOUT_MS}ms — credential=${credentialId} tx=${tx.hash} may still mine`,
+      );
+    }
+    throw err;
+  } finally {
+    awaitingReceipt--;
+  }
 }
 
 /**

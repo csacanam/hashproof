@@ -7,6 +7,7 @@ import { createApp } from "./app.js";
 let mockTemplatesRow = null;
 let mockEntityById = null;
 let mockExecuteIssueCredential = vi.fn();
+let mockIssuanceLoad = { pendingSends: 0, awaitingReceipt: 0 };
 
 function makeThenableBuilder({ data, error }) {
   return {
@@ -50,6 +51,7 @@ vi.mock("./services/getEntity.js", () => ({
 
 vi.mock("./services/issueCredential.js", () => ({
   executeIssueCredential: vi.fn(async (...args) => mockExecuteIssueCredential(...args)),
+  getIssuanceLoad: vi.fn(() => mockIssuanceLoad),
 }));
 
 describe("HashProof API", () => {
@@ -61,6 +63,7 @@ describe("HashProof API", () => {
     app = createApp({ skipPayment: true });
     mockTemplatesRow = null;
     mockEntityById = null;
+    mockIssuanceLoad = { pendingSends: 0, awaitingReceipt: 0 };
     mockExecuteIssueCredential = vi.fn().mockImplementation(async (payload) => {
       if (!payload || !payload.issuer?.display_name || !payload.issuer?.slug) {
         throw new Error("issuer.display_name and issuer.slug required");
@@ -154,6 +157,46 @@ describe("HashProof API", () => {
 
       expect(res.status).toBe(200);
       expect(res.body).toEqual({ ok: true });
+    });
+
+    it("sheds with 429 + Retry-After when the issuance queue is full, without issuing", async () => {
+      mockIssuanceLoad = { pendingSends: 120, awaitingReceipt: 3 };
+
+      const res = await request(app)
+        .post("/issueCredential")
+        .send({
+          issuer: { display_name: "HashProof", slug: "hashproof" },
+          platform: { display_name: "HashProof", slug: "hashproof" },
+          holder: { full_name: "Diana Prieto" },
+          context: { type: "event", title: "Burst" },
+          credential_type: "attendance",
+          title: "T",
+          values: { holder_name: "Diana Prieto" },
+        });
+
+      expect(res.status).toBe(429);
+      expect(res.headers["retry-after"]).toBe("10");
+      expect(res.body.queued).toBe(120);
+      // Must reject before doing any work — a shed request is never charged.
+      expect(mockExecuteIssueCredential).not.toHaveBeenCalled();
+    });
+
+    it("does not shed while the queue is below the limit", async () => {
+      mockIssuanceLoad = { pendingSends: 119, awaitingReceipt: 40 };
+
+      const res = await request(app)
+        .post("/issueCredential")
+        .send({
+          issuer: { display_name: "HashProof", slug: "hashproof" },
+          platform: { display_name: "HashProof", slug: "hashproof" },
+          holder: { full_name: "Diana Prieto" },
+          context: { type: "event", title: "Burst" },
+          credential_type: "attendance",
+          title: "T",
+          values: { holder_name: "Diana Prieto" },
+        });
+
+      expect(res.status).toBe(200);
     });
   });
 

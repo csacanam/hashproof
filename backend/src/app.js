@@ -14,7 +14,7 @@ import cors from "cors";
 import rateLimit from "express-rate-limit";
 import { ISSUE_CREDENTIAL_PRICE_USD, ENTITY_VERIFICATION_PRICE_USD } from "./utils/constants.js";
 import { createThirdwebPaymentMiddleware } from "./middleware/thirdwebPayment.js";
-import { executeIssueCredential } from "./services/issueCredential.js";
+import { executeIssueCredential, getIssuanceLoad } from "./services/issueCredential.js";
 import { getCredentialById } from "./services/getCredential.js";
 import { getEntityById } from "./services/getEntity.js";
 import { createVerificationRequest } from "./services/createVerificationRequest.js";
@@ -73,6 +73,29 @@ export function createApp(options = {}) {
       (req.get("authorization")?.startsWith("Bearer ") || req.get("x-api-key"));
     if (hasPayment || hasApiKey) return next();
     noPaymentRateLimit(req, res, next);
+  });
+
+  // Load shedding, before payment: a request that would sit in the on-chain
+  // queue longer than the CDN allows must be refused now, not silently killed
+  // at 100s. A 524 is indistinguishable from a failure to the client, so it
+  // retries and issues the credential twice. Runs ahead of paymentMw so nobody
+  // is charged for a request we reject.
+  const MAX_ISSUANCE_QUEUE = Number(process.env.MAX_ISSUANCE_QUEUE) || 120;
+
+  app.use((req, res, next) => {
+    if (!(req.method === "POST" && req.path === "/issueCredential")) return next();
+    const { pendingSends } = getIssuanceLoad();
+    if (pendingSends >= MAX_ISSUANCE_QUEUE) {
+      console.warn(`[issueCredential] shedding request — ${pendingSends} already queued`);
+      return res
+        .status(429)
+        .set("Retry-After", "10")
+        .json({
+          error: "Issuance queue is full. Retry after a few seconds.",
+          queued: pendingSends,
+        });
+    }
+    next();
   });
 
   app.use(paymentMw);

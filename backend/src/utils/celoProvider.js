@@ -14,6 +14,7 @@ import { JsonRpcProvider, Network } from "ethers";
 
 const BLOCK_DURATION_MS = 60 * 60 * 1000; // 1 hour
 const FORNO_URL = "https://forno.celo.org";
+const POLLING_INTERVAL_MS = Number(process.env.CELO_POLLING_INTERVAL_MS || 500);
 
 function isCapacityError(err) {
   const msg = (err?.message || err?.info?.responseBody || "").toLowerCase();
@@ -52,6 +53,10 @@ export class FailoverCeloProvider extends JsonRpcProvider {
     }
     this._urls = urls;
     this._blockedUntil = new Map();
+    // ethers defaults to 4000ms, which dominates tx.wait() on a chain with ~1s
+    // blocks: a receipt that already exists sits unseen for up to 4s. Celo blocks
+    // are fast, so poll accordingly.
+    this.pollingInterval = POLLING_INTERVAL_MS;
   }
 
   _isBlocked(url) {
@@ -121,6 +126,16 @@ export class FailoverCeloProvider extends JsonRpcProvider {
   }
 }
 
+// Single shared instance: the 1h block list only works if it survives between
+// calls, and building a provider per request also throws away ethers' internal
+// caches. Reset only exists for tests.
+let sharedProvider = null;
+
 export function getCeloProvider() {
-  return new FailoverCeloProvider();
+  if (!sharedProvider) sharedProvider = new FailoverCeloProvider();
+  return sharedProvider;
+}
+
+export function resetCeloProvider() {
+  sharedProvider = null;
 }

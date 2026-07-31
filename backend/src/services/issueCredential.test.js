@@ -1,58 +1,58 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("../supabase.js", () => {
-  return {
-    supabase: {
-      rpc: vi.fn().mockImplementation(async (fnName) => {
-        if (fnName === "prepare_credential") {
-          return {
-            data: {
-              id: "mock-id",
-              verification_url: "https://example.com/verify/mock-id",
-              prepared: {
-                id: "mock-id",
-                issuer_entity_id: "00000000-0000-0000-0000-000000000001",
-                platform_entity_id: "00000000-0000-0000-0000-000000000002",
-                holder_id: "00000000-0000-0000-0000-000000000003",
-                context_id: "00000000-0000-0000-0000-000000000004",
-                template_id: "00000000-0000-0000-0000-000000000005",
-                credential_type: "attendance",
-                title: "Asistencia",
-                expires_at: null,
-                credential_json: { name: "Test" },
-                chain_name: "celo",
-                chain_id: 42220,
-                contract_address: "0x0000000000000000000000000000000000000000",
-              },
-            },
-            error: null,
-          };
-        }
-        if (fnName === "finalize_credential") {
-          return {
-            data: { ok: true },
-            error: null,
-          };
-        }
-        return { data: null, error: { message: `Unexpected rpc: ${fnName}` } };
-      }),
-    },
-  };
-});
+// Hoisted function declaration so both the module factory and individual tests
+// can restore it after one of them swaps in a failing implementation.
+async function mockDefaultRpc(fnName) {
+  if (fnName === "prepare_credential") {
+    return {
+      data: {
+        id: "mock-id",
+        verification_url: "https://example.com/verify/mock-id",
+        prepared: {
+          id: "mock-id",
+          issuer_entity_id: "00000000-0000-0000-0000-000000000001",
+          platform_entity_id: "00000000-0000-0000-0000-000000000002",
+          holder_id: "00000000-0000-0000-0000-000000000003",
+          context_id: "00000000-0000-0000-0000-000000000004",
+          template_id: "00000000-0000-0000-0000-000000000005",
+          credential_type: "attendance",
+          title: "Asistencia",
+          expires_at: null,
+          credential_json: { name: "Test" },
+          chain_name: "celo",
+          chain_id: 42220,
+          contract_address: "0x0000000000000000000000000000000000000000",
+        },
+      },
+      error: null,
+    };
+  }
+  if (fnName === "finalize_credential") {
+    return { data: { ok: true }, error: null };
+  }
+  return { data: null, error: { message: `Unexpected rpc: ${fnName}` } };
+}
+
+vi.mock("../supabase.js", () => ({
+  supabase: { rpc: vi.fn().mockImplementation(mockDefaultRpc) },
+}));
 
 vi.mock("./pinata.js", () => ({
   pinJsonToIpfs: vi.fn().mockResolvedValue("bafy-test-cid"),
   unpinCid: vi.fn().mockResolvedValue(true),
 }));
 
+// Single shared mock provider so tests can assert how often the nonce is read.
+const mockProvider = {
+  getFeeData: vi.fn().mockResolvedValue({
+    maxFeePerGas: 1000000000n,
+    maxPriorityFeePerGas: 1000000000n,
+  }),
+  getTransactionCount: vi.fn().mockResolvedValue(0),
+};
+
 vi.mock("../utils/celoProvider.js", () => ({
-  getCeloProvider: vi.fn(() => ({
-    getFeeData: vi.fn().mockResolvedValue({
-      maxFeePerGas: 1000000000n,
-      maxPriorityFeePerGas: 1000000000n,
-    }),
-    getTransactionCount: vi.fn().mockResolvedValue(0),
-  })),
+  getCeloProvider: vi.fn(() => mockProvider),
 }));
 
 vi.mock("ethers", () => {
@@ -70,7 +70,12 @@ vi.mock("ethers", () => {
 });
 
 import { supabase } from "../supabase.js";
-import { validateTemplateValues, executeIssueCredential } from "./issueCredential.js";
+import {
+  validateTemplateValues,
+  executeIssueCredential,
+  getIssuanceLoad,
+  resetIssuancePipelineForTests,
+} from "./issueCredential.js";
 
 describe("validateTemplateValues", () => {
   it("passes when required keys are present", () => {
@@ -318,5 +323,163 @@ describe("executeIssueCredential", () => {
     await expect(executeIssueCredential(payload)).rejects.toThrow(
       "Template already exists. Use template_slug or template_id."
     );
+  });
+});
+
+describe("on-chain issuance pipeline", () => {
+  const validPayload = {
+    issuer: { display_name: "Test Issuer", slug: "test-issuer" },
+    platform: { display_name: "Test Platform", slug: "test-platform" },
+    holder: { full_name: "Juan Pérez" },
+    context: { type: "event", title: "Blockchain 101" },
+    template_slug: "hashproof",
+    credential_type: "attendance",
+    title: "Asistencia",
+    values: { holder_name: "Juan Pérez" },
+  };
+
+  /**
+   * Install a Contract mock that records the nonce of every broadcast and hands
+   * back txs whose confirmation is resolved manually, so a test can prove the
+   * next broadcast happens without waiting for the previous receipt.
+   */
+  function installChainMock({ startNonce = 0, failSendOnce = null } = {}) {
+    const sent = [];
+    const resolvers = [];
+    let sends = 0;
+
+    mockProvider.getTransactionCount.mockImplementation(async () => startNonce + sent.length);
+
+    Contract.mockImplementation(() => ({
+      register: vi.fn(async (_id, _cid, _issuedAt, _validUntil, overrides) => {
+        if (failSendOnce !== null && sends === failSendOnce) {
+          sends++;
+          throw new Error("broadcast failed");
+        }
+        sends++;
+        sent.push({ nonce: overrides.nonce, gasLimit: overrides.gasLimit });
+        const index = sent.length - 1;
+        return {
+          hash: `0xtx${index}`,
+          wait: vi.fn(
+            () => new Promise((resolve) => { resolvers[index] = () => resolve({ status: 1 }); }),
+          ),
+        };
+      }),
+    }));
+
+    return {
+      sent,
+      confirm: (i) => {
+        resolvers[i]?.();
+      },
+      confirmAll: () => resolvers.forEach((r) => r?.()),
+    };
+  }
+
+  let Contract;
+
+  beforeEach(async () => {
+    ({ Contract } = await import("ethers"));
+    resetIssuancePipelineForTests();
+    supabase.rpc.mockReset();
+    supabase.rpc.mockImplementation(mockDefaultRpc);
+    mockProvider.getTransactionCount.mockClear();
+    process.env.SKIP_CHAIN = "false";
+    process.env.CELO_RPC_URL = "https://rpc.test";
+    process.env.REGISTRY_CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000001";
+    process.env.REGISTRY_PRIVATE_KEY =
+      "0x0000000000000000000000000000000000000000000000000000000000000001";
+  });
+
+  it("assigns distinct incrementing nonces to concurrent issuances", async () => {
+    const chain = installChainMock({ startNonce: 7 });
+
+    const issuances = [
+      executeIssueCredential(validPayload),
+      executeIssueCredential(validPayload),
+      executeIssueCredential(validPayload),
+    ];
+
+    // Let all three broadcast, then release their confirmations.
+    await vi.waitFor(() => expect(chain.sent.length).toBe(3));
+    chain.confirmAll();
+    await Promise.all(issuances);
+
+    expect(chain.sent.map((s) => s.nonce)).toEqual([7, 8, 9]);
+  });
+
+  it("broadcasts the next credential without waiting for the previous receipt", async () => {
+    const chain = installChainMock();
+
+    const first = executeIssueCredential(validPayload);
+    await vi.waitFor(() => expect(chain.sent.length).toBe(1));
+
+    const second = executeIssueCredential(validPayload);
+    // The first receipt is still unresolved; the second must broadcast anyway.
+    // Under the old serialized queue this would hang until confirm(0).
+    await vi.waitFor(() => expect(chain.sent.length).toBe(2));
+    expect(getIssuanceLoad().awaitingReceipt).toBe(2);
+
+    chain.confirmAll();
+    await Promise.all([first, second]);
+  });
+
+  it("sets an explicit gas limit so no estimate round-trip runs while holding the lock", async () => {
+    const chain = installChainMock();
+    const issuance = executeIssueCredential(validPayload);
+    await vi.waitFor(() => expect(chain.sent.length).toBe(1));
+    chain.confirmAll();
+    await issuance;
+
+    expect(chain.sent[0].gasLimit).toBe(300000n);
+  });
+
+  it("re-reads the nonce from the network after a failed broadcast", async () => {
+    // A send can fail after the node already accepted the tx, which silently
+    // consumes the nonce. Trusting the cached value there means every later tx
+    // reuses a spent nonce; only asking the network recovers.
+    const chain = installChainMock({ startNonce: 4, failSendOnce: 1 });
+
+    const first = executeIssueCredential(validPayload);
+    await vi.waitFor(() => expect(chain.sent.length).toBe(1));
+    chain.confirmAll();
+    await first;
+
+    const readsBefore = mockProvider.getTransactionCount.mock.calls.length;
+    await expect(executeIssueCredential(validPayload)).rejects.toThrow("broadcast failed");
+
+    const third = executeIssueCredential(validPayload);
+    await vi.waitFor(() => expect(chain.sent.length).toBe(2));
+    chain.confirmAll();
+    await third;
+
+    expect(mockProvider.getTransactionCount.mock.calls.length).toBeGreaterThan(readsBefore);
+  });
+
+  it("keeps handing out cached nonces while sends succeed, without re-reading each time", async () => {
+    const chain = installChainMock({ startNonce: 2 });
+
+    const issuances = [
+      executeIssueCredential(validPayload),
+      executeIssueCredential(validPayload),
+      executeIssueCredential(validPayload),
+    ];
+    await vi.waitFor(() => expect(chain.sent.length).toBe(3));
+    chain.confirmAll();
+    await Promise.all(issuances);
+
+    // One network read for the first send; the rest come from the local counter.
+    expect(mockProvider.getTransactionCount.mock.calls.length).toBe(1);
+  });
+
+  it("releases load counters once issuance settles", async () => {
+    const chain = installChainMock();
+    const issuance = executeIssueCredential(validPayload);
+    await vi.waitFor(() => expect(chain.sent.length).toBe(1));
+    chain.confirmAll();
+    await issuance;
+
+    expect(getIssuanceLoad()).toEqual({ pendingSends: 0, awaitingReceipt: 0 });
   });
 });
