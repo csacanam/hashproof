@@ -245,6 +245,37 @@ describe("HashProof API", () => {
       expect(mockCreateIssuanceJob).not.toHaveBeenCalled();
     });
 
+    it("returns an actionable error instead of an internal one when the chain fails", async () => {
+      // The literal string a client received during load testing.
+      mockExecuteIssueCredential = vi.fn(async () => {
+        throw new Error("wait for transaction timeout (code=TIMEOUT, version=6.16.0)");
+      });
+
+      const res = await request(app).post("/issueCredential").send(validAsyncPayload);
+
+      expect(res.status).toBe(503);
+      expect(res.body.code).toBe("chain_unavailable");
+      expect(res.body.retryable).toBe(true);
+      expect(res.headers["retry-after"]).toBeDefined();
+      // `error` stays a plain string so integrations reading it keep working.
+      expect(typeof res.body.error).toBe("string");
+      expect(res.body.error).not.toMatch(/6\.16\.0|TIMEOUT/);
+      // Correlates the client's report with the server log line.
+      expect(res.body.request_id).toMatch(/^r_/);
+      expect(res.headers["x-request-id"]).toBe(res.body.request_id);
+    });
+
+    it("keeps a bad payload as a non-retryable 400 with the specific reason", async () => {
+      const res = await request(app)
+        .post("/issueCredential")
+        .send({ ...validAsyncPayload, holder: {} });
+
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe("invalid_payload");
+      expect(res.body.retryable).toBe(false);
+      expect(res.body.error).toMatch(/holder.full_name required/);
+    });
+
     it("returns 202 immediately without issuing when async is requested", async () => {
       const res = await request(app)
         .post("/issueCredential")

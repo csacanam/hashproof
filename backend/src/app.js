@@ -27,6 +27,8 @@ import { CHAIN_CONFIG } from "./utils/chains.js";
 import { createCronRouter } from "./routes/cron.js";
 import { createMcpRouter } from "./routes/mcp.js";
 import { Buffer } from "node:buffer";
+import { randomUUID } from "node:crypto";
+import { sendError, classifyError } from "./utils/errors.js";
 import { generateCredentialPdf } from "./services/generatePdf.js";
 import { getStoredPdf, storePdf } from "./services/pdfStore.js";
 import {
@@ -53,6 +55,15 @@ export function createApp(options = {}) {
     exposedHeaders: ["PAYMENT-REQUIRED", "payment-required", "X-PAYMENT-RESPONSE"],
   }));
   app.use(express.json());
+
+  // Correlation id, echoed to the caller on every error. When someone reports
+  // "I got error r_k3f9x2", that string appears verbatim in the logs next to the
+  // real stack trace — which beats asking them to reproduce it.
+  app.use((req, res, next) => {
+    req.id = req.get("x-request-id") || `r_${randomUUID().slice(0, 8)}`;
+    res.setHeader("X-Request-Id", req.id);
+    next();
+  });
 
   const noPaymentRateLimit = rateLimit({
     windowMs: RATE_LIMIT_WINDOW_MS,
@@ -103,6 +114,8 @@ export function createApp(options = {}) {
         .set("Retry-After", "10")
         .json({
           error: "Issuance queue is full. Retry after a few seconds.",
+          code: "queue_full",
+          retryable: true,
           queued: pendingSends,
         });
     }
@@ -290,14 +303,13 @@ export function createApp(options = {}) {
 
       return res.json(result);
     } catch (err) {
-      console.error("[issueCredential] error:", err.message);
-      const status =
-        err.message.includes("required") ||
-        err.message.includes("not found") ||
-        err.message.includes("Template")
-          ? 400
-          : 500;
-      return res.status(status).json({ error: err.message });
+      return sendError(res, err, {
+        issuer_slug: req.body?.issuer?.slug,
+        holder: req.body?.holder?.full_name,
+        context_title: req.body?.context?.title,
+        api_key_id: req.apiKey?.id,
+        async: req.body?.async === true,
+      });
     }
   });
 
@@ -325,7 +337,12 @@ export function createApp(options = {}) {
       }
 
       if (job.status === "failed") {
-        body.error = job.last_error || "Issuance failed";
+        // last_error holds the raw internal message for debugging; the client
+        // gets the same curated wording as a synchronous failure would produce.
+        const classified = classifyError(job.last_error || "Issuance failed");
+        body.error = classified.message;
+        body.code = classified.code;
+        body.retryable = classified.retryable;
       }
 
       // Surface that a retry is pending so a client can distinguish "still
@@ -336,8 +353,7 @@ export function createApp(options = {}) {
 
       return res.json(body);
     } catch (err) {
-      console.error("[issuanceJobs] error:", err.message);
-      return res.status(500).json({ error: err.message });
+      return sendError(res, err, { handler: "issuanceJobs" });
     }
   });
 
@@ -372,8 +388,7 @@ export function createApp(options = {}) {
       res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
       return res.send(pdf);
     } catch (err) {
-      console.error("[verify/pdf] error:", err.message);
-      return res.status(500).json({ error: err.message });
+      return sendError(res, err, { handler: "verify/pdf" });
     }
   });
 
@@ -432,8 +447,7 @@ export function createApp(options = {}) {
         fields_json: fields,
       });
     } catch (err) {
-      console.error("[templates/requirements] error:", err.message);
-      return res.status(500).json({ error: err.message });
+      return sendError(res, err, { handler: "templates/requirements" });
     }
   });
 
@@ -559,8 +573,7 @@ export function createApp(options = {}) {
       res.set("Content-Disposition", `inline; filename="preview-${tpl.slug}.pdf"`);
       return res.send(pdfBuffer);
     } catch (err) {
-      console.error("[templates/preview] error:", err.message);
-      return res.status(500).json({ error: err.message });
+      return sendError(res, err, { handler: "templates/preview" });
     }
   });
 
@@ -677,8 +690,7 @@ export function createApp(options = {}) {
       res.set("Content-Disposition", 'inline; filename="template-preview.pdf"');
       return res.send(pdfBuffer);
     } catch (err) {
-      console.error("[template-previews] error:", err.message);
-      return res.status(500).json({ error: err.message });
+      return sendError(res, err, { handler: "template-previews" });
     }
   });
 
@@ -711,8 +723,7 @@ export function createApp(options = {}) {
         verified_entities: entitiesResult.count ?? 0,
       });
     } catch (err) {
-      console.error("[stats] error:", err.message);
-      return res.status(500).json({ error: err.message });
+      return sendError(res, err, { handler: "stats" });
     }
   });
 
@@ -771,8 +782,7 @@ export function createApp(options = {}) {
         ipfs_uri: cred.ipfs_cid ? `https://gateway.pinata.cloud/ipfs/${cred.ipfs_cid}` : null,
       });
     } catch (err) {
-      console.error("[verify] error:", err.message);
-      return res.status(500).json({ error: err.message });
+      return sendError(res, err, { handler: "verify" });
     }
   });
 
@@ -782,8 +792,7 @@ export function createApp(options = {}) {
       const { contract } = await verifyContractOnly({ credentialId: req.params.id });
       return res.json({ contract });
     } catch (err) {
-      console.error("[verify/contract] error:", err.message);
-      return res.status(500).json({ error: err.message });
+      return sendError(res, err, { handler: "verify/contract" });
     }
   });
 
@@ -800,8 +809,7 @@ export function createApp(options = {}) {
       });
       return res.json({ contract, ipfs });
     } catch (err) {
-      console.error("[verify/ipfs] error:", err.message);
-      return res.status(500).json({ error: err.message });
+      return sendError(res, err, { handler: "verify/ipfs" });
     }
   });
 
@@ -830,8 +838,7 @@ export function createApp(options = {}) {
         updated_at: entity.updated_at,
       });
     } catch (err) {
-      console.error("[entity] error:", err.message);
-      return res.status(500).json({ error: err.message });
+      return sendError(res, err, { handler: "entity" });
     }
   });
 
@@ -872,8 +879,7 @@ export function createApp(options = {}) {
         request,
       });
     } catch (err) {
-      console.error("[entities/verificationRequests] error:", err.message);
-      return res.status(500).json({ error: err.message });
+      return sendError(res, err, { handler: "entities/verificationRequests" });
     }
   });
 
@@ -899,8 +905,7 @@ export function createApp(options = {}) {
       const result = await approveEntity({ entityId, type, wallets, requestId: request_id });
       return res.json(result);
     } catch (err) {
-      console.error("[admin/verify] error:", err.message);
-      return res.status(500).json({ error: err.message });
+      return sendError(res, err, { handler: "admin/verify" });
     }
   });
 
@@ -925,8 +930,7 @@ export function createApp(options = {}) {
       const result = await upsertIssuerAuthorization(issuer_entity_id, platform_entity_id, status);
       return res.json(result);
     } catch (err) {
-      console.error("[admin/issuer-authorizations] error:", err.message);
-      return res.status(500).json({ error: err.message });
+      return sendError(res, err, { handler: "admin/issuer-authorizations" });
     }
   });
 
@@ -957,8 +961,7 @@ export function createApp(options = {}) {
         message: "Store the api_key securely. It is shown only once.",
       });
     } catch (err) {
-      console.error("[admin/api-keys] error:", err.message);
-      return res.status(500).json({ error: err.message });
+      return sendError(res, err, { handler: "admin/api-keys" });
     }
   });
 
@@ -967,8 +970,7 @@ export function createApp(options = {}) {
       const keys = await listKeys();
       return res.json(keys);
     } catch (err) {
-      console.error("[admin/api-keys list] error:", err.message);
-      return res.status(500).json({ error: err.message });
+      return sendError(res, err, { handler: "admin/api-keys list" });
     }
   });
 
@@ -984,8 +986,7 @@ export function createApp(options = {}) {
       const { data } = await supabase.from("api_keys").select("credits_balance").eq("id", id).single();
       return res.json({ id, credits_balance: data?.credits_balance ?? 0 });
     } catch (err) {
-      console.error("[admin/api-keys patch] error:", err.message);
-      return res.status(500).json({ error: err.message });
+      return sendError(res, err, { handler: "admin/api-keys patch" });
     }
   });
 

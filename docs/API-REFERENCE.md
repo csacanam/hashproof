@@ -265,6 +265,42 @@ Poll `status_url` until `status` is `completed`, then use the returned links. A 
 
 Errors that cannot succeed on retry (missing fields, unauthorized issuer) are rejected with `400` before the job is queued. Everything else — RPC outages, network problems — is retried with backoff until it succeeds; an accepted certificate is never abandoned unsealed.
 
+## Errors
+
+Every error response carries a stable `code`, whether the call is worth retrying, and a `request_id` for support:
+
+```json
+{
+  "error": "Could not register the credential on-chain right now. This is temporary — retry in a few seconds.",
+  "code": "chain_unavailable",
+  "retryable": true,
+  "request_id": "r_k3f9x2a1"
+}
+```
+
+`error` is always a plain string, so integrations that only read it keep working. Branch on `code`, not on the message text — messages may be reworded, codes will not.
+
+The same `request_id` is returned in the `X-Request-Id` header and written to the server logs alongside the real stack trace. Quoting it in a support message is enough to find the exact failure; there is no need to reproduce it.
+
+| `code` | Status | Retryable | What to do |
+|---|---|---|---|
+| `invalid_payload` | 400 | No | Fix the request. `error` names the offending field |
+| `template_conflict` | 400 | No | The template slug exists. Use `template_slug` or `template_id` |
+| `not_found` | 404 | No | Check the id |
+| `unauthorized` | 403 | No | The wallet or API key may not issue for this entity |
+| `entity_suspended` | 403 | No | Contact HashProof |
+| `insufficient_credits` | 402 | No | Top up the API key |
+| `queue_full` | 429 | **Yes** | Back off and retry; nothing was issued |
+| `chain_unavailable` | 503 | **Yes** | Blockchain trouble. Retry, or use async issuance, which retries for you |
+| `storage_unavailable` | 503 | **Yes** | IPFS trouble. Retry |
+| `database_unavailable` | 503 | **Yes** | Retry shortly |
+| `service_misconfigured` | 500 | No | Contact HashProof — retrying will not help |
+| `internal_error` | 500 | Yes | Retry once; if it persists, report the `request_id` |
+
+Retryable responses include a `Retry-After` header in seconds. **Never retry a non-retryable error unchanged** — it will fail identically and, for issuance, may cost a credit.
+
+Async issuance handles retries for you: an infrastructure failure is retried with backoff until it succeeds, so only `failed` jobs need attention, and those are always payload problems.
+
 ## GET /issuanceJobs/:id
 
 Status of an asynchronous issuance. No authentication required; the job id is the capability.
