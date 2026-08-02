@@ -19,7 +19,7 @@ import { createIssuanceJob, getIssuanceJob } from "./services/issuanceJobs.js";
 import { getCredentialById } from "./services/getCredential.js";
 import { getEntityById } from "./services/getEntity.js";
 import { createVerificationRequest } from "./services/createVerificationRequest.js";
-import { deductCredit, createKey, listKeys, addCredits } from "./services/apiKeys.js";
+import { deductCredit, refundCredit, createKey, listKeys, addCredits } from "./services/apiKeys.js";
 import { approveEntity } from "./services/approveEntity.js";
 import { isPlatformAuthorized, upsertIssuerAuthorization } from "./services/issuerAuthorization.js";
 import { supabase } from "./supabase.js";
@@ -36,6 +36,21 @@ import {
   verifyContractOnly,
   verifyIpfsOnly,
 } from "./services/verifyPipeline.js";
+
+/**
+ * Turn a refused credit reservation into the right error for the caller.
+ *
+ * "Out of credits" and "could not reach the database" both stop the issuance,
+ * but they need opposite reactions: the first is final and means top up, the
+ * second is transient and means retry. Reporting an outage as
+ * insufficient_credits would tell an integrator to stop retrying and go buy
+ * credits it already has.
+ */
+function creditFailureError(reason) {
+  return reason === "unavailable"
+    ? new Error("database unavailable while reserving the credit")
+    : new Error("Insufficient credits");
+}
 
 export function createApp(options = {}) {
   const { skipPayment = false } = options;
@@ -269,20 +284,37 @@ export function createApp(options = {}) {
         validateIssuancePayload(payload);
 
         const idempotencyKey = req.get("idempotency-key") || payload.idempotency_key || null;
-        const { job, created } = await createIssuanceJob({
-          payload,
-          issuerEntityId: payload.issuer_entity_id ?? null,
-          apiKeyId: req.apiKey?.id ?? null,
-          idempotencyKey,
-        });
 
-        // Only charge for work we actually queued: a repeat click that collapses
-        // onto an existing job must not cost another credit.
-        if (created && req.apiKey) {
+        // Charge before queueing, so the credit is what authorizes the job.
+        if (req.apiKey) {
           const deduct = await deductCredit(req.apiKey.id);
           if (!deduct.ok) {
-            console.error("[issueCredential] API key credit deduction failed — keyId:", req.apiKey.id);
+            return sendError(res, creditFailureError(deduct.reason), {
+              api_key_id: req.apiKey.id,
+              reason: deduct.reason,
+            });
           }
+        }
+
+        let job;
+        let created;
+        try {
+          ({ job, created } = await createIssuanceJob({
+            payload,
+            issuerEntityId: payload.issuer_entity_id ?? null,
+            apiKeyId: req.apiKey?.id ?? null,
+            idempotencyKey,
+          }));
+        } catch (err) {
+          if (req.apiKey) await refundCredit(req.apiKey.id);
+          throw err;
+        }
+
+        // Only charge for work we actually queued: a repeat click that collapses
+        // onto an existing job must not cost another credit, so give back the
+        // credit taken a moment ago.
+        if (req.apiKey && !created) {
+          await refundCredit(req.apiKey.id);
         }
 
         return res.status(202).json({
@@ -292,13 +324,28 @@ export function createApp(options = {}) {
         });
       }
 
-      const result = await executeIssueCredential(payload);
-
+      // Charge before the work, not after. Deducting afterwards left the whole
+      // issuance — including the on-chain wait — between the middleware's
+      // balance check and the write, so simultaneous requests all saw the same
+      // balance and each got a credential for the same credit.
       if (req.apiKey) {
         const deduct = await deductCredit(req.apiKey.id);
         if (!deduct.ok) {
-          console.error("[issueCredential] API key credit deduction failed — check DB permissions on api_keys (UPDATE). keyId:", req.apiKey.id);
+          return sendError(res, creditFailureError(deduct.reason), {
+            api_key_id: req.apiKey.id,
+            reason: deduct.reason,
+          });
         }
+      }
+
+      let result;
+      try {
+        result = await executeIssueCredential(payload);
+      } catch (err) {
+        // The credit paid for a credential that does not exist. Give it back
+        // before the error goes out, so a transient chain failure is not billed.
+        if (req.apiKey) await refundCredit(req.apiKey.id);
+        throw err;
       }
 
       return res.json(result);

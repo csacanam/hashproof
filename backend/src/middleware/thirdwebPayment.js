@@ -72,6 +72,11 @@ export function createThirdwebPaymentMiddleware(skipPayment = false) {
         if (!keyRow) {
           return res.status(401).json({ error: "Invalid API key" });
         }
+        // Fast rejection for a key that was already empty when the request
+        // arrived. It is not what protects the balance — this read and the
+        // deduction are separate, so a key with credits here can still be out
+        // of them by the time the handler charges. deductCredit is the
+        // authority; see database/migrations/003_api_key_credits_atomic.sql.
         if (keyRow.credits_balance < 1) {
           return res.status(402).json({
             error: "Insufficient credits",

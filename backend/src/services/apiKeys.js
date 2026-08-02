@@ -40,32 +40,57 @@ export async function getByPlainKey(plainKey) {
 }
 
 /**
- * Deduct one credit and set last_used_at. Call after successful issuance.
+ * Spend one credit. Call BEFORE issuing — this is the reservation, not the
+ * receipt. ok=false means the key had nothing left and the caller must not do
+ * the work; refund it with refundCredit if the work then fails.
+ *
+ * The whole decision happens in one conditional UPDATE inside Postgres. Reading
+ * the balance here and writing it back would leave the gap that let a key with
+ * one credit buy N certificates by firing N requests at once.
+ *
+ * @param {string} keyId - api_keys.id
+ * @returns {Promise<{ ok: boolean, remaining: number, reason: string | null }>}
+ */
+export async function deductCredit(keyId) {
+  const { data, error } = await supabase.rpc("deduct_api_credit", { p_key_id: keyId });
+  if (error) {
+    console.error("[apiKeys] deduct_api_credit failed:", error.message, "keyId:", keyId);
+    // Refusing on an unreachable database is the safe direction: a caller sees a
+    // retryable error, rather than getting a credential nobody was charged for.
+    return { ok: false, remaining: 0, reason: "unavailable" };
+  }
+  return {
+    ok: data?.ok === true,
+    remaining: data?.remaining ?? 0,
+    reason: data?.reason ?? null,
+  };
+}
+
+/**
+ * Return a credit taken for work that never completed.
+ *
+ * Never throws: it runs on the failure path, where the caller is already
+ * handling a different error and must not have it replaced by this one. A
+ * refund that fails is logged with the key id so it can be corrected by hand.
+ *
  * @param {string} keyId - api_keys.id
  * @returns {Promise<{ ok: boolean, remaining: number }>}
  */
-export async function deductCredit(keyId) {
-  const { data: row, error: fetchErr } = await supabase
-    .from("api_keys")
-    .select("credits_balance, credits_used")
-    .eq("id", keyId)
-    .single();
-  if (fetchErr || !row) return { ok: false, remaining: 0 };
-  const newBalance = Math.max(0, (row.credits_balance ?? 0) - 1);
-  const newUsed = (row.credits_used ?? 0) + 1;
-  const { error: updateErr } = await supabase
-    .from("api_keys")
-    .update({
-      credits_balance: newBalance,
-      credits_used: newUsed,
-      last_used_at: new Date().toISOString(),
-    })
-    .eq("id", keyId);
-  if (updateErr) {
-    console.error("[apiKeys] deductCredit UPDATE failed:", updateErr.message, "keyId:", keyId);
-    return { ok: false, remaining: row.credits_balance ?? 0 };
+export async function refundCredit(keyId) {
+  try {
+    const { data, error } = await supabase.rpc("refund_api_credit", { p_key_id: keyId });
+    if (error) throw new Error(error.message);
+    if (data?.ok !== true) throw new Error("key not found");
+    return { ok: true, remaining: data.remaining ?? 0 };
+  } catch (err) {
+    console.error(
+      "[apiKeys] credit refund failed — this key was charged for work that did not complete. keyId:",
+      keyId,
+      "reason:",
+      err.message,
+    );
+    return { ok: false, remaining: 0 };
   }
-  return { ok: true, remaining: newBalance };
 }
 
 /**
@@ -129,16 +154,9 @@ export async function listKeys() {
 export async function addCredits(keyId, addCredits) {
   const amount = Math.max(0, Number(addCredits) || 0);
   if (amount === 0) return;
-  const { data: row, error: fetchErr } = await supabase
-    .from("api_keys")
-    .select("credits_balance")
-    .eq("id", keyId)
-    .single();
-  if (fetchErr || !row) throw new Error("API key not found");
-  const newBalance = (row.credits_balance ?? 0) + amount;
-  const { error: updateErr } = await supabase
-    .from("api_keys")
-    .update({ credits_balance: newBalance })
-    .eq("id", keyId);
-  if (updateErr) throw new Error(updateErr.message);
+  const { error } = await supabase.rpc("add_api_credits", {
+    p_key_id: keyId,
+    p_amount: amount,
+  });
+  if (error) throw new Error(error.message);
 }

@@ -66,6 +66,19 @@ describe("error classification", () => {
     expect(c.message).toMatch(/request_id/);
   });
 
+  it("keeps a refused credit reservation distinguishable from a database outage", () => {
+    // Both messages come from the credit reservation in POST /issueCredential.
+    // Collapsing them would tell an integrator whose key is fully funded to stop
+    // retrying and go buy credits, because the database blinked.
+    const empty = classifyError("Insufficient credits");
+    expect(empty.code).toBe(ErrorCode.INSUFFICIENT_CREDITS);
+    expect(empty.retryable).toBe(false);
+
+    const outage = classifyError("database unavailable while reserving the credit");
+    expect(outage.code).toBe(ErrorCode.DATABASE_UNAVAILABLE);
+    expect(outage.retryable).toBe(true);
+  });
+
   it("handles an Error object as well as a bare string", () => {
     expect(classifyError(new Error("holder.full_name required")).code).toBe(ErrorCode.INVALID_PAYLOAD);
     expect(classifyError(undefined).code).toBe(ErrorCode.INTERNAL_ERROR);

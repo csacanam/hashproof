@@ -18,7 +18,7 @@ import {
   backoffFor,
 } from "../services/issuanceJobs.js";
 import { executeIssueCredential } from "../services/issueCredential.js";
-import { addCredits } from "../services/apiKeys.js";
+import { refundCredit } from "../services/apiKeys.js";
 import { generateCredentialPdf } from "../services/generatePdf.js";
 import { storePdf } from "../services/pdfStore.js";
 
@@ -63,16 +63,11 @@ async function processJob(job) {
       // Bad input: retrying cannot help, so stop and surface it to the client.
       await failIssuanceJob(job.id, message);
       // The credit was taken at enqueue time; give it back since no credential
-      // was ever produced.
+      // was ever produced. refundCredit rather than addCredits so the lifetime
+      // credits_used counter is corrected too — a top-up and a refund are not
+      // the same event, and billing reads that counter.
       if (job.api_key_id) {
-        try {
-          await addCredits(job.api_key_id, 1);
-        } catch (refundErr) {
-          console.error(
-            `[issuance-worker] credit refund failed for job ${job.id} (key ${job.api_key_id}):`,
-            refundErr.message,
-          );
-        }
+        await refundCredit(job.api_key_id);
       }
       console.error(`[issuance-worker] job ${job.id} failed permanently: ${message}`);
       return { ok: false, permanent: true };
