@@ -27,6 +27,17 @@ export const verifyMessages = {
     "verify.verify": "Verify",
     "verify.credentialTitle": "Credential",
 
+    // Share
+    "verify.share.title": "Share your achievement",
+    "verify.share.linkedin": "Add to LinkedIn",
+    "verify.share.copy": "Copy link",
+    "verify.share.copied": "Link copied",
+    "verify.share.text": "I earned this credential, verifiable on HashProof:",
+    "verify.share.on.whatsapp": "Share on WhatsApp",
+    "verify.share.on.telegram": "Share on Telegram",
+    "verify.share.on.x": "Share on X",
+    "verify.share.on.facebook": "Share on Facebook",
+
     // Card
     "verify.detailsTitle": "Verification details",
     "verify.warning.notVerified": "This credential could not be verified.",
@@ -94,6 +105,17 @@ export const verifyMessages = {
     "verify.download": "Descargar",
     "verify.verify": "Verificar",
     "verify.credentialTitle": "Credencial",
+
+    // Share
+    "verify.share.title": "Comparte tu logro",
+    "verify.share.linkedin": "Añadir a LinkedIn",
+    "verify.share.copy": "Copiar enlace",
+    "verify.share.copied": "Enlace copiado",
+    "verify.share.text": "Obtuve esta credencial, verificable en HashProof:",
+    "verify.share.on.whatsapp": "Compartir en WhatsApp",
+    "verify.share.on.telegram": "Compartir en Telegram",
+    "verify.share.on.x": "Compartir en X",
+    "verify.share.on.facebook": "Compartir en Facebook",
 
     // Card
     "verify.detailsTitle": "Detalles de verificación",

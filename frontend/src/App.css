@@ -772,6 +772,51 @@
   gap: 0.75rem;
 }
 
+.verify-share {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.verify-share-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.verify-share-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.verify-share-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.verify-share-icon:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
 .verify-loading {
   text-align: center;
   color: var(--color-text-muted);
@@ -1167,6 +1212,16 @@
   opacity: 0.9;
 }
 
+/* Must sit after .btn-action — same specificity, so source order decides. */
+.btn-action--linkedin {
+  background: #0a66c2;
+  color: #fff;
+}
+
+.btn-action--linkedin:hover {
+  opacity: 0.9;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -1419,6 +1474,21 @@
 
   .verify-pdf-actions .btn {
     width: 100%;
+    justify-content: center;
+  }
+
+  .verify-share {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .verify-share-actions {
+    justify-content: center;
+  }
+
+  .verify-share-actions .btn {
+    flex: 1 1 100%;
     justify-content: center;
   }
 

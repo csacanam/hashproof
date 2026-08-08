@@ -1,9 +1,27 @@
 {
   "rewrites": [
     {
+      "source": "/verify/:id/pdf",
+      "destination": "https://api.hashproof.dev/verify/:id/pdf"
+    },
+    {
+      "source": "/verify/:id/image",
+      "destination": "/api/verify-image?id=:id"
+    },
+    {
+      "source": "/verify/:id",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|Facebot|LinkedInBot|Twitterbot|WhatsApp|TelegramBot|Slackbot|Discordbot|SkypeUriPreview|Pinterest|redditbot|Applebot|Googlebot|bingbot|vkShare|iframely|embedly).*"
+        }
+      ],
+      "destination": "/api/verify-og?id=:id"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
   ]
 }
-
