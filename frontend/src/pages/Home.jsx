@@ -7,6 +7,15 @@ import SiteFooter from "../components/SiteFooter.jsx";
 import { getPreferredLocale, createTranslator } from "../i18n.js";
 import { homeMessages, PRICING_ROWS } from "../locales/home.js";
 
+/** Rows that have a head-to-head page behind them. */
+const COMPETITOR_SLUGS = {
+  pok: "pok",
+  certifier: "certifier",
+  sertifier: "sertifier",
+  accredible: "accredible",
+  credly: "credly",
+};
+
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4022";
 const DEMO_CREDENTIAL_ID = "e32183ea-5833-438c-9aae-a2432bcbb53d";
 const CONTACT_EMAIL = "hi@hashproof.dev";
@@ -35,6 +44,9 @@ export default function Home() {
       .catch(() => setStats(null));
   }, []);
 
+  // Figures come through verbatim; anything else is a translation key.
+  const label = (v) => (/^[$~]/.test(v) ? v : t(`home.pricing.${v}`));
+
   const value = [
     { key: "share", icon: "↗" },
     { key: "verify", icon: "✓" },
@@ -46,6 +58,24 @@ export default function Home() {
     <div className="page">
       <Helmet>
         <title>{t("home.meta.title")}</title>
+        {/* The price as data, not prose, so anything summarising the page can
+            state it without inferring it from a sentence. */}
+        <script type="application/ld+json">{JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Product",
+          name: "HashProof",
+          description: t("home.meta.description"),
+          url: "https://www.hashproof.dev/",
+          brand: { "@type": "Brand", name: "HashProof" },
+          offers: {
+            "@type": "Offer",
+            price: "0.10",
+            priceCurrency: "USD",
+            url: "https://www.hashproof.dev/",
+            availability: "https://schema.org/InStock",
+            eligibleQuantity: { "@type": "QuantitativeValue", unitText: "credential" },
+          },
+        })}</script>
         <meta name="description" content={t("home.meta.description")} />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://www.hashproof.dev/" />
@@ -119,17 +149,21 @@ export default function Home() {
                 <tr>
                   <th>{t("home.pricing.col.platform")}</th>
                   <th>{t("home.pricing.col.each")}</th>
+                  <th>{t("home.pricing.col.price")}</th>
                   <th>{t("home.pricing.col.year")}</th>
-                  <th>{t("home.pricing.col.commitment")}</th>
                 </tr>
               </thead>
               <tbody>
                 {PRICING_ROWS.map((row) => (
                   <tr key={row.key} className={row.highlight ? "pricing-row--ours" : undefined}>
-                    <td>{row.name}</td>
-                    <td>{/^\$|~/.test(row.each) ? row.each : t(`home.pricing.${row.each}`)}</td>
-                    <td>{row.year}</td>
-                    <td>{t(`home.pricing.${row.commitment}`)}</td>
+                    <td>
+                      {COMPETITOR_SLUGS[row.key] ? (
+                        <Link to={`/vs/${COMPETITOR_SLUGS[row.key]}`} className="verify-explorer-link">{row.name}</Link>
+                      ) : row.name}
+                    </td>
+                    <td>{t(`home.pricing.${row.model}`)}</td>
+                    <td>{label(row.price)}</td>
+                    <td>{label(row.year)}</td>
                   </tr>
                 ))}
               </tbody>

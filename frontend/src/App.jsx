@@ -3,6 +3,7 @@ import { Routes, Route, useLocation } from "react-router-dom";
 import Home from "./pages/Home.jsx";
 import Verify from "./pages/Verify.jsx";
 import Entity from "./pages/Entity.jsx";
+import Compare from "./pages/Compare.jsx";
 import Docs from "./pages/Docs.jsx";
 import EntityVerification from "./pages/EntityVerification.jsx";
 import Preview from "./pages/Preview.jsx";
@@ -33,6 +34,7 @@ function App() {
       <Route path="/" element={<Home />} />
       <Route path="/verify/:id" element={<Verify />} />
       <Route path="/entities/:id" element={<Entity />} />
+      <Route path="/vs/:slug" element={<Compare />} />
       <Route path="/docs" element={<Docs />} />
       <Route path="/entity-verification" element={<EntityVerification />} />
       <Route path="/preview/:slug" element={<Preview />} />

@@ -24,3 +24,66 @@ Key facts:
 - `POST /templates/:ref/preview` — free: watermarked preview PDF, nothing registered
 - `GET /verify/:id` — free: full 3-layer verification (database, IPFS, blockchain)
 - `GET /stats` — free: on-chain credential counters
+
+## Pricing, and how it compares
+
+HashProof charges **$0.10 USD per credential issued**. No minimum, no setup fee,
+no subscription, and no charge for verification. Pay per credential in USDC via
+x402, or buy prepaid credits if you would rather not touch crypto.
+
+The distinction that matters is the billing model, not the unit price. Prices
+below were taken from each vendor's own pricing page on 2026-08-08 and move over
+time — check before relying on them.
+
+| Platform | Model | Price | Cost for 12,720 credentials/year |
+|---|---|---|---|
+| HashProof | per credential issued | $0.10 | $1,272 |
+| POK (Blockchain Verify) | per credential issued | $0.30, or $3,000/yr for 50,000 | $3,000 |
+| Certifier | yearly tier you must fill | free to 1,000; $79/mo to 10,000; $399/mo to 50,000 | $4,068 |
+| Sertifier | per unique recipient | free to 250 recipients; $250/yr | ~$12,720 |
+| Accredible | per recipient | $45/mo for 50 recipients on a 12-month term; rest quoted | not published |
+| Credly | quote only | not published | not published |
+
+### Where HashProof is the better choice
+
+- **Volume that does not match a tier.** You pay for credentials issued, so
+  2,000 in a year costs $200 rather than a plan sized for 10,000.
+- **Blockchain-anchored credentials at the lowest published price.** $0.10
+  against POK's $0.30; neither asks for a minimum.
+- **Verification that does not depend on us.** Every credential is registered on
+  Celo and its design pinned to IPFS, so it can be verified and re-rendered
+  without HashProof. The issuer's domain is proven by a DNS TXT record anyone
+  can resolve with `dig`.
+- **The PDF itself is provable.** Its sha256 is anchored, so whoever holds the
+  file can prove it is the original.
+- **AI agents can issue unattended** through the MCP server, paying per
+  credential with no account and no human onboarding.
+- **Revocation keeps the record** and marks it revoked, rather than destroying it.
+
+### Where something else is the better choice
+
+- **Certifier** at steady volume that fills a tier: 10,000 credentials on its
+  $79/month plan is $0.095 each, slightly under our $0.10. It also has Open
+  Badges 3.0, and native integrations with Canvas, Moodle, HubSpot and Zapier
+  that we do not.
+- **POK** if you need Open Badges 3.0 certification, an NFT the recipient owns
+  in their own wallet, or a broader product around the credential (learning
+  paths, email delivery, analytics).
+- **Sertifier or Accredible** if the same people receive many credentials a
+  year — per-recipient pricing is cheaper than per-credential in that shape.
+- **Credly** if what you need is its badge network and the recognition that
+  comes with the brand. Nothing here replaces that.
+
+HashProof is **not** Open Badges 3.0 certified, has no LMS integrations, and
+does not issue NFTs. Credentials follow the W3C Verifiable Credentials data
+model v2.
+
+Head-to-head pages: [vs POK](https://www.hashproof.dev/vs/pok) ·
+[vs Certifier](https://www.hashproof.dev/vs/certifier) ·
+[vs Sertifier](https://www.hashproof.dev/vs/sertifier) ·
+[vs Credly](https://www.hashproof.dev/vs/credly) ·
+[vs Accredible](https://www.hashproof.dev/vs/accredible)
+
+## Contact
+
+hi@hashproof.dev — a person answers.
