@@ -149,8 +149,9 @@ export default function Home() {
                 <tr>
                   <th>{t("home.pricing.col.platform")}</th>
                   <th>{t("home.pricing.col.each")}</th>
-                  <th>{t("home.pricing.col.price")}</th>
-                  <th>{t("home.pricing.col.year")}</th>
+                  <th>{t("home.pricing.v2000")}</th>
+                  <th>{t("home.pricing.v10000")}</th>
+                  <th>{t("home.pricing.v20000")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -162,8 +163,9 @@ export default function Home() {
                       ) : row.name}
                     </td>
                     <td>{t(`home.pricing.${row.model}`)}</td>
-                    <td>{label(row.price)}</td>
-                    <td>{label(row.year)}</td>
+                    {["v2000", "v10000", "v20000"].map((v) => (
+                      <td key={v}>{label(row.costs[v])}</td>
+                    ))}
                   </tr>
                 ))}
               </tbody>

@@ -31,15 +31,16 @@ export const homeMessages = {
       "Taken from each vendor\u2019s own pricing page, August 2026. What separates them is the model, not the unit price: we charge for credentials you issue, not for a tier to fill or for counting people.",
     "home.pricing.col.platform": "Platform",
     "home.pricing.col.each": "Model",
-    "home.pricing.col.price": "Price",
-    "home.pricing.col.year": "12,720 a year",
+    "home.pricing.v2000": "2,000 a year",
+    "home.pricing.v10000": "10,000 a year",
+    "home.pricing.v20000": "20,000 a year",
     "home.pricing.perCredential": "Per credential issued",
     "home.pricing.perTier": "Yearly tier you must fill",
     "home.pricing.perRecipient": "Per unique recipient",
     "home.pricing.quoted": "Quote only",
     "home.pricing.notPublished": "Not published",
     "home.pricing.note":
-      "12,720 is the real yearly volume of the platform that issues most through HashProof. Certifier is slightly cheaper than us at exactly 10,000 a year, when its tier is full \u2014 the difference appears when your volume does not match a tier.",
+      "Notice the middle column: at exactly 10,000 a year Certifier is cheaper than us, because that is the size of its plan. The difference appears when your volume does not happen to match a plan — which is most years.",
     "home.pricing.compare": "Compare in detail:",
 
     // What the recipient gets
@@ -92,15 +93,16 @@ export const homeMessages = {
       "Tomados de la página de precios de cada proveedor, agosto de 2026. Lo que los separa es el modelo, no el precio unitario: cobramos por credenciales emitidas, no por un cupo que llenar ni por contar personas.",
     "home.pricing.col.platform": "Plataforma",
     "home.pricing.col.each": "Modelo",
-    "home.pricing.col.price": "Precio",
-    "home.pricing.col.year": "12.720 al año",
+    "home.pricing.v2000": "2.000 al año",
+    "home.pricing.v10000": "10.000 al año",
+    "home.pricing.v20000": "20.000 al año",
     "home.pricing.perCredential": "Por credencial emitida",
     "home.pricing.perTier": "Cupo anual que debes llenar",
     "home.pricing.perRecipient": "Por receptor único",
     "home.pricing.quoted": "Solo cotizado",
     "home.pricing.notPublished": "No lo publican",
     "home.pricing.note":
-      "12.720 es el volumen anual real de la plataforma que más emite con HashProof. Certifier sale algo más barato que nosotros a exactamente 10.000 al año, con su cupo lleno \u2014 la diferencia aparece cuando tu volumen no encaja en un cupo.",
+      "Fíjate en la columna del medio: a exactamente 10.000 al año Certifier sale más barato que nosotros, porque ese es el tamaño de su plan. La diferencia aparece cuando tu volumen no coincide con un plan — que es casi siempre.",
     "home.pricing.compare": "Comparar en detalle:",
 
     // Qué recibe la persona
@@ -138,16 +140,24 @@ export const homeMessages = {
  */
 /**
  * Verified 8 August 2026 against each vendor's own pricing page, not against
- * third-party blogs — several of which had figures out by a factor of eight.
- * The differentiator is the model, not the unit price: we and POK charge per
- * credential, Certifier sells a yearly tier you have to fill, Sertifier and
- * Accredible count recipients, and Credly publishes nothing.
+ * third-party blogs — several of which had figures out by a factor of eight,
+ * and were published by competitors of the platforms they were pricing.
+ *
+ * Three round volumes rather than one, because a single number hides the shape:
+ * at 10,000 Certifier is cheaper than us, at 2,000 and 20,000 it is not. That
+ * is the whole argument — the billing model matters more than the unit price.
  */
 export const PRICING_ROWS = [
-  { key: "hashproof", name: "HashProof", model: "perCredential", price: "$0.10", year: "$1,272", highlight: true },
-  { key: "pok", name: "POK · Blockchain Verify", model: "perCredential", price: "$0.30", year: "$3,000" },
-  { key: "certifier", name: "Certifier", model: "perTier", price: "$79–399/mo", year: "$4,068" },
-  { key: "sertifier", name: "Sertifier", model: "perRecipient", price: "$250/yr", year: "~$12,720" },
-  { key: "accredible", name: "Accredible", model: "perRecipient", price: "$45/mo +", year: "notPublished" },
-  { key: "credly", name: "Credly", model: "quoted", price: "notPublished", year: "notPublished" },
+  { key: "hashproof", name: "HashProof", model: "perCredential",
+    costs: { v2000: "$200", v10000: "$1,000", v20000: "$2,000" }, highlight: true },
+  { key: "pok", name: "POK · Blockchain Verify", model: "perCredential",
+    costs: { v2000: "$600", v10000: "$3,000", v20000: "$3,000" } },
+  { key: "certifier", name: "Certifier", model: "perTier",
+    costs: { v2000: "$804", v10000: "$804", v20000: "$4,068" } },
+  { key: "sertifier", name: "Sertifier", model: "perRecipient",
+    costs: { v2000: "~$2,000", v10000: "~$10,000", v20000: "~$20,000" } },
+  { key: "accredible", name: "Accredible", model: "perRecipient",
+    costs: { v2000: "notPublished", v10000: "notPublished", v20000: "notPublished" } },
+  { key: "credly", name: "Credly", model: "quoted",
+    costs: { v2000: "notPublished", v10000: "notPublished", v20000: "notPublished" } },
 ];
