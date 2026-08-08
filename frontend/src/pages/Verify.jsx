@@ -494,7 +494,13 @@ export default function Verify() {
               <dt>{t("verify.label.issuer")}</dt>
               <dd>
                 <div>
-                  <span>{issuedBy}</span>
+                  {data?.issuer_entity_id ? (
+                    <Link to={`/entities/${data.issuer_entity_id}`} className="verify-entity-link">
+                      {issuedBy}
+                    </Link>
+                  ) : (
+                    <span>{issuedBy}</span>
+                  )}
                   {!data?.issuer_verified && data?.issuer_entity_id && data?.issuer_status !== "suspended" && (
                     <span>
                       {" · "}
@@ -504,6 +510,16 @@ export default function Verify() {
                     </span>
                   )}
                 </div>
+                {(data?.issuer_proofs ?? []).length > 0 && (
+                  <div className="verify-issuer-proofs">
+                    {data.issuer_proofs.map((p) => (
+                      <span key={p.resource} className="verify-issuer-proof" title={p.expected_record}>
+                        <span className="proofs-check" aria-hidden>✓</span>
+                        {p.resource}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <div className="verify-detail-id">
                   <span className={`entity-flag entity-flag--${data?.issuer_verified ? "verified" : data?.issuer_status === "suspended" ? "suspended" : "unverified"}`}>
                     {data?.issuer_verified ? t("verify.status.verified") : data?.issuer_status === "suspended" ? t("verify.status.suspended") : t("verify.status.unverified")}
@@ -523,7 +539,13 @@ export default function Verify() {
               <dt>{t("verify.label.platform")}</dt>
               <dd>
                 <div>
-                  <span>{issuedThrough}</span>
+                  {data?.platform_entity_id ? (
+                    <Link to={`/entities/${data.platform_entity_id}`} className="verify-entity-link">
+                      {issuedThrough}
+                    </Link>
+                  ) : (
+                    <span>{issuedThrough}</span>
+                  )}
                   {!data?.platform_verified && data?.platform_entity_id && data?.platform_status !== "suspended" && (
                     <span>
                       {" · "}

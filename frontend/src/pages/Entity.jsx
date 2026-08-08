@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import SiteHeader from "../components/SiteHeader.jsx";
@@ -75,6 +75,15 @@ export default function Entity() {
   });
   const [formError, setFormError] = useState("");
 
+  // Domain proofs. Anyone may claim a domain — a claim is worthless without
+  // control of it — so only proofs that currently resolve are ever listed.
+  const [proofs, setProofs] = useState([]);
+  const [domainInput, setDomainInput] = useState("");
+  const [pendingProof, setPendingProof] = useState(null);
+  const [proofBusy, setProofBusy] = useState(false);
+  const [proofError, setProofError] = useState("");
+  const [copiedRecord, setCopiedRecord] = useState(false);
+
   useEffect(() => {
     if (!id) return;
     setLoading(true);
@@ -88,6 +97,49 @@ export default function Entity() {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [id]);
+
+  const loadProofs = useCallback(() => {
+    if (!id) return;
+    fetch(`${API_URL}/entities/${id}/proofs`)
+      .then((res) => (res.ok ? res.json() : { proofs: [] }))
+      .then((d) => setProofs(d.proofs ?? []))
+      .catch(() => setProofs([]));
+  }, [id]);
+
+  useEffect(() => { loadProofs(); }, [loadProofs]);
+
+  // Prefill with the website already on record. That is the one domain this
+  // issuer can prove without credentials, so making them retype it would be
+  // asking for the answer we already have.
+  useEffect(() => {
+    const site = data?.entity?.website;
+    if (!site || domainInput) return;
+    try {
+      setDomainInput(new URL(site.includes("://") ? site : `https://${site}`).hostname.replace(/^www\./, ""));
+    } catch { /* leave the field empty */ }
+  }, [data, domainInput]);
+
+  // Declaring is idempotent and re-checks DNS, so the same call serves both
+  // "claim this domain" and "I published the record, look again".
+  const submitDomain = async (domain) => {
+    setProofBusy(true);
+    setProofError("");
+    try {
+      const res = await fetch(`${API_URL}/entities/${id}/proofs`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ domain }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.message || body.error || "Could not add the domain");
+      setPendingProof(body);
+      if (body.verified) { loadProofs(); setDomainInput(""); }
+    } catch (err) {
+      setProofError(err.message);
+    } finally {
+      setProofBusy(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -448,6 +500,87 @@ export default function Entity() {
               </button>
             </div>
           )}
+
+          <div className="verify-section proofs-section">
+            <h2 className="proofs-title">Verified domains</h2>
+            <p className="verify-card-description">
+              Domains this issuer has proven control of. Anyone can confirm it
+              independently: resolve the TXT record and compare it to the value
+              shown here.
+            </p>
+
+            {proofs.length > 0 ? (
+              <ul className="proofs-list">
+                {proofs.map((p) => (
+                  <li key={p.resource} className="proofs-item">
+                    <span className="proofs-check" aria-hidden>✓</span>
+                    <a
+                      href={`https://${p.resource}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="proofs-domain"
+                    >
+                      {p.resource}
+                    </a>
+                    <code className="proofs-record" title={p.expected_record}>{p.expected_record}</code>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="proofs-empty">No domain has been proven yet.</p>
+            )}
+
+            <form
+              className="proofs-form"
+              onSubmit={(ev) => { ev.preventDefault(); submitDomain(domainInput); }}
+            >
+              <input
+                type="text"
+                className="proofs-input"
+                placeholder="example.com"
+                value={domainInput}
+                onChange={(ev) => setDomainInput(ev.target.value)}
+                aria-label="Domain to verify"
+              />
+              <button type="submit" className="btn btn-action" disabled={proofBusy || !domainInput.trim()}>
+                {proofBusy ? "Checking…" : "Verify a domain you own"}
+              </button>
+            </form>
+
+            {proofError && <p className="proofs-error">{proofError}</p>}
+
+            {pendingProof && !pendingProof.verified && (
+              <div className="proofs-instructions">
+                <p>
+                  Publish this TXT record on <strong>{pendingProof.resource}</strong>, then check again.
+                  DNS changes can take a few minutes to propagate.
+                </p>
+                <div className="proofs-record-row">
+                  <code>{pendingProof.expected_record}</code>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => {
+                      navigator.clipboard.writeText(pendingProof.expected_record).then(
+                        () => { setCopiedRecord(true); setTimeout(() => setCopiedRecord(false), 2000); },
+                        () => {}
+                      );
+                    }}
+                  >
+                    {copiedRecord ? "Copied" : "Copy"}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-action"
+                  disabled={proofBusy}
+                  onClick={() => submitDomain(pendingProof.resource)}
+                >
+                  {proofBusy ? "Checking…" : "Check again"}
+                </button>
+              </div>
+            )}
+          </div>
 
           <dl className="verify-details">
             <div className="verify-detail">

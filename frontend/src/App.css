@@ -817,6 +817,98 @@
   border-color: rgba(255, 255, 255, 0.5);
 }
 
+/* Domain proofs */
+
+.proofs-title {
+  font-size: 1.05rem;
+  margin: 0 0 0.4rem;
+}
+
+.proofs-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.proofs-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.proofs-check {
+  color: #4ade80;
+  font-weight: 700;
+}
+
+.proofs-domain {
+  font-weight: 600;
+  color: #fff;
+}
+
+/* The raw value, so a reader can dig the record and compare it themselves. */
+.proofs-record {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.proofs-empty,
+.proofs-error {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  margin: 0 0 1rem;
+}
+
+.proofs-error {
+  color: #f87171;
+}
+
+.proofs-form {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.proofs-input {
+  flex: 1 1 220px;
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius-sm, 8px);
+  border: 1px solid var(--color-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  font-size: 0.95rem;
+}
+
+.proofs-instructions {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 8px);
+  font-size: 0.9rem;
+}
+
+.proofs-record-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+  flex-wrap: wrap;
+}
+
+.proofs-record-row code {
+  flex: 1 1 260px;
+  padding: 0.5rem 0.7rem;
+  border-radius: var(--radius-sm, 8px);
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
 .verify-loading {
   text-align: center;
   color: var(--color-text-muted);
@@ -2305,4 +2397,35 @@
   font-weight: 600;
   font-size: 0.95rem;
   border-radius: var(--radius);
+}
+
+/* Proven domains, shown next to the issuer on a credential. Unlike the status
+   flag beside it, this is checked live and reproducible by the reader. */
+.verify-issuer-proofs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+
+.verify-issuer-proof {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+/* The issuer's name links to its profile, where its proven domains live.
+   Previously only unverified entities were reachable, via a "start
+   verification" call to action — so a verified issuer's page had no way in. */
+.verify-entity-link {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.3);
+  text-underline-offset: 3px;
+}
+
+.verify-entity-link:hover {
+  text-decoration-color: currentColor;
 }
