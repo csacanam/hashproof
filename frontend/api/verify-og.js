@@ -94,17 +94,16 @@ export default async function handler(req, res) {
       url,
       title: `${title} | HashProof`,
       description,
-      // The issuer's certificate design. Already a real certificate rather than
-      // the HashProof logo, and it is a plain URL that needs no function to
-      // resolve — so previews cannot break.
+      // The certificate rendered with the holder's name, which is what makes
+      // each share look like its own rather than one picture repeated across
+      // every attendee of an event. It renders only the name field: the rest
+      // are issuer-defined and a preview is the last place they should surface.
       //
-      // `/verify/:id/image` renders the same design with the holder's name on
-      // it, which is what makes each share look like its own. Point og:image
-      // there once that route has been exercised against a real deployment: it
-      // cannot be verified locally (the vercel dev edge emulator cannot load
-      // @vercel/og's font) nor on a preview (team SSO), so shipping it unproven
-      // would risk every crawler caching a broken image.
-      image: meta.image_url || FALLBACK_IMAGE,
+      // Falls back to the plain template when that route cannot answer, and to
+      // the logo when there is no template image at all.
+      image: meta.image_url
+        ? `${SITE_URL}/verify/${encodeURIComponent(id)}/image`
+        : FALLBACK_IMAGE,
     })
   );
 }
