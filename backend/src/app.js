@@ -30,6 +30,7 @@ import { createMcpRouter } from "./routes/mcp.js";
 import { Buffer } from "node:buffer";
 import { randomUUID } from "node:crypto";
 import { sendError, classifyError } from "./utils/errors.js";
+import { sendTelegramAlert } from "./utils/notify.js";
 import { generateCredentialPdf } from "./services/generatePdf.js";
 import { getCredentialMeta } from "./services/getCredentialMeta.js";
 import { getStoredPdf, storePdf } from "./services/pdfStore.js";
@@ -789,21 +790,30 @@ export function createApp(options = {}) {
       const cj = cred.credential_json ?? {};
       const pageWidth = template?.page_width ?? 595;
       const pageHeight = template?.page_height ?? 842;
-      const VERIFIED_STATUSES = ["individual_verified", "organization_verified"];
-      const issuerVerified = VERIFIED_STATUSES.includes(issuerEntity?.status);
-      const platformVerified = VERIFIED_STATUSES.includes(platformEntity?.status);
-
       // Run full verification pipeline: contract → IPFS → DB
-      const [pipeline, issuerProofs] = await Promise.all([
+      const samePlatform = cred.platform_entity_id === cred.issuer_entity_id;
+      const [pipeline, issuerProofs, platformProofsRaw] = await Promise.all([
         runVerificationPipeline({ credentialId: cred.id, dbCredential: cred }),
-        // Additive, and checked live: unlike issuer_verified — which stays a
-        // status in our database — this is something a reader can reproduce
-        // with dig, without trusting us. Never throws.
         verifyEntityProofs(cred.issuer_entity_id),
+        samePlatform ? Promise.resolve(null) : verifyEntityProofs(cred.platform_entity_id),
       ]);
 
       // Only proofs that currently hold. An unverified claim is noise here.
       const verifiedIssuerProofs = issuerProofs.filter((p) => p.verified);
+      const verifiedPlatformProofs = samePlatform
+        ? verifiedIssuerProofs
+        : (platformProofsRaw ?? []).filter((p) => p.verified);
+
+      // Reviewed *and* proven. Our review establishes that the organisation is
+      // real and which domain is theirs; the DNS proof is the half a reader can
+      // check without trusting us, and it lapses on its own if the domain moves.
+      // Granting the badge for the review alone puts it back on our word, which
+      // is the thing this whole mechanism exists to stop relying on.
+      const VERIFIED_STATUSES = ["individual_verified", "organization_verified"];
+      const issuerReviewed = VERIFIED_STATUSES.includes(issuerEntity?.status);
+      const platformReviewed = VERIFIED_STATUSES.includes(platformEntity?.status);
+      const issuerVerified = issuerReviewed && verifiedIssuerProofs.length > 0;
+      const platformVerified = platformReviewed && verifiedPlatformProofs.length > 0;
 
       // Always the database copy. It used to prefer the IPFS JSON whenever the
       // two matched, which produced an identical value — but the pinned document
@@ -829,6 +839,10 @@ export function createApp(options = {}) {
         issuer_verified: issuerVerified,
         issuer_status: issuerEntity?.status ?? null,
         issuer_proofs: verifiedIssuerProofs,
+        // none → nothing; reviewed → we checked the organisation but the domain
+        // is still unproven; verified → both hold.
+        issuer_verification_level: !issuerReviewed ? "none" : issuerVerified ? "verified" : "reviewed",
+        platform_verification_level: !platformReviewed ? "none" : platformVerified ? "verified" : "reviewed",
         platform_verified: platformVerified,
         platform_status: platformEntity?.status ?? null,
         issuer_entity_id: cred.issuer_entity_id ?? null,
@@ -955,10 +969,37 @@ export function createApp(options = {}) {
         return res.status(404).json({ error: "Entity not found" });
       }
 
+      // Same bar as a credential: reviewed by us *and* proven by DNS.
       const VERIFIED_STATUSES = ["individual_verified", "organization_verified"];
-      const isVerified = VERIFIED_STATUSES.includes(entity.status);
+      const reviewed = VERIFIED_STATUSES.includes(entity.status);
+
+      // What this issuer has actually done is as much a part of its profile as
+      // what we checked about it — an issuer with thousands of credentials over
+      // months reads differently from one registered yesterday.
+      const [proofsRaw, issuedCount, firstIssued] = await Promise.all([
+        verifyEntityProofs(entity.id),
+        supabase
+          .from("credentials")
+          .select("id", { count: "exact", head: true })
+          .eq("issuer_entity_id", entity.id)
+          .then(({ count }) => count ?? 0, () => null),
+        supabase
+          .from("credentials")
+          .select("created_at")
+          .eq("issuer_entity_id", entity.id)
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .then(({ data }) => data?.[0]?.created_at ?? null, () => null),
+      ]);
+
+      const proofs = proofsRaw.filter((p) => p.verified);
+      const isVerified = reviewed && proofs.length > 0;
 
       return res.json({
+        proofs,
+        verification_level: !reviewed ? "none" : isVerified ? "verified" : "reviewed",
+        credentials_issued: issuedCount,
+        first_issued_at: firstIssued,
         entity,
         id: entity.id,
         display_name: entity.display_name,
@@ -1009,6 +1050,23 @@ export function createApp(options = {}) {
         tx_hash: txHash,
         tx_explorer_url: explorerTxUrl,
       });
+
+      // Someone just paid and is now waiting on a human. Without this the only
+      // way to notice was querying the database, so a request could sit unseen
+      // for days. Best-effort: a failed notification must not fail the request
+      // they already paid for.
+      const entity = await getEntityById(entityId).catch(() => null);
+      sendTelegramAlert(
+        "verification_request",
+        [
+          "🔔 New verification request",
+          `Entity: ${entity?.display_name ?? entityId} (${type})`,
+          `Domain: ${form.website ?? "—"}`,
+          `Contact: ${form.contactName ?? "—"} <${form.contactEmail ?? "—"}> · ${form.role ?? "—"}`,
+          `Paid: ${priceUsd} USDC${txHash ? ` · ${explorerTxUrl ?? txHash}` : ""}`,
+          `Review: ${baseUrl}/entities/${entityId}`,
+        ].join("\n")
+      ).catch((err) => console.warn("[verificationRequests] telegram alert failed:", err.message));
 
       return res.status(201).json({
         request,

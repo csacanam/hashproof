@@ -15,6 +15,7 @@ function makeThenableBuilder({ data, error }) {
   return {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
+    order: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),
     single: vi.fn().mockResolvedValue({
       data: null,
@@ -82,6 +83,28 @@ vi.mock("./services/issueCredential.js", async () => {
   };
 });
 
+// The success path of GET /verify/:id had no coverage at all, which is how a
+// reference-before-initialisation in its own handler got past a green suite —
+// on the most important endpoint in the API, and the one integrators read.
+let mockCredential = null;
+vi.mock("./services/getCredential.js", () => ({
+  getCredentialById: vi.fn(async () => mockCredential),
+}));
+
+vi.mock("./services/verifyPipeline.js", () => ({
+  runVerificationPipeline: vi.fn(async () => ({
+    effectiveStatus: "active",
+    statusSource: "contract",
+    report: {
+      contract: { available: true, status: "active" },
+      ipfs: { available: true, status: "ok", matchesDatabaseJson: true },
+      database: { available: true, status: "ok" },
+    },
+  })),
+  verifyContractOnly: vi.fn(async () => ({ contract: {} })),
+  verifyIpfsOnly: vi.fn(async () => ({ contract: {}, ipfs: {} })),
+}));
+
 vi.mock("./services/issuanceJobs.js", () => ({
   createIssuanceJob: vi.fn(async (...args) => mockCreateIssuanceJob(...args)),
   getIssuanceJob: vi.fn(async (...args) => mockGetIssuanceJob(...args)),
@@ -113,6 +136,106 @@ describe("HashProof API", () => {
       if (!payload.context?.type || !payload.context?.title) throw new Error("context.type and context.title required");
       if (!payload.credential_type || !payload.title) throw new Error("credential_type and title required");
       return { ok: true };
+    });
+  });
+
+  describe("GET /verify/:id", () => {
+    beforeEach(() => {
+      mockCredential = {
+        id: "cred-1",
+        issuer_entity_id: "e1",
+        platform_entity_id: "e1",
+        credential_json: {
+          name: "Certificado de Asistencia",
+          credentialSubject: { full_name: "Magda Carolina Buitrago Rojas", extra: "1049640988" },
+        },
+        credential_type: "attendance",
+        created_at: "2026-08-08T01:10:14.633202+00:00",
+        tx_hash: "0xabc",
+        ipfs_cid: "bafy",
+        issuer: [{ display_name: "Peewah", status: "organization_verified" }],
+        platform: [{ display_name: "Peewah", status: "organization_verified" }],
+        contexts: [{ title: "V Simposio" }],
+        templates: [{ page_width: 1056, page_height: 816 }],
+      };
+    });
+
+    it("answers, and keeps the fields integrators read", async () => {
+      const { verifyEntityProofs } = await import("./services/entityProofs.js");
+      verifyEntityProofs.mockResolvedValue([]);
+
+      const res = await request(app).get("/verify/cred-1");
+
+      expect(res.status).toBe(200);
+      // The subject stays in the clear here — only the pinned copy is reduced.
+      expect(res.body.credential.credentialSubject.full_name).toBe("Magda Carolina Buitrago Rojas");
+      expect(res.body.status).toBe("active");
+      expect(res.body.verification_report.ipfs.matchesDatabaseJson).toBe(true);
+      expect(res.body.tx_hash).toBe("0xabc");
+    });
+
+    it("withholds the issuer badge while the domain is unproven", async () => {
+      const { verifyEntityProofs } = await import("./services/entityProofs.js");
+      verifyEntityProofs.mockResolvedValue([]);
+
+      const res = await request(app).get("/verify/cred-1");
+
+      expect(res.body.issuer_verified).toBe(false);
+      expect(res.body.issuer_verification_level).toBe("reviewed");
+      expect(res.body.issuer_proofs).toEqual([]);
+    });
+
+    it("grants it once the domain holds, and reuses the lookup when issuer and platform match", async () => {
+      const { verifyEntityProofs } = await import("./services/entityProofs.js");
+      verifyEntityProofs.mockClear();
+      verifyEntityProofs.mockResolvedValue([{ resource: "peewah.co", verified: true }]);
+
+      const res = await request(app).get("/verify/cred-1");
+
+      expect(res.body.issuer_verified).toBe(true);
+      expect(res.body.platform_verified).toBe(true);
+      expect(res.body.issuer_verification_level).toBe("verified");
+      expect(verifyEntityProofs).toHaveBeenCalledTimes(1);
+    });
+
+    it("returns 404 for an unknown credential", async () => {
+      mockCredential = null;
+      const res = await request(app).get("/verify/nope");
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe("issuer verification level", () => {
+    // Paying for a review used to be enough for the badge, which put it back on
+    // our word. It now also needs a domain proof — the half a reader can check.
+    it("does not call an issuer verified on the review alone", async () => {
+      const { verifyEntityProofs } = await import("./services/entityProofs.js");
+      verifyEntityProofs.mockResolvedValue([]);
+      mockEntityById = { id: "e1", status: "organization_verified" };
+
+      const res = await request(app).get("/entities/e1");
+      expect(res.body.is_verified).toBe(false);
+      expect(res.body.verification_level).toBe("reviewed");
+    });
+
+    it("calls it verified once a domain proof holds too", async () => {
+      const { verifyEntityProofs } = await import("./services/entityProofs.js");
+      verifyEntityProofs.mockResolvedValue([{ resource: "peewah.co", verified: true }]);
+      mockEntityById = { id: "e1", status: "organization_verified" };
+
+      const res = await request(app).get("/entities/e1");
+      expect(res.body.is_verified).toBe(true);
+      expect(res.body.verification_level).toBe("verified");
+    });
+
+    it("stays at none when there was never a review, proof or not", async () => {
+      const { verifyEntityProofs } = await import("./services/entityProofs.js");
+      verifyEntityProofs.mockResolvedValue([{ resource: "peewah.co", verified: true }]);
+      mockEntityById = { id: "e1", status: "unverified" };
+
+      const res = await request(app).get("/entities/e1");
+      expect(res.body.is_verified).toBe(false);
+      expect(res.body.verification_level).toBe("none");
     });
   });
 

@@ -62,9 +62,9 @@ export function expectedRecord(entityId, fqdn) {
   return `${TXT_PREFIX}${expectedToken(entityId, fqdn)}`;
 }
 
-async function resolveTxt(fqdn) {
+async function resolveTxt(fqdn, { fresh = false } = {}) {
   const hit = cache.get(fqdn);
-  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.records;
+  if (!fresh && hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.records;
 
   for (const build of RESOLVERS) {
     try {
@@ -96,9 +96,9 @@ async function resolveTxt(fqdn) {
  * Checks one declared proof against live DNS.
  * @returns {Promise<{verified: boolean, result: 'verified'|'missing'|'error', expected: string}>}
  */
-export async function checkProof({ entity_id, resource }) {
+export async function checkProof({ entity_id, resource }, { fresh = false } = {}) {
   const expected = expectedRecord(entity_id, resource);
-  const records = await resolveTxt(resource);
+  const records = await resolveTxt(resource, { fresh });
 
   if (records === null) return { verified: false, result: "error", expected };
   return { verified: records.includes(expected), result: records.includes(expected) ? "verified" : "missing", expected };
@@ -131,9 +131,10 @@ export async function declareProof(entityId, domain) {
 
   if (error) throw new Error(error.message);
 
-  // Idempotent, and it reports the live state — so the same call doubles as the
-  // "check it now" the issuer needs after publishing the record.
-  const { verified } = await checkProof({ entity_id: entityId, resource: fqdn });
+  // Bypasses the cache. This call is only ever made because a person pressed a
+  // button, usually seconds after publishing the record — serving them a cached
+  // "no" for the next five minutes would look exactly like a broken feature.
+  const { verified } = await checkProof({ entity_id: entityId, resource: fqdn }, { fresh: true });
 
   return {
     ...data,
