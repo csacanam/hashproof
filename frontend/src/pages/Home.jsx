@@ -1,154 +1,98 @@
 import { Link } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import ResponsiveCode from "../components/ResponsiveCode.jsx";
 import SiteHeader from "../components/SiteHeader.jsx";
 import SiteFooter from "../components/SiteFooter.jsx";
+import { getPreferredLocale, createTranslator } from "../i18n.js";
+import { homeMessages, PRICING_ROWS } from "../locales/home.js";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4022";
-
 const DEMO_CREDENTIAL_ID = "e32183ea-5833-438c-9aae-a2432bcbb53d";
+const CONTACT_EMAIL = "hi@hashproof.dev";
 
-const CRYPTO_EXAMPLE = `curl -X POST https://api.hashproof.dev/issueCredential \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "issuer": {
-      "display_name": "HashProof Demo",
-      "slug": "hashproof-demo"
-    },
-    "holder": {
-      "full_name": "YOUR_NAME"
-    },
-    "context": {
-      "type": "certification",
-      "title": "HashProof API Quickstart"
-    },
-    "credential_type": "completion",
-    "title": "First Credential Issued",
-    "values": {
-      "holder_name": "YOUR_NAME",
-      "details": "For successfully issuing a verifiable credential via the HashProof API."
-    }
-  }'`;
-
-const APIKEY_EXAMPLE = `curl -X POST https://api.hashproof.dev/issueCredential \\
-  -H "Content-Type: application/json" \\
+const ISSUE_EXAMPLE = `curl -X POST https://api.hashproof.dev/issueCredential \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
   -d '{
-    "issuer": {
-      "display_name": "HashProof Demo",
-      "slug": "hashproof-demo"
-    },
-    "holder": {
-      "full_name": "YOUR_NAME"
-    },
-    "context": {
-      "type": "certification",
-      "title": "HashProof API Quickstart"
-    },
-    "credential_type": "completion",
-    "title": "First Credential Issued",
-    "values": {
-      "holder_name": "YOUR_NAME",
-      "details": "For successfully issuing a verifiable credential via the HashProof API."
-    }
+    "issuer":   { "display_name": "Your Org", "slug": "your-org" },
+    "platform": { "display_name": "Your Org", "slug": "your-org" },
+    "holder":   { "full_name": "Ada Lovelace" },
+    "context":  { "type": "event", "title": "Annual Conference 2026" },
+    "credential_type": "attendance",
+    "title": "Certificate of Attendance"
   }'`;
-
-
-const STEPS = [
-  {
-    n: "1",
-    title: "Call the API",
-    desc: "Send credential data to POST /issueCredential. Pay per call with crypto (x402) or use a prepaid API key.",
-  },
-  {
-    n: "2",
-    title: "Credential is created",
-    desc: "HashProof stores the credential in its database, pins the JSON to IPFS, and registers it on Celo.",
-  },
-  {
-    n: "3",
-    title: "Share and verify",
-    desc: "You receive a unique verification URL. Anyone can verify the credential — blockchain, IPFS, and DB all match.",
-  },
-];
 
 export default function Home() {
+  const locale = useMemo(() => getPreferredLocale(), []);
+  const t = useMemo(() => createTranslator(homeMessages, locale), [locale]);
   const [stats, setStats] = useState(null);
-  const [audience, setAudience] = useState("human"); // "human" | "agent"
 
   useEffect(() => {
     fetch(`${API_URL}/stats`)
-      .then((r) => r.json())
-      .then((d) => setStats(d))
-      .catch(() => {});
+      .then((res) => (res.ok ? res.json() : null))
+      .then(setStats)
+      .catch(() => setStats(null));
   }, []);
+
+  const value = [
+    { key: "share", icon: "↗" },
+    { key: "verify", icon: "✓" },
+    { key: "issuer", icon: "◈" },
+    { key: "durable", icon: "∞" },
+  ];
 
   return (
     <div className="page">
       <Helmet>
-        <title>Issue Verifiable Credentials with One API Call | HashProof</title>
-        <meta
-          name="description"
-          content="HashProof lets developers and platforms create certificates anyone can verify."
-        />
+        <title>{t("home.meta.title")}</title>
+        <meta name="description" content={t("home.meta.description")} />
         <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://hashproof.dev/" />
-        <meta
-          property="og:title"
-          content="Issue Verifiable Credentials with One API Call | HashProof"
-        />
-        <meta
-          property="og:description"
-          content="HashProof lets developers and platforms create certificates anyone can verify."
-        />
-        <meta property="og:image" content="https://hashproof.dev/thumbnail.png" />
+        <meta property="og:url" content="https://www.hashproof.dev/" />
+        <meta property="og:title" content={t("home.meta.title")} />
+        <meta property="og:description" content={t("home.meta.description")} />
+        <meta property="og:image" content="https://www.hashproof.dev/thumbnail.png" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:url" content="https://hashproof.dev/" />
-        <meta
-          name="twitter:title"
-          content="Issue Verifiable Credentials with One API Call | HashProof"
-        />
-        <meta
-          name="twitter:description"
-          content="HashProof lets developers and platforms create certificates anyone can verify."
-        />
-        <meta name="twitter:image" content="https://hashproof.dev/thumbnail.png" />
+        <meta name="twitter:title" content={t("home.meta.title")} />
+        <meta name="twitter:description" content={t("home.meta.description")} />
+        <meta name="twitter:image" content="https://www.hashproof.dev/thumbnail.png" />
       </Helmet>
+
       <SiteHeader />
 
       <main>
-        {/* ── Hero ── */}
+        {/* Opens with what it is and what it costs. It used to open with "one
+            API call" — the how — for an audience that never arrived. */}
         <section className="hero">
-          <h1>Issue verifiable credentials with one API call</h1>
-          <p className="hero-lead">
-            HashProof lets developers, platforms, and AI agents issue digital credentials that anyone can verify.
-          </p>
+          <h1>{t("home.hero.title")}</h1>
+          <p className="hero-lead">{t("home.hero.lead")}</p>
+
           <div className="hero-actions">
-            <Link to="/docs" className="btn btn-primary">
-              Read the docs
-            </Link>
             <Link
               to={`/verify/${DEMO_CREDENTIAL_ID}`}
-              className="btn btn-secondary"
+              className="btn btn-primary"
               target="_blank"
               rel="noopener noreferrer"
             >
-              See a live credential →
+              {t("home.hero.cta.credential")}
             </Link>
+            <a href={`mailto:${CONTACT_EMAIL}`} className="btn btn-secondary">
+              {t("home.hero.cta.contact")}
+            </a>
           </div>
+
           {stats && (
             <div className="hero-stats">
-              <span className="hero-stats-since">Since March 10, 2026</span>
+              <span className="hero-stats-since">{t("home.hero.since")}</span>
               <div className="hero-stats-row">
                 <div className="hero-stat">
                   <span className="hero-stat-num">{stats.total_credentials.toLocaleString()}</span>
-                  <span className="hero-stat-label">Credentials Issued</span>
+                  <span className="hero-stat-label">{t("home.hero.stat.credentials")}</span>
                 </div>
                 <div className="hero-stat-sep" />
                 <div className="hero-stat">
                   <span className="hero-stat-num">{stats.verified_entities.toLocaleString()}</span>
-                  <span className="hero-stat-label">Verified Entities</span>
+                  <span className="hero-stat-label">{t("home.hero.stat.entities")}</span>
                 </div>
               </div>
               <a
@@ -157,191 +101,80 @@ export default function Home() {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Verify onchain ↗
+                {t("home.hero.onchain")}
               </a>
             </div>
           )}
         </section>
 
-        {/* ── 3 paths: Developers / Enterprises / Agents ── */}
-        <section className="section home-audience-section">
-          <div className="home-audience-tabs">
-            <button
-              type="button"
-              className={`home-audience-tab ${audience === "human" ? "home-audience-tab--active" : ""}`}
-              onClick={() => setAudience("human")}
-            >
-              Pay with crypto
-            </button>
-            <button
-              type="button"
-              className={`home-audience-tab ${audience === "enterprise" ? "home-audience-tab--active" : ""}`}
-              onClick={() => setAudience("enterprise")}
-            >
-              Pay with API key
-            </button>
-            <button
-              type="button"
-              className={`home-audience-tab ${audience === "agent" ? "home-audience-tab--active" : ""}`}
-              onClick={() => setAudience("agent")}
-            >
-              For Agents
-            </button>
+        {/* The strongest argument we have, and one nobody else publishes —
+            Accredible does not even quote a price. */}
+        <section className="section">
+          <h2>{t("home.pricing.title")}</h2>
+          <p className="section-p">{t("home.pricing.lead")}</p>
+
+          <div className="pricing-scroll">
+            <table className="pricing-table">
+              <thead>
+                <tr>
+                  <th>{t("home.pricing.col.platform")}</th>
+                  <th>{t("home.pricing.col.each")}</th>
+                  <th>{t("home.pricing.col.year")}</th>
+                  <th>{t("home.pricing.col.commitment")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {PRICING_ROWS.map((row) => (
+                  <tr key={row.key} className={row.highlight ? "pricing-row--ours" : undefined}>
+                    <td>{row.name}</td>
+                    <td>{/^\$|~/.test(row.each) ? row.each : t(`home.pricing.${row.each}`)}</td>
+                    <td>{row.year}</td>
+                    <td>{t(`home.pricing.${row.commitment}`)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
 
-          {audience === "human" && (
-            <>
-              <div className="home-code-block">
-                <div className="home-code-header">
-                  <span className="home-code-label">POST api.hashproof.dev/issueCredential</span>
-                  <span className="home-code-price">$0.10 USDC · x402 · Celo or Base</span>
-                </div>
-                <ResponsiveCode code={CRYPTO_EXAMPLE} />
-              </div>
-              <p className="home-code-replace">
-                No API key, no signup. The server responds with a 402 challenge and your{" "}
-                <a href="https://www.x402.org/" target="_blank" rel="noopener noreferrer">x402</a>-compatible
-                client signs the payment automatically — $0.10 USDC per credential.
-              </p>
-              <p className="home-code-note">
-                Returns a <code>verification_url</code> to share with the credential holder.
-              </p>
-              <Link to="/docs#quickstart-x402" className="btn btn-secondary" style={{ marginTop: "1rem", display: "inline-block" }}>
-                See the full x402 quick start →
-              </Link>
-            </>
-          )}
-
-          {audience === "enterprise" && (
-            <>
-              <div className="home-code-block">
-                <div className="home-code-header">
-                  <span className="home-code-label">POST api.hashproof.dev/issueCredential</span>
-                  <span className="home-code-price">1 credit per credential · no wallet needed</span>
-                </div>
-                <ResponsiveCode code={APIKEY_EXAMPLE} />
-              </div>
-              <p className="home-code-replace">
-                Same API, no crypto. Each call deducts 1 prepaid credit.
-              </p>
-              <p className="home-code-note">
-                Returns a <code>verification_url</code> to share with the credential holder.
-              </p>
-              <div className="home-agent-cta" style={{ marginTop: "1.5rem" }}>
-                <p className="home-agent-title">How to get your API key</p>
-                <ol className="home-agent-steps">
-                  <li>Contact <a href="mailto:hi@hashproof.dev">hi@hashproof.dev</a> to purchase prepaid credits.</li>
-                  <li>Receive your API key tied to your organization.</li>
-                  <li>Replace <code>YOUR_API_KEY</code> in the example above and start issuing.</li>
-                </ol>
-              </div>
-              <Link to="/docs#quickstart-apikey" className="btn btn-secondary" style={{ marginTop: "1rem", display: "inline-block" }}>
-                See the API key quick start →
-              </Link>
-            </>
-          )}
-
-          {audience === "agent" && (
-            <div className="home-agent-cta">
-              <p className="home-agent-title">
-                Read <a href="https://hashproof.dev/skill.md" target="_blank" rel="noopener noreferrer"><code>hashproof.dev/skill.md</code></a>
-              </p>
-              <p className="home-agent-desc">
-                That&apos;s it. The skill file has everything: what to ask, how to pay, how to use templates, and how to preview certificates before issuing.
-              </p>
-            </div>
-          )}
+          <p className="pricing-note">{t("home.pricing.note")}</p>
         </section>
 
-        {/* ── How it works ── */}
         <section className="section">
-          <h2>How it works</h2>
-          <div className="home-steps">
-            {STEPS.map((s) => (
-              <div key={s.n} className="home-step">
-                <span className="home-step-n">{s.n}</span>
+          <h2>{t("home.value.title")}</h2>
+          <div className="home-value">
+            {value.map(({ key, icon }) => (
+              <div key={key} className="home-value-item">
+                <span className="home-value-icon" aria-hidden>{icon}</span>
                 <div>
-                  <p className="home-step-title">{s.title}</p>
-                  <p className="home-step-desc">{s.desc}</p>
+                  <p className="home-value-title">{t(`home.value.${key}.title`)}</p>
+                  <p className="home-value-desc">{t(`home.value.${key}.body`)}</p>
                 </div>
               </div>
             ))}
           </div>
         </section>
 
-        {/* ── Trust pipeline ── */}
+        {/* Still the product, just no longer the pitch. */}
         <section className="section">
-          <h2>Built for trust</h2>
-          <p className="section-p">
-            Every credential is verified across three independent layers.
-            If any layer fails to match, the credential is flagged — no exceptions.
-          </p>
-          <div className="home-pipeline">
-            <div className="home-pipeline-item">
-              <div className="home-pipeline-icon">⛓️</div>
-              <div className="home-pipeline-body">
-                <p className="home-pipeline-title">Blockchain contract</p>
-                <p className="home-pipeline-desc">
-                  The credential hash is registered on Celo mainnet at issuance.
-                  Verification checks the contract first — it's the most authoritative source.
-                </p>
-              </div>
-            </div>
-            <div className="home-pipeline-connector">↓</div>
-            <div className="home-pipeline-item">
-              <div className="home-pipeline-icon">📦</div>
-              <div className="home-pipeline-body">
-                <p className="home-pipeline-title">IPFS content hash</p>
-                <p className="home-pipeline-desc">
-                  The credential JSON is pinned to IPFS. Any modification to the data
-                  produces a different hash — making tampering immediately detectable.
-                </p>
-              </div>
-            </div>
-            <div className="home-pipeline-connector">↓</div>
-            <div className="home-pipeline-item">
-              <div className="home-pipeline-icon">🏛️</div>
-              <div className="home-pipeline-body">
-                <p className="home-pipeline-title">Entity verification</p>
-                <p className="home-pipeline-desc">
-                  The issuer's identity is checked against HashProof's verified entity registry.
-                  Credentials show whether the issuer has been reviewed and approved.
-                </p>
-              </div>
-            </div>
-            <div className="home-pipeline-connector">↓</div>
-            <div className="home-pipeline-item">
-              <div className="home-pipeline-icon">📄</div>
-              <div className="home-pipeline-body">
-                <p className="home-pipeline-title">W3C Verifiable Credentials v2</p>
-                <p className="home-pipeline-desc">
-                  Every credential follows the W3C VC Data Model v2 standard —
-                  interoperable with any system that understands the spec.
-                </p>
-              </div>
-            </div>
+          <h2>{t("home.dev.title")}</h2>
+          <p className="section-p">{t("home.dev.lead")}</p>
+          <ResponsiveCode code={ISSUE_EXAMPLE} />
+          <p className="section-p">{t("home.dev.mcp")}</p>
+          <div className="hero-actions">
+            <Link to="/docs" className="btn btn-secondary">
+              {t("home.dev.docs")}
+            </Link>
           </div>
-          <p className="home-pipeline-note">
-            Even if HashProof goes offline, the blockchain and IPFS records remain
-            independently verifiable by anyone.
-          </p>
         </section>
 
-        {/* ── Entity verification ── */}
         <section className="section">
-          <h2>Entity verification</h2>
-          <p className="section-p">
-            Organizations and individuals can verify their identity through HashProof.
-            Verified issuers are marked on every credential they issue — so verifiers
-            know whether the issuer has been reviewed by the platform.
-          </p>
-          <p className="section-p">
-            Each verified entity has a public profile and an authorized set of wallets
-            that can issue credentials on its behalf.
-          </p>
-          <Link to="/entity-verification" className="home-entity-link">
-            Learn how entity verification works →
-          </Link>
+          <h2>{t("home.contact.title")}</h2>
+          <p className="section-p">{t("home.contact.body")}</p>
+          <div className="hero-actions">
+            <a href={`mailto:${CONTACT_EMAIL}`} className="btn btn-primary">
+              {CONTACT_EMAIL}
+            </a>
+          </div>
         </section>
       </main>
 

@@ -2602,3 +2602,88 @@
 
 .entity-check-mark--ok { color: #4ade80; }
 .entity-check-mark--pending { color: var(--color-text-muted); }
+
+/* Pricing comparison. Scrolls inside its own container so the page body never
+   scrolls sideways on a phone. */
+.pricing-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 1.25rem 0 0.75rem;
+}
+
+.pricing-table {
+  width: 100%;
+  min-width: 34rem;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.pricing-table th {
+  text-align: left;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  font-weight: 600;
+  padding: 0 0.75rem 0.6rem 0;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.pricing-table td {
+  padding: 0.7rem 0.75rem 0.7rem 0;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.pricing-table td:first-child { color: var(--color-text); }
+
+.pricing-row--ours td {
+  color: var(--color-text);
+  font-weight: 600;
+  background: rgba(34, 211, 238, 0.06);
+}
+
+.pricing-row--ours td:first-child { color: var(--color-accent); }
+
+.pricing-note {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+}
+
+/* What the recipient gets */
+.home-value {
+  display: grid;
+  gap: 1.25rem;
+  margin-top: 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .home-value { grid-template-columns: 1fr 1fr; gap: 1.5rem 2rem; }
+}
+
+.home-value-item {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.home-value-icon {
+  color: var(--color-accent);
+  font-size: 1.1rem;
+  line-height: 1.5;
+}
+
+.home-value-title {
+  margin: 0 0 0.25rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.home-value-desc {
+  margin: 0;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+  font-size: 0.92rem;
+}
