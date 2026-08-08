@@ -263,6 +263,18 @@ export default function Verify() {
     : t("verify.label.noExpiration");
   const credentialIdDisplay = id ?? "—";
 
+  // Four states, not three. Collapsing "reviewed but the domain is still
+  // unproven" into plain "unverified" reads as "we have no idea who this is",
+  // which understates an issuer we did review — as misleading as the badge it
+  // replaced, just in the other direction.
+  const entityState = (kind) => {
+    if (data?.[`${kind}_status`] === "suspended") return "suspended";
+    if (data?.[`${kind}_verified`]) return "verified";
+    return data?.[`${kind}_verification_level`] === "reviewed" ? "reviewed" : "unverified";
+  };
+  const issuerState = entityState("issuer");
+  const platformState = entityState("platform");
+
   // Sharing. For an event credential the recipient is the distribution channel,
   // so this matters as much as the certificate itself. `verification_url` comes
   // from the API so the shared link is always the canonical one.
@@ -463,7 +475,13 @@ export default function Verify() {
               <span>{t("verify.warning.suspended")}</span>
             </p>
           )}
-          {status === "active" && (!data?.issuer_verified || !data?.platform_verified) && data?.issuer_status !== "suspended" && data?.platform_status !== "suspended" && (
+          {status === "active" && (issuerState === "reviewed" || platformState === "reviewed") && issuerState !== "unverified" && platformState !== "unverified" && (
+            <div className="verify-warning verify-warning--soft">
+              <span>{t("verify.warning.domainPending")}</span>
+            </div>
+          )}
+
+          {status === "active" && (issuerState === "unverified" || platformState === "unverified") && (
             <p className="verify-warning">
               <span className="verify-warning-icon">⚠️</span>
               <span>{t("verify.warning.unverifiedEntities")}</span>
@@ -501,11 +519,11 @@ export default function Verify() {
                   ) : (
                     <span>{issuedBy}</span>
                   )}
-                  {!data?.issuer_verified && data?.issuer_entity_id && data?.issuer_status !== "suspended" && (
+                  {issuerState !== "verified" && issuerState !== "suspended" && data?.issuer_entity_id && (
                     <span>
                       {" · "}
                       <Link to={`/entities/${data.issuer_entity_id}`} className="verify-explorer-link">
-                        {t("verify.link.startVerification")}
+                        {t(issuerState === "reviewed" ? "verify.link.completeVerification" : "verify.link.startVerification")}
                       </Link>
                     </span>
                   )}
@@ -521,15 +539,16 @@ export default function Verify() {
                   </div>
                 )}
                 <div className="verify-detail-id">
-                  <span className={`entity-flag entity-flag--${data?.issuer_verified ? "verified" : data?.issuer_status === "suspended" ? "suspended" : "unverified"}`}>
-                    {data?.issuer_verified ? t("verify.status.verified") : data?.issuer_status === "suspended" ? t("verify.status.suspended") : t("verify.status.unverified")}
+                  <span className={`entity-flag entity-flag--${issuerState}`}>
+                    {t(`verify.status.${issuerState}`)}
                   </span>
                   <span className="verify-tooltip">
                     <span className="verify-tooltip__icon" aria-hidden>?</span>
                     <span className="verify-tooltip__content">
-                      {data?.issuer_verified && t("verify.tooltip.issuerVerified")}
-                      {data?.issuer_status === "suspended" && t("verify.tooltip.issuerSuspended")}
-                      {!data?.issuer_verified && data?.issuer_status !== "suspended" && t("verify.tooltip.issuerUnverified")}
+                      {issuerState === "verified" && t("verify.tooltip.issuerVerified")}
+                      {issuerState === "suspended" && t("verify.tooltip.issuerSuspended")}
+                      {issuerState === "reviewed" && t("verify.tooltip.issuerReviewed")}
+                      {issuerState === "unverified" && t("verify.tooltip.issuerUnverified")}
                     </span>
                   </span>
                 </div>
@@ -546,25 +565,26 @@ export default function Verify() {
                   ) : (
                     <span>{issuedThrough}</span>
                   )}
-                  {!data?.platform_verified && data?.platform_entity_id && data?.platform_status !== "suspended" && (
+                  {platformState !== "verified" && platformState !== "suspended" && data?.platform_entity_id && (
                     <span>
                       {" · "}
                       <Link to={`/entities/${data.platform_entity_id}`} className="verify-explorer-link">
-                        {t("verify.link.startVerification")}
+                        {t(platformState === "reviewed" ? "verify.link.completeVerification" : "verify.link.startVerification")}
                       </Link>
                     </span>
                   )}
                 </div>
                 <div className="verify-detail-id">
-                  <span className={`entity-flag entity-flag--${data?.platform_verified ? "verified" : data?.platform_status === "suspended" ? "suspended" : "unverified"}`}>
-                    {data?.platform_verified ? t("verify.status.verified") : data?.platform_status === "suspended" ? t("verify.status.suspended") : t("verify.status.unverified")}
+                  <span className={`entity-flag entity-flag--${platformState}`}>
+                    {t(`verify.status.${platformState}`)}
                   </span>
                   <span className="verify-tooltip">
                     <span className="verify-tooltip__icon" aria-hidden>?</span>
                     <span className="verify-tooltip__content">
-                      {data?.platform_verified && t("verify.tooltip.platformVerified")}
-                      {data?.platform_status === "suspended" && t("verify.tooltip.platformSuspended")}
-                      {!data?.platform_verified && data?.platform_status !== "suspended" && t("verify.tooltip.platformUnverified")}
+                      {platformState === "verified" && t("verify.tooltip.platformVerified")}
+                      {platformState === "suspended" && t("verify.tooltip.platformSuspended")}
+                      {platformState === "reviewed" && t("verify.tooltip.platformReviewed")}
+                      {platformState === "unverified" && t("verify.tooltip.platformUnverified")}
                     </span>
                   </span>
                 </div>

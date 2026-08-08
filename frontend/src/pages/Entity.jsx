@@ -78,11 +78,14 @@ export default function Entity() {
   // Domain proofs. Anyone may claim a domain — a claim is worthless without
   // control of it — so only proofs that currently resolve are ever listed.
   const [proofs, setProofs] = useState([]);
-  const [domainInput, setDomainInput] = useState("");
   const [pendingProof, setPendingProof] = useState(null);
   const [proofBusy, setProofBusy] = useState(false);
   const [proofError, setProofError] = useState("");
   const [copiedRecord, setCopiedRecord] = useState(false);
+  // Distinguishes "just asked for the record" from "asked again and it is still
+  // not there". Without it a failed check changed nothing on screen, which reads
+  // as the button doing nothing at all.
+  const [checkOutcome, setCheckOutcome] = useState(null);
 
   useEffect(() => {
     if (!id) return;
@@ -108,22 +111,12 @@ export default function Entity() {
 
   useEffect(() => { loadProofs(); }, [loadProofs]);
 
-  // Prefill with the website already on record. That is the one domain this
-  // issuer can prove without credentials, so making them retype it would be
-  // asking for the answer we already have.
-  useEffect(() => {
-    const site = data?.entity?.website;
-    if (!site || domainInput) return;
-    try {
-      setDomainInput(new URL(site.includes("://") ? site : `https://${site}`).hostname.replace(/^www\./, ""));
-    } catch { /* leave the field empty */ }
-  }, [data, domainInput]);
-
   // Declaring is idempotent and re-checks DNS, so the same call serves both
   // "claim this domain" and "I published the record, look again".
   const submitDomain = async (domain) => {
     setProofBusy(true);
     setProofError("");
+    setCheckOutcome(null);
     try {
       const res = await fetch(`${API_URL}/entities/${id}/proofs`, {
         method: "POST",
@@ -133,7 +126,8 @@ export default function Entity() {
       const body = await res.json();
       if (!res.ok) throw new Error(body.message || body.error || "Could not add the domain");
       setPendingProof(body);
-      if (body.verified) { loadProofs(); setDomainInput(""); }
+      setCheckOutcome(body.verified ? "verified" : "missing");
+      if (body.verified) { loadProofs(); setPendingProof(null); }
     } catch (err) {
       setProofError(err.message);
     } finally {
@@ -216,11 +210,25 @@ export default function Entity() {
   }
 
   const e = data?.entity ?? data ?? {};
+  // Derived from the website on record, never typed. That is the one domain
+  // this issuer can prove without credentials, so offering a free-text field
+  // only invited entering something that would be refused.
+  const claimableDomain = (() => {
+    const site = e.website;
+    if (!site) return null;
+    try {
+      return new URL(site.includes("://") ? site : `https://${site}`).hostname.replace(/^www\./, "");
+    } catch {
+      return null;
+    }
+  })();
+
+  const verificationLevel = data?.verification_level ?? "none";
+
   const entityName = e.display_name || e.slug || "Entity";
   const metaTitle = `${entityName} on HashProof`;
   const metaDescription = `View the public profile of ${entityName} on HashProof. Entities on HashProof can issue or manage verifiable credentials with an API.`;
   const status = data?.status ?? e.status ?? "unverified";
-  const isVerified = data?.is_verified ?? false;
 
   const createdAt = e.created_at
     ? new Date(e.created_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
@@ -474,9 +482,33 @@ export default function Entity() {
 
       <main className="verify-main">
         <div className="verify-card">
-          <div className="verify-header">
+          <div className="verify-header entity-header">
             <h1>{e.display_name || "Entity"}</h1>
+            <span className={`entity-flag entity-flag--${
+              verificationLevel === "verified" ? "verified"
+                : status === "suspended" ? "suspended"
+                : verificationLevel === "reviewed" ? "reviewed"
+                : "unverified"
+            }`}>
+              {status === "suspended" ? "suspended"
+                : verificationLevel === "verified" ? "verified"
+                : verificationLevel === "reviewed" ? "reviewed — domain pending"
+                : "unverified"}
+            </span>
           </div>
+
+          {/* What this issuer has done. An issuer with thousands of credentials
+              over months reads differently from one registered yesterday, and
+              that context belonged on the page as much as our checks do. */}
+          {typeof data?.credentials_issued === "number" && data.credentials_issued > 0 && (
+            <p className="entity-activity">
+              <strong>{data.credentials_issued.toLocaleString()}</strong>{" "}
+              {data.credentials_issued === 1 ? "credential issued" : "credentials issued"}
+              {data.first_issued_at && (
+                <> since {new Date(data.first_issued_at).toLocaleDateString("en-US", { month: "long", year: "numeric" })}</>
+              )}
+            </p>
+          )}
 
 
           {status === "unverified" && (
@@ -502,74 +534,142 @@ export default function Entity() {
           )}
 
           <div className="verify-section proofs-section">
-            <h2 className="proofs-title">Verified domains</h2>
-            <p className="verify-card-description">
-              Domains this issuer has proven control of. Anyone can confirm it
-              independently: resolve the TXT record and compare it to the value
-              shown here.
-            </p>
+            <h2 className="proofs-title">What we verified</h2>
 
-            {proofs.length > 0 ? (
-              <ul className="proofs-list">
-                {proofs.map((p) => (
-                  <li key={p.resource} className="proofs-item">
-                    <span className="proofs-check" aria-hidden>✓</span>
-                    <a
-                      href={`https://${p.resource}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="proofs-domain"
-                    >
-                      {p.resource}
-                    </a>
-                    <code className="proofs-record" title={p.expected_record}>{p.expected_record}</code>
-                  </li>
-                ))}
-              </ul>
+            <div className="entity-check">
+              <span className={`entity-check-mark entity-check-mark--${verificationLevel === "none" ? "pending" : "ok"}`} aria-hidden>
+                {verificationLevel === "none" ? "○" : "✓"}
+              </span>
+              <div>
+                <strong>Organization identity</strong>
+                <span className="proofs-record-hint">
+                  {verificationLevel === "none"
+                    ? "Not reviewed yet."
+                    : `Reviewed by HashProof${lastVerified !== "—" ? ` on ${lastVerified}` : ""} — that the organization is real and this domain is theirs.`}
+                </span>
+              </div>
+            </div>
+
+            <div className="entity-check">
+              <span className={`entity-check-mark entity-check-mark--${proofs.length ? "ok" : "pending"}`} aria-hidden>
+                {proofs.length ? "✓" : "○"}
+              </span>
+              <div>
+                <strong>Domain control</strong>
+                <span className="proofs-record-hint">
+                  Proven by a DNS record, checked live — the half anyone can confirm
+                  without trusting us, and which lapses on its own if the domain moves.
+                </span>
+
+                {proofs.length > 0 && (
+                  <ul className="proofs-list">
+                    {proofs.map((p) => (
+                      <li key={p.resource} className="proofs-item">
+                        <div className="proofs-item-head">
+                          <a
+                            href={`https://${p.resource}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="proofs-domain"
+                          >
+                            {p.resource}
+                          </a>
+                        </div>
+
+                        {/* Behind a disclosure: the value is what makes this checkable
+                            without us, but 64 characters of hash beside every domain
+                            buries the one thing the row is meant to say. */}
+                        <details className="proofs-detail">
+                          <summary>Check it yourself</summary>
+                          <p className="proofs-record-hint">
+                            Resolve the domain's TXT records and look for this value — no
+                            need to take our word for it.
+                          </p>
+                          <code className="proofs-record">dig +short TXT {p.resource}</code>
+                          <code className="proofs-record">{p.expected_record}</code>
+                        </details>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+
+            {claimableDomain ? (
+              !proofs.some((p) => p.resource === claimableDomain) && (
+                <div className="proofs-claim">
+                  <span className="proofs-claim-domain">{claimableDomain}</span>
+                  <button
+                    type="button"
+                    className="btn btn-action"
+                    disabled={proofBusy}
+                    onClick={() => submitDomain(claimableDomain)}
+                  >
+                    {proofBusy ? "Checking…" : "Verify this domain"}
+                  </button>
+                </div>
+              )
             ) : (
-              <p className="proofs-empty">No domain has been proven yet.</p>
+              <p className="proofs-empty">
+                The domain is established when the organization is verified, so there is
+                nothing to prove here yet.
+              </p>
             )}
 
-            <form
-              className="proofs-form"
-              onSubmit={(ev) => { ev.preventDefault(); submitDomain(domainInput); }}
-            >
-              <input
-                type="text"
-                className="proofs-input"
-                placeholder="example.com"
-                value={domainInput}
-                onChange={(ev) => setDomainInput(ev.target.value)}
-                aria-label="Domain to verify"
-              />
-              <button type="submit" className="btn btn-action" disabled={proofBusy || !domainInput.trim()}>
-                {proofBusy ? "Checking…" : "Verify a domain you own"}
-              </button>
-            </form>
-
             {proofError && <p className="proofs-error">{proofError}</p>}
+
+            {checkOutcome === "verified" && (
+              <p className="proofs-success">✓ Domain verified. It now appears on every credential this issuer signs.</p>
+            )}
 
             {pendingProof && !pendingProof.verified && (
               <div className="proofs-instructions">
                 <p>
-                  Publish this TXT record on <strong>{pendingProof.resource}</strong>, then check again.
-                  DNS changes can take a few minutes to propagate.
+                  Add this record in the DNS settings for <strong>{pendingProof.resource}</strong>,
+                  then check again. Changes can take a few minutes to propagate.
                 </p>
-                <div className="proofs-record-row">
-                  <code>{pendingProof.expected_record}</code>
-                  <button
-                    type="button"
-                    className="btn btn-ghost"
-                    onClick={() => {
-                      navigator.clipboard.writeText(pendingProof.expected_record).then(
-                        () => { setCopiedRecord(true); setTimeout(() => setCopiedRecord(false), 2000); },
-                        () => {}
-                      );
-                    }}
-                  >
-                    {copiedRecord ? "Copied" : "Copy"}
-                  </button>
-                </div>
+
+                {/* The value alone is not enough to act on — a DNS form asks for
+                    three things, and the host is the one people get wrong. */}
+                <dl className="proofs-record-spec">
+                  <div>
+                    <dt>Type</dt>
+                    <dd><code>TXT</code></dd>
+                  </div>
+                  <div>
+                    <dt>Name</dt>
+                    <dd>
+                      <code>@</code>
+                      <span className="proofs-record-hint">
+                        the root domain — some providers want {pendingProof.resource} instead, or leave it blank
+                      </span>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Value</dt>
+                    <dd>
+                      <div className="proofs-record-row">
+                        <code>{pendingProof.expected_record}</code>
+                        <button
+                          type="button"
+                          className="btn btn-ghost"
+                          onClick={() => {
+                            navigator.clipboard.writeText(pendingProof.expected_record).then(
+                              () => { setCopiedRecord(true); setTimeout(() => setCopiedRecord(false), 2000); },
+                              () => {}
+                            );
+                          }}
+                        >
+                          {copiedRecord ? "Copied" : "Copy"}
+                        </button>
+                      </div>
+                    </dd>
+                  </div>
+                </dl>
+
+                <p className="proofs-record-hint">
+                  It sits alongside any TXT records you already have, such as email.
+                </p>
                 <button
                   type="button"
                   className="btn btn-action"
@@ -578,20 +678,20 @@ export default function Entity() {
                 >
                   {proofBusy ? "Checking…" : "Check again"}
                 </button>
+
+                {checkOutcome === "missing" && (
+                  <p className="proofs-pending">
+                    Not visible yet. We just looked and the record is not there — if you
+                    have only added it, DNS usually takes a few minutes to propagate, so
+                    check again shortly. If it has been longer, confirm the value matches
+                    exactly and that it is on the root domain.
+                  </p>
+                )}
               </div>
             )}
           </div>
 
           <dl className="verify-details">
-            <div className="verify-detail">
-              <dt>Status</dt>
-              <dd>
-                <span className={`entity-flag entity-flag--${isVerified ? "verified" : status === "suspended" ? "suspended" : "unverified"}`}>
-                  {status.replace(/_/g, " ")}
-                </span>
-              </dd>
-            </div>
-
             <div className="verify-detail">
               <dt>Website</dt>
               <dd>
@@ -605,16 +705,6 @@ export default function Entity() {
               </dd>
             </div>
 
-            <div className="verify-detail">
-              <dt>Last verified at</dt>
-              <dd>
-                {e.last_verified_at ? (
-                  lastVerified
-                ) : (
-                  "—"
-                )}
-              </dd>
-            </div>
 
             <div className="verify-detail">
               <dt>Created at</dt>
@@ -734,7 +824,11 @@ export default function Entity() {
                         {orgForm.website.trim() && !isValidUrl(orgForm.website.trim()) && (
                           <p className="modal-error" style={{ marginTop: "0.25rem" }}>Enter a valid URL (e.g. https://example.org).</p>
                         )}
-                        <p className="modal-help">The official website of the organization.</p>
+                        <p className="modal-help">
+                          The official website of the organization. This is the domain you
+                          will prove control of by DNS — verification is not complete
+                          until you do.
+                        </p>
                       </div>
                       <div className="modal-field">
                         <label className="modal-label" htmlFor="org-contact-name">Contact full name</label>
@@ -878,6 +972,14 @@ export default function Entity() {
                     <span className="modal-fee-amount">$49 USDC</span>
                   </p>
                   <p className="modal-gasless">⛽ No gas fees for this transaction.</p>
+
+                  <p className="modal-help modal-next-step">
+                    <strong>One more step after this.</strong> Reviewing your organization
+                    is half of it. To be shown as verified you also publish a TXT record on{" "}
+                    <strong>{orgForm.website.trim() || "your domain"}</strong>, which is what
+                    lets anyone confirm the domain is yours without taking our word for it.
+                    We hand you the record once the review is approved.
+                  </p>
 
                   <div className="modal-field" style={{ marginTop: "1.25rem" }}>
                     <label className="modal-label" htmlFor="payment-network">Pay with</label>

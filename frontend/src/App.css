@@ -827,7 +827,7 @@
 .proofs-list {
   list-style: none;
   padding: 0;
-  margin: 0 0 1rem;
+  margin: 0.6rem 0 0;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -835,9 +835,36 @@
 
 .proofs-item {
   display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.proofs-item-head {
+  display: flex;
   align-items: center;
-  gap: 0.6rem;
-  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.proofs-detail summary {
+  cursor: pointer;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.proofs-detail summary:hover {
+  color: var(--color-text);
+}
+
+
+
+.proofs-detail code {
+  display: block;
+  margin-top: 0.35rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: var(--radius-sm, 8px);
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
 }
 
 .proofs-check {
@@ -852,8 +879,6 @@
 
 /* The raw value, so a reader can dig the record and compare it themselves. */
 .proofs-record {
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
   overflow-wrap: anywhere;
 }
 
@@ -872,6 +897,18 @@
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+}
+
+.proofs-claim {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.proofs-claim-domain {
+  font-weight: 600;
+  color: #fff;
 }
 
 .proofs-input {
@@ -2429,3 +2466,139 @@
 .verify-entity-link:hover {
   text-decoration-color: currentColor;
 }
+
+/* Reviewed, but the domain is still unproven — deliberately not green. Half of
+   the verification is done and the remaining half is the issuer's to complete. */
+.entity-flag--reviewed {
+  background: rgba(250, 204, 21, 0.12);
+  color: #facc15;
+  border-color: rgba(250, 204, 21, 0.35);
+}
+
+.modal-next-step {
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 8px);
+  line-height: 1.55;
+}
+
+/* Reviewed but the domain is unproven: amber, not red. The credential is
+   authentic and we did check the organisation — only the last step is missing. */
+.entity-flag--reviewed {
+  background: rgba(250, 204, 21, 0.12);
+  color: #facc15;
+  border-color: rgba(250, 204, 21, 0.35);
+}
+
+.verify-warning--soft {
+  border-color: rgba(250, 204, 21, 0.3);
+  color: #facc15;
+}
+
+/* A DNS form asks for type, host and value. Showing only the value leaves the
+   host to guesswork, which is the field people get wrong. */
+.proofs-record-spec {
+  margin: 0.85rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.proofs-record-spec > div {
+  display: grid;
+  grid-template-columns: 4.5rem 1fr;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.proofs-record-spec dt {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  padding-top: 0.55rem;
+}
+
+.proofs-record-spec dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.proofs-record-spec code {
+  display: inline-block;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius-sm, 8px);
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.proofs-record-hint {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 520px) {
+  .proofs-record-spec > div {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+  .proofs-record-spec dt { padding-top: 0; }
+}
+
+.proofs-success {
+  margin: 0.75rem 0 0;
+  font-size: 0.9rem;
+  color: #4ade80;
+}
+
+/* A check that finds nothing has to say so. Silence is indistinguishable from
+   a button that does not work. */
+.proofs-pending {
+  margin: 0.85rem 0 0;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: #facc15;
+}
+
+/* Entity page: identity, then what we checked, then what they have done. */
+.entity-header {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.entity-activity {
+  margin: 0.35rem 0 1.75rem;
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+}
+
+.entity-activity strong {
+  color: var(--color-text);
+}
+
+/* One row per check, so adding another later slots in without redesigning. */
+.entity-check {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  margin-bottom: 0.85rem;
+}
+
+.entity-check strong {
+  display: block;
+  font-size: 0.92rem;
+}
+
+.entity-check-mark {
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.entity-check-mark--ok { color: #4ade80; }
+.entity-check-mark--pending { color: var(--color-text-muted); }
