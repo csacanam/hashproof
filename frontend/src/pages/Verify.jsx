@@ -554,42 +554,48 @@ export default function Verify() {
                 </div>
               </dd>
             </div>
-            <div className="verify-detail">
-              <dt>{t("verify.label.platform")}</dt>
-              <dd>
-                <div>
-                  {data?.platform_entity_id ? (
-                    <Link to={`/entities/${data.platform_entity_id}`} className="verify-entity-link">
-                      {issuedThrough}
-                    </Link>
-                  ) : (
-                    <span>{issuedThrough}</span>
-                  )}
-                  {platformState !== "verified" && platformState !== "suspended" && data?.platform_entity_id && (
-                    <span>
-                      {" · "}
-                      <Link to={`/entities/${data.platform_entity_id}`} className="verify-explorer-link">
-                        {t(platformState === "reviewed" ? "verify.link.completeVerification" : "verify.link.startVerification")}
+            {/* Only when it differs from the issuer. For all but 8 of the
+                credentials ever issued the two are the same entity, and
+                repeating the name one row below reads as a second party
+                being involved when none is. The API keeps every field. */}
+            {data?.platform_entity_id && data.platform_entity_id !== data.issuer_entity_id && (
+              <div className="verify-detail">
+                <dt>{t("verify.label.platform")}</dt>
+                <dd>
+                  <div>
+                    {data?.platform_entity_id ? (
+                      <Link to={`/entities/${data.platform_entity_id}`} className="verify-entity-link">
+                        {issuedThrough}
                       </Link>
+                    ) : (
+                      <span>{issuedThrough}</span>
+                    )}
+                    {platformState !== "verified" && platformState !== "suspended" && data?.platform_entity_id && (
+                      <span>
+                        {" · "}
+                        <Link to={`/entities/${data.platform_entity_id}`} className="verify-explorer-link">
+                          {t(platformState === "reviewed" ? "verify.link.completeVerification" : "verify.link.startVerification")}
+                        </Link>
+                      </span>
+                    )}
+                  </div>
+                  <div className="verify-detail-id">
+                    <span className={`entity-flag entity-flag--${platformState}`}>
+                      {t(`verify.status.${platformState}`)}
                     </span>
-                  )}
-                </div>
-                <div className="verify-detail-id">
-                  <span className={`entity-flag entity-flag--${platformState}`}>
-                    {t(`verify.status.${platformState}`)}
-                  </span>
-                  <span className="verify-tooltip">
-                    <span className="verify-tooltip__icon" aria-hidden>?</span>
-                    <span className="verify-tooltip__content">
-                      {platformState === "verified" && t("verify.tooltip.platformVerified")}
-                      {platformState === "suspended" && t("verify.tooltip.platformSuspended")}
-                      {platformState === "reviewed" && t("verify.tooltip.platformReviewed")}
-                      {platformState === "unverified" && t("verify.tooltip.platformUnverified")}
+                    <span className="verify-tooltip">
+                      <span className="verify-tooltip__icon" aria-hidden>?</span>
+                      <span className="verify-tooltip__content">
+                        {platformState === "verified" && t("verify.tooltip.platformVerified")}
+                        {platformState === "suspended" && t("verify.tooltip.platformSuspended")}
+                        {platformState === "reviewed" && t("verify.tooltip.platformReviewed")}
+                        {platformState === "unverified" && t("verify.tooltip.platformUnverified")}
+                      </span>
                     </span>
-                  </span>
-                </div>
-              </dd>
-            </div>
+                  </div>
+                </dd>
+              </div>
+            )}
             <div className="verify-detail">
               <dt>{t("verify.label.recipient")}</dt>
               <dd>{recipient}</dd>

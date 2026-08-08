@@ -19,7 +19,7 @@ const COMPETITOR_SLUGS = {
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4022";
 // Issued by Peewah, to the person who runs it — so the sample on the front
 // page is nobody else's data.
-const DEMO_CREDENTIAL_ID = "79cdc6af-daf6-4e92-9057-d3c95f84e7bf";
+const DEMO_CREDENTIAL_ID = "e313fd8d-c964-4b9c-ad1a-d21ca920ae75";
 const CONTACT_EMAIL = "hi@hashproof.dev";
 
 const ISSUE_EXAMPLE = `curl -X POST https://api.hashproof.dev/issueCredential \\
