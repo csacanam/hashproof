@@ -9,6 +9,9 @@
 
 import { supabase } from "../supabase.js";
 import { pinJsonToIpfs, unpinCid } from "./pinata.js";
+import { buildIpfsDocument } from "./ipfsDocument.js";
+import { buildCredentialArtifacts } from "./credentialArtifacts.js";
+import { storePdf } from "./pdfStore.js";
 import crypto from "node:crypto";
 import { Contract, Wallet } from "ethers";
 import { getCeloProvider } from "../utils/celoProvider.js";
@@ -380,7 +383,30 @@ export async function executeIssueCredential(payload) {
     },
   };
 
-  const cid = await pinJsonToIpfs(credentialJsonWithProof, `${credentialId}.json`);
+  // Render and anchor the certificate before pinning.
+  //
+  // The pinned copy carries no personal data, which alone would leave it unable
+  // to prove anything about the document someone is holding. Two additions fix
+  // that without publishing anything identifying: the hash of the PDF, so a
+  // holder can prove their copy is the original, and the design, so the
+  // certificate can be re-rendered even if our storage disappears. Neither is
+  // personal data — `design.fields` carries the template's field *keys* and
+  // geometry, never their values.
+  //
+  // Both live inside credential_json, so they are stored and pinned through the
+  // existing path and verification rebuilds them with no schema change.
+  const artifacts = await buildCredentialArtifacts({
+    credentialJson: credentialJsonWithProof,
+    templateId: prepared.template_id,
+    backgroundUrlOverride: prepared.background_url_override,
+    verificationUrl: `${baseUrl}/verify/${credentialId}`,
+  });
+
+  const enrichedCredentialJson = artifacts.credentialJson;
+
+  const ipfsDocument = buildIpfsDocument(enrichedCredentialJson, credentialId);
+
+  const cid = await pinJsonToIpfs(ipfsDocument, `${credentialId}.json`);
   if (!cid) {
     throw new Error("IPFS pin failed or PINATA_JWT not configured");
   }
@@ -410,7 +436,7 @@ export async function executeIssueCredential(payload) {
   const finalPrepared = {
     ...prepared,
     contract_address: contractAddress,
-    credential_json: credentialJsonWithProof,
+    credential_json: enrichedCredentialJson,
   };
 
   const { data: finalized, error: finalizeErr } = await supabase.rpc("finalize_credential", {
@@ -427,6 +453,14 @@ export async function executeIssueCredential(payload) {
       console.warn("[issueCredential] IPFS unpin failed after DB error:", unpinErr.message);
     }
     throw new Error(finalizeErr.message);
+  }
+
+  // Keep the exact bytes that were hashed. Rendering is deterministic, so a
+  // later regeneration would match anyway — this just avoids repeating the work.
+  if (artifacts.pdf) {
+    storePdf(credentialId, artifacts.pdf).catch((err) =>
+      console.warn(`[issueCredential] pdf store failed for ${credentialId}:`, err.message)
+    );
   }
 
   return {

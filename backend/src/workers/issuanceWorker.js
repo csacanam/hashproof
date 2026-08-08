@@ -20,7 +20,7 @@ import {
 import { executeIssueCredential } from "../services/issueCredential.js";
 import { refundCredit } from "../services/apiKeys.js";
 import { generateCredentialPdf } from "../services/generatePdf.js";
-import { storePdf } from "../services/pdfStore.js";
+import { getStoredPdf, storePdf } from "../services/pdfStore.js";
 
 const POLL_INTERVAL_MS = Number(process.env.ISSUANCE_WORKER_POLL_MS) || 1_000;
 const CONCURRENCY = Number(process.env.ISSUANCE_WORKER_CONCURRENCY) || 8;
@@ -45,8 +45,16 @@ let consecutiveClaimErrors = 0;
  */
 function prewarmPdf(credentialId) {
   const baseUrl = process.env.BASE_URL || "https://hashproof.example.com";
-  generateCredentialPdf(credentialId, baseUrl)
-    .then((pdf) => (pdf ? storePdf(credentialId, pdf) : null))
+  // Issuance now renders and stores the PDF itself, because its hash is
+  // anchored in the pinned copy. This stays as a fallback for the case where
+  // that store did not land; rendering is deterministic, so re-rendering
+  // reproduces the same bytes and the anchored hash still matches.
+  getStoredPdf(credentialId)
+    .then((existing) =>
+      existing
+        ? null
+        : generateCredentialPdf(credentialId, baseUrl).then((pdf) => (pdf ? storePdf(credentialId, pdf) : null))
+    )
     .catch((err) => console.warn(`[issuance-worker] pdf prewarm failed for ${credentialId}:`, err.message));
 }
 

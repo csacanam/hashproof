@@ -4,9 +4,14 @@ node_modules
 .DS_Store
 .claude/
 
+# Internal notes — this repo is public
+docs/internal/
+
 # Build outputs
 frontend/dist
 
 # Foundry
 contracts/out
 contracts/cache
+.vercel
+.env*

@@ -23,19 +23,40 @@ export async function generateCredentialPdf(credentialId, baseUrl) {
   const template = Array.isArray(cred.templates) ? cred.templates[0] : cred.templates;
   if (!template) return null;
 
+  return renderCredentialPdf({
+    credentialJson: cred.credential_json,
+    template,
+    backgroundUrl: cred.background_url_override || template.background_url,
+    verificationUrl: `${baseUrl}/verify/${credentialId}`,
+  });
+}
+
+/**
+ * Render the PDF from data already in hand, without reading the database.
+ *
+ * Issuance needs this before the credential row exists: the document is hashed
+ * and that hash is anchored in the pinned IPFS copy, so it has to be produced
+ * before the pin rather than warmed up afterwards.
+ *
+ * Deterministic by construction — the creation date comes from the credential's
+ * own issuance timestamp instead of the clock, so re-rendering the same
+ * credential yields the same bytes and the anchored hash keeps matching.
+ */
+export async function renderCredentialPdf({ credentialJson, template, backgroundUrl, verificationUrl }) {
   const page_width = Number(template.page_width) || 595;
   const page_height = Number(template.page_height) || 842;
   const fields_json = template.fields_json ?? [];
-  const background_url = cred.background_url_override || template.background_url;
+  const background_url = backgroundUrl;
 
-  const credentialJson = cred.credential_json;
-  const verificationUrl = `${baseUrl}/verify/${credentialId}`;
   const subject = credentialJson?.credentialSubject ?? {};
+  const issuedAt = credentialJson?.issuanceDate ? new Date(credentialJson.issuanceDate) : null;
+  const creationDate = issuedAt && !Number.isNaN(issuedAt.getTime()) ? issuedAt : new Date(0);
 
   return new Promise(async (resolve, reject) => {
     const doc = new PDFDocument({
       size: [page_width, page_height],
       margins: { top: 0, bottom: 0, left: 0, right: 0 },
+      info: { CreationDate: creationDate, ModDate: creationDate },
     });
 
     const chunks = [];

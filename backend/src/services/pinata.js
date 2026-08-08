@@ -4,6 +4,7 @@
  */
 
 const PINATA_API = "https://api.pinata.cloud/pinning/pinJSONToIPFS";
+const PINATA_FILE_API = "https://api.pinata.cloud/pinning/pinFileToIPFS";
 const PINATA_UNPIN_API = "https://api.pinata.cloud/pinning/unpin";
 
 /**
@@ -36,6 +37,44 @@ export async function pinJsonToIpfs(json, metadataName) {
   if (!res.ok) {
     const errText = await res.text();
     throw new Error(`Pinata upload failed (${res.status}): ${errText}`);
+  }
+
+  const data = await res.json();
+  return data.IpfsHash ?? null;
+}
+
+/**
+ * Upload a binary file to IPFS via Pinata.
+ *
+ * Used for template backgrounds. Content addressing dedupes for free: every
+ * attendee at an event shares one background, so they all resolve to one CID no
+ * matter how many times it is uploaded.
+ *
+ * @param {Buffer} buffer
+ * @param {string} name
+ * @param {string} [mimeType]
+ * @returns {Promise<string|null>} CID, or null if Pinata is not configured
+ */
+export async function pinFileToIpfs(buffer, name, mimeType = "application/octet-stream") {
+  const jwt = process.env.PINATA_JWT;
+  if (!jwt || !jwt.trim()) {
+    return null;
+  }
+
+  const form = new FormData();
+  form.append("file", new Blob([buffer], { type: mimeType }), name);
+  form.append("pinataOptions", JSON.stringify({ cidVersion: 1 }));
+  form.append("pinataMetadata", JSON.stringify({ name }));
+
+  const res = await fetch(PINATA_FILE_API, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${jwt}` },
+    body: form,
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Pinata file upload failed (${res.status}): ${errText}`);
   }
 
   const data = await res.json();

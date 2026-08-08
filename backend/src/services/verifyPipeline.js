@@ -9,6 +9,7 @@
 
 import { Contract } from "ethers";
 import { getCeloProvider } from "../utils/celoProvider.js";
+import { buildIpfsDocument, isRedactedDocument } from "./ipfsDocument.js";
 
 const REGISTRY_READ_ABI = [
   "function getRecord(string credentialId) view returns (string cid, uint256 issuedAt, uint256 validUntil, uint256 revokedAt)",
@@ -140,9 +141,28 @@ async function checkIpfsLayer({ cid, dbCredential }) {
       result.json = ipfsJson;
 
       if (dbCredential?.credential_json) {
-        const dbNorm = normalizeJson(dbCredential.credential_json);
+        // Credentials issued since the redaction change pin a reduced document,
+        // so compare against the same projection rebuilt from the database row.
+        // Older ones pinned the full JSON and keep the original strict compare.
+        // Either way the field still means "the IPFS backup is consistent with
+        // the database".
+        let expected = dbCredential.credential_json;
+        if (isRedactedDocument(ipfsJson)) {
+          expected = buildIpfsDocument(dbCredential.credential_json, dbCredential.id);
+
+          // A credential pinned before CREDENTIAL_HASH_SECRET was configured
+          // carries no commitment. Once the secret exists, rebuilding would add
+          // one and report a mismatch for a backup that is perfectly intact —
+          // so match the shape that was actually pinned.
+          if (ipfsJson.credentialSubject?.hash === undefined && expected.credentialSubject?.hash !== undefined) {
+            const { hash, alg, ...rest } = expected.credentialSubject;
+            expected = { ...expected, credentialSubject: rest };
+          }
+        }
+
+        const expectedNorm = normalizeJson(expected);
         const ipfsNorm = normalizeJson(ipfsJson);
-        const matches = JSON.stringify(dbNorm) === JSON.stringify(ipfsNorm);
+        const matches = JSON.stringify(expectedNorm) === JSON.stringify(ipfsNorm);
         result.matchesDatabaseJson = matches;
         result.status = matches ? "ok" : "mismatch";
       } else {

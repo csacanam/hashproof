@@ -39,7 +39,27 @@ vi.mock("../supabase.js", () => ({
 
 vi.mock("./pinata.js", () => ({
   pinJsonToIpfs: vi.fn().mockResolvedValue("bafy-test-cid"),
+  pinFileToIpfs: vi.fn().mockResolvedValue("bafy-background-cid"),
   unpinCid: vi.fn().mockResolvedValue(true),
+}));
+
+// These tests cover the pin → chain → database pipeline. Rendering the PDF and
+// pinning the background have their own tests; here they only need to yield the
+// enriched credential so the pipeline has something to carry through.
+vi.mock("./credentialArtifacts.js", () => ({
+  buildCredentialArtifacts: vi.fn(async ({ credentialJson }) => ({
+    pdf: Buffer.from("%PDF-1.3 test"),
+    credentialJson: {
+      ...credentialJson,
+      document: { hash: "sha256:testhash", mediaType: "application/pdf" },
+      design: { pageWidth: 1056, pageHeight: 816, fields: [] },
+    },
+  })),
+}));
+
+vi.mock("./pdfStore.js", () => ({
+  storePdf: vi.fn().mockResolvedValue(true),
+  getStoredPdf: vi.fn().mockResolvedValue(null),
 }));
 
 // Single shared mock provider so tests can assert how often the nonce is read.

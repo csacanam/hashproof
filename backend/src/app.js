@@ -30,6 +30,7 @@ import { Buffer } from "node:buffer";
 import { randomUUID } from "node:crypto";
 import { sendError, classifyError } from "./utils/errors.js";
 import { generateCredentialPdf } from "./services/generatePdf.js";
+import { getCredentialMeta } from "./services/getCredentialMeta.js";
 import { getStoredPdf, storePdf } from "./services/pdfStore.js";
 import {
   runVerificationPipeline,
@@ -797,10 +798,11 @@ export function createApp(options = {}) {
         dbCredential: cred,
       });
 
-      const effectiveCredentialJson =
-        pipeline.report?.ipfs?.available && pipeline.report.ipfs.matchesDatabaseJson
-          ? pipeline.report.ipfs.json ?? cred.credential_json
-          : cred.credential_json;
+      // Always the database copy. It used to prefer the IPFS JSON whenever the
+      // two matched, which produced an identical value — but the pinned document
+      // is now a reduced projection (no issuer-defined subject fields), so
+      // preferring it would silently drop data this response has always carried.
+      const effectiveCredentialJson = cred.credential_json;
 
       // Prefer self-contained credential JSON; fallback to DB for legacy credentials
       return res.json({
@@ -857,6 +859,21 @@ export function createApp(options = {}) {
       return res.json({ contract, ipfs });
     } catch (err) {
       return sendError(res, err, { handler: "verify/ipfs" });
+    }
+  });
+
+  // Cheap metadata for link previews. Database only — no contract, no IPFS.
+  // The full /verify/:id runs the three-layer pipeline and takes seconds; a
+  // social crawler abandons the request long before it answers.
+  app.get("/verify/:id/meta", readOnlyRateLimit, async (req, res) => {
+    try {
+      const meta = await getCredentialMeta(req.params.id);
+      if (!meta) return res.status(404).json({ error: "Credential not found" });
+
+      res.setHeader("Cache-Control", "public, max-age=300, s-maxage=3600");
+      return res.json(meta);
+    } catch (err) {
+      return sendError(res, err, { handler: "verify/meta" });
     }
   });
 
