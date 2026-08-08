@@ -19,7 +19,8 @@ import { createIssuanceJob, getIssuanceJob } from "./services/issuanceJobs.js";
 import { getCredentialById } from "./services/getCredential.js";
 import { getEntityById } from "./services/getEntity.js";
 import { createVerificationRequest } from "./services/createVerificationRequest.js";
-import { deductCredit, refundCredit, createKey, listKeys, addCredits } from "./services/apiKeys.js";
+import { deductCredit, refundCredit, createKey, listKeys, addCredits, getByPlainKey } from "./services/apiKeys.js";
+import { declareProof, verifyEntityProofs, normalizeDomain } from "./services/entityProofs.js";
 import { approveEntity } from "./services/approveEntity.js";
 import { isPlatformAuthorized, upsertIssuerAuthorization } from "./services/issuerAuthorization.js";
 import { supabase } from "./supabase.js";
@@ -793,10 +794,16 @@ export function createApp(options = {}) {
       const platformVerified = VERIFIED_STATUSES.includes(platformEntity?.status);
 
       // Run full verification pipeline: contract → IPFS → DB
-      const pipeline = await runVerificationPipeline({
-        credentialId: cred.id,
-        dbCredential: cred,
-      });
+      const [pipeline, issuerProofs] = await Promise.all([
+        runVerificationPipeline({ credentialId: cred.id, dbCredential: cred }),
+        // Additive, and checked live: unlike issuer_verified — which stays a
+        // status in our database — this is something a reader can reproduce
+        // with dig, without trusting us. Never throws.
+        verifyEntityProofs(cred.issuer_entity_id),
+      ]);
+
+      // Only proofs that currently hold. An unverified claim is noise here.
+      const verifiedIssuerProofs = issuerProofs.filter((p) => p.verified);
 
       // Always the database copy. It used to prefer the IPFS JSON whenever the
       // two matched, which produced an identical value — but the pinned document
@@ -821,6 +828,7 @@ export function createApp(options = {}) {
         tx_hash: cred.tx_hash ?? null,
         issuer_verified: issuerVerified,
         issuer_status: issuerEntity?.status ?? null,
+        issuer_proofs: verifiedIssuerProofs,
         platform_verified: platformVerified,
         platform_status: platformEntity?.status ?? null,
         issuer_entity_id: cred.issuer_entity_id ?? null,
@@ -874,6 +882,69 @@ export function createApp(options = {}) {
       return res.json(meta);
     } catch (err) {
       return sendError(res, err, { handler: "verify/meta" });
+    }
+  });
+
+  // Declare a domain to prove. Returns the TXT record to publish; the proof
+  // then verifies itself on every read, with nothing for us to approve.
+  //
+  // Open to the entity's own API key as well as to an admin: the point of a
+  // domain proof is that it needs no gatekeeper, and a claim on a domain you
+  // do not control simply never passes.
+  // Declaring a domain proof.
+  //
+  // A proof only ever says "whoever controls this domain published a token tied
+  // to this entity" — which is one-directional. Left open, anyone could hang a
+  // domain *they* control off someone else's issuer page, where it would read
+  // as that issuer's own. That is a phishing surface, not a harmless claim.
+  //
+  // So the open path is narrowed to confirming what the entity already asserts:
+  // if the domain matches the website on record, no credentials are needed,
+  // because nothing new is being introduced. Proving any other domain requires
+  // the entity's own API key. Self-service survives where it matters — the
+  // issuer publishes the TXT record and checks it themselves.
+  //
+  // Idempotent: calling it again re-checks, so it doubles as "look again".
+  app.post("/entities/:id/proofs", readOnlyRateLimit, async (req, res) => {
+    try {
+      const entity = await getEntityById(req.params.id);
+      if (!entity) return res.status(404).json({ error: "Entity not found" });
+
+      const requested = normalizeDomain(req.body?.domain);
+      if (!requested) {
+        return res.status(400).json({ error: "A valid domain is required, e.g. example.com" });
+      }
+
+      const onRecord = normalizeDomain(entity.website);
+      if (requested !== onRecord) {
+        const auth = (req.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+        const key = auth ? await getByPlainKey(auth) : null;
+        const allowed = (auth && auth === process.env.ADMIN_SECRET) || key?.entity_id === req.params.id;
+        if (!allowed) {
+          return res.status(403).json({
+            error: "Domain not authorized for this entity",
+            code: "domain_not_authorized",
+            message: onRecord
+              ? `Only ${onRecord} can be proven without credentials, since it is the website on record for this issuer. Use this entity's API key to prove a different domain.`
+              : "This issuer has no website on record yet. Use this entity's API key to prove a domain.",
+          });
+        }
+      }
+
+      return res.status(201).json(await declareProof(req.params.id, requested));
+    } catch (err) {
+      return sendError(res, err, { handler: "entities/proofs" });
+    }
+  });
+
+  // Public, and only what currently holds. Reproducible without us: resolve the
+  // TXT record on the domain and compare it to expected_record.
+  app.get("/entities/:id/proofs", readOnlyRateLimit, async (req, res) => {
+    try {
+      const proofs = await verifyEntityProofs(req.params.id);
+      return res.json({ entity_id: req.params.id, proofs: proofs.filter((p) => p.verified) });
+    } catch (err) {
+      return sendError(res, err, { handler: "entities/proofs/list" });
     }
   });
 

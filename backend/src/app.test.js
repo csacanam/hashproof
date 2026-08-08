@@ -51,6 +51,26 @@ vi.mock("./services/getEntity.js", () => ({
   getEntityById: vi.fn(async () => mockEntityById),
 }));
 
+// Domain proofs: the DNS side has its own tests, so these mocks isolate the
+// authorisation gate — who may attach which domain to which entity.
+let mockApiKeyEntity = null;
+vi.mock("./services/apiKeys.js", async (importOriginal) => ({
+  ...(await importOriginal()),
+  getByPlainKey: vi.fn(async () => mockApiKeyEntity),
+}));
+
+const mockDeclareProof = vi.fn(async (entityId, domain) => ({
+  id: "proof-1",
+  resource: domain,
+  verified: false,
+  expected_record: "hashproof-verification=deadbeef",
+}));
+vi.mock("./services/entityProofs.js", async (importOriginal) => ({
+  ...(await importOriginal()),
+  declareProof: (...args) => mockDeclareProof(...args),
+  verifyEntityProofs: vi.fn(async () => []),
+}));
+
 vi.mock("./services/issueCredential.js", async () => {
   // Keep the real validator: the async path relies on it to reject bad payloads
   // up front, so stubbing it would hide exactly what those tests check.
@@ -93,6 +113,74 @@ describe("HashProof API", () => {
       if (!payload.context?.type || !payload.context?.title) throw new Error("context.type and context.title required");
       if (!payload.credential_type || !payload.title) throw new Error("credential_type and title required");
       return { ok: true };
+    });
+  });
+
+  describe("POST /entities/:id/proofs", () => {
+    beforeEach(() => {
+      mockApiKeyEntity = null;
+      mockDeclareProof.mockClear();
+      mockEntityById = { id: "peewah-uuid", slug: "peewah", website: "https://peewah.co" };
+    });
+
+    it("lets anyone confirm the domain already on record, with no credentials", async () => {
+      const res = await request(app).post("/entities/peewah-uuid/proofs").send({ domain: "peewah.co" });
+      expect(res.status).toBe(201);
+      expect(mockDeclareProof).toHaveBeenCalledWith("peewah-uuid", "peewah.co");
+    });
+
+    it("accepts the same domain written as a URL or with www", async () => {
+      for (const variant of ["https://www.peewah.co/x", "WWW.PEEWAH.CO"]) {
+        const res = await request(app).post("/entities/peewah-uuid/proofs").send({ domain: variant });
+        expect(res.status).toBe(201);
+      }
+    });
+
+    it("refuses to hang someone else's domain off an issuer without credentials", async () => {
+      const res = await request(app)
+        .post("/entities/peewah-uuid/proofs")
+        .send({ domain: "attacker-controlled.com" });
+
+      expect(res.status).toBe(403);
+      expect(res.body.code).toBe("domain_not_authorized");
+      expect(mockDeclareProof).not.toHaveBeenCalled();
+    });
+
+    it("allows a different domain when the entity's own API key is presented", async () => {
+      mockApiKeyEntity = { id: "key-1", entity_id: "peewah-uuid" };
+      const res = await request(app)
+        .post("/entities/peewah-uuid/proofs")
+        .set("Authorization", "Bearer some-key")
+        .send({ domain: "peewah.io" });
+
+      expect(res.status).toBe(201);
+    });
+
+    it("refuses another entity's API key", async () => {
+      mockApiKeyEntity = { id: "key-2", entity_id: "someone-else" };
+      const res = await request(app)
+        .post("/entities/peewah-uuid/proofs")
+        .set("Authorization", "Bearer other-key")
+        .send({ domain: "attacker-controlled.com" });
+
+      expect(res.status).toBe(403);
+    });
+
+    it("requires credentials for any domain when the issuer has no website on record", async () => {
+      mockEntityById = { id: "peewah-uuid", slug: "peewah", website: null };
+      const res = await request(app).post("/entities/peewah-uuid/proofs").send({ domain: "peewah.co" });
+      expect(res.status).toBe(403);
+    });
+
+    it("rejects a malformed domain before anything else", async () => {
+      const res = await request(app).post("/entities/peewah-uuid/proofs").send({ domain: "not a domain" });
+      expect(res.status).toBe(400);
+    });
+
+    it("returns 404 for an unknown entity", async () => {
+      mockEntityById = null;
+      const res = await request(app).post("/entities/nope/proofs").send({ domain: "peewah.co" });
+      expect(res.status).toBe(404);
     });
   });
 
