@@ -2,6 +2,32 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import CodeHighlight from "../components/CodeHighlight.jsx";
+import { getPreferredLocale, createTranslator } from "../i18n.js";
+import { docsMessages } from "../locales/docs.js";
+
+const locale = getPreferredLocale();
+const t = createTranslator(docsMessages, locale);
+
+/**
+ * Splices React nodes into a translated string at {token} placeholders, so a
+ * sentence with inline <code> in it stays one translatable unit instead of
+ * three fragments a translator has to reassemble in the right order.
+ */
+function fill(key, parts) {
+  const re = new RegExp(
+    "(" +
+      Object.keys(parts)
+        .map((k) => "\\{" + k + "\\}")
+        .join("|") +
+      ")",
+  );
+  return t(key)
+    .split(re)
+    .map((chunk, i) => {
+      const token = chunk.replace(/^\{|\}$/g, "");
+      return token in parts ? <span key={i}>{parts[token]}</span> : chunk;
+    });
+}
 
 const API_BASE = "https://api.hashproof.dev";
 
@@ -14,8 +40,12 @@ function CopyButton({ text }) {
     });
   };
   return (
-    <button className="docs-copy-btn" onClick={handle} aria-label="Copy">
-      {copied ? "Copied!" : "Copy"}
+    <button
+      className="docs-copy-btn"
+      onClick={handle}
+      aria-label={t("docs.copy")}
+    >
+      {copied ? t("docs.copied") : t("docs.copy")}
     </button>
   );
 }
@@ -54,7 +84,11 @@ function CodeTabs({ tabs }) {
         </div>
         <CopyButton text={current.code} />
       </div>
-      <CodeHighlight code={current.code} lang={current.lang} className="docs-code" />
+      <CodeHighlight
+        code={current.code}
+        lang={current.lang}
+        className="docs-code"
+      />
     </div>
   );
 }
@@ -83,18 +117,28 @@ function ParamTable({ rows }) {
       <table className="docs-table">
         <thead>
           <tr>
-            <th>Field</th>
-            <th>Type</th>
-            <th>Required</th>
-            <th>Description</th>
+            <th>{t("docs.table.field")}</th>
+            <th>{t("docs.table.type")}</th>
+            <th>{t("docs.table.required")}</th>
+            <th>{t("docs.table.description")}</th>
           </tr>
         </thead>
         <tbody>
           {rows.map(([field, type, req, desc]) => (
             <tr key={field}>
-              <td><code>{field}</code></td>
-              <td><span className="docs-type">{type}</span></td>
-              <td>{req ? <span className="docs-req">yes</span> : <span className="docs-opt">no</span>}</td>
+              <td>
+                <code>{field}</code>
+              </td>
+              <td>
+                <span className="docs-type">{type}</span>
+              </td>
+              <td>
+                {req ? (
+                  <span className="docs-req">{t("docs.table.yes")}</span>
+                ) : (
+                  <span className="docs-opt">{t("docs.table.no")}</span>
+                )}
+              </td>
               <td>{desc}</td>
             </tr>
           ))}
@@ -105,14 +149,14 @@ function ParamTable({ rows }) {
 }
 
 const NAV = [
-  { id: "quickstart",          label: "Quick Start" },
-  { id: "authentication",      label: "Authentication" },
-  { id: "issue-credential",    label: "POST /issueCredential" },
-  { id: "templates",           label: "Templates" },
-  { id: "template-preview",    label: "Template Preview" },
-  { id: "verify",              label: "GET /verify/:id" },
-  { id: "entities",            label: "GET /entities/:id" },
-  { id: "entity-verification", label: "Entity Verification" },
+  { id: "quickstart", label: t("docs.nav.quickstart") },
+  { id: "authentication", label: t("docs.nav.authentication") },
+  { id: "issue-credential", label: "POST /issueCredential" },
+  { id: "templates", label: t("docs.nav.templates") },
+  { id: "template-preview", label: t("docs.nav.preview") },
+  { id: "verify", label: "GET /verify/:id" },
+  { id: "entities", label: "GET /entities/:id" },
+  { id: "entity-verification", label: t("docs.nav.entityVerification") },
 ];
 
 function x402Example(chain) {
@@ -266,7 +310,7 @@ export default function Docs() {
           if (e.isIntersecting) setActive(e.target.id);
         });
       },
-      { rootMargin: "-20% 0px -70% 0px" }
+      { rootMargin: "-20% 0px -70% 0px" },
     );
     NAV.forEach(({ id }) => {
       const el = document.getElementById(id);
@@ -283,42 +327,35 @@ export default function Docs() {
   return (
     <div className="docs-page">
       <Helmet>
-        <title>Verifiable Credentials API Documentation | HashProof</title>
-        <meta
-          name="description"
-          content="Learn how to issue and verify blockchain-backed credentials using a simple API and pay-per-credential model."
-        />
+        <title>{t("docs.meta.title")}</title>
+        <meta name="description" content={t("docs.meta.description")} />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://hashproof.dev/docs" />
+        <meta property="og:title" content={t("docs.meta.title")} />
+        <meta property="og:description" content={t("docs.meta.description")} />
         <meta
-          property="og:title"
-          content="Verifiable Credentials API Documentation | HashProof"
+          property="og:image"
+          content="https://hashproof.dev/thumbnail.png"
         />
-        <meta
-          property="og:description"
-          content="Learn how to issue and verify blockchain-backed credentials using a simple API and pay-per-credential model."
-        />
-        <meta property="og:image" content="https://hashproof.dev/thumbnail.png" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:url" content="https://hashproof.dev/docs" />
+        <meta name="twitter:title" content={t("docs.meta.title")} />
+        <meta name="twitter:description" content={t("docs.meta.description")} />
         <meta
-          name="twitter:title"
-          content="Verifiable Credentials API Documentation | HashProof"
+          name="twitter:image"
+          content="https://hashproof.dev/thumbnail.png"
         />
-        <meta
-          name="twitter:description"
-          content="Learn how to issue and verify blockchain-backed credentials using a simple API and pay-per-credential model."
-        />
-        <meta name="twitter:image" content="https://hashproof.dev/thumbnail.png" />
       </Helmet>
       {/* Top bar */}
       <header className="docs-topbar">
-        <Link to="/" className="docs-logo">HashProof</Link>
-        <span className="docs-topbar-title">Documentation</span>
+        <Link to="/" className="docs-logo">
+          HashProof
+        </Link>
+        <span className="docs-topbar-title">{t("docs.topbar.title")}</span>
         <button
           className="docs-menu-btn"
           onClick={() => setMenuOpen((v) => !v)}
-          aria-label="Toggle menu"
+          aria-label={t("docs.topbar.menu")}
         >
           ☰
         </button>
@@ -343,84 +380,145 @@ export default function Docs() {
 
         {/* Content */}
         <main className="docs-content">
-
           {/* Quick Start */}
-          <Section id="quickstart" title="Quick Start">
+          <Section id="quickstart" title={t("docs.qs.title")}>
             <p className="docs-p">
-              Issue a verifiable credential with a single API call.
-              Each credential costs <strong>$0.10 USDC</strong>. Choose how you want to pay:
+              {fill("docs.qs.lead", { price: <strong>$0.10 USDC</strong> })}
             </p>
 
-            <SubSection id="quickstart-paths" title="Three ways to get started">
+            <SubSection id="quickstart-paths" title={t("docs.qs.paths")}>
               <div className="docs-callout-row">
                 <div className="docs-callout">
-                  <p className="docs-callout-title">Pay with crypto</p>
+                  <p className="docs-callout-title">
+                    {t("docs.qs.crypto.title")}
+                  </p>
                   <p className="docs-callout-desc">
-                    No account, no API key. Pay $0.10 USDC per credential automatically from your wallet via x402.
-                    You need a wallet with USDC on Base or Celo and a{" "}
-                    <a href="https://thirdweb.com/dashboard" target="_blank" rel="noopener noreferrer">thirdweb Client ID</a> (free).
+                    {fill("docs.qs.crypto.body", {
+                      link: (
+                        <a
+                          href="https://thirdweb.com/dashboard"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {t("docs.qs.crypto.link")}
+                        </a>
+                      ),
+                    })}
                   </p>
                 </div>
                 <div className="docs-callout">
-                  <p className="docs-callout-title">Pay with API key</p>
+                  <p className="docs-callout-title">
+                    {t("docs.qs.apikey.title")}
+                  </p>
                   <p className="docs-callout-desc">
-                    No wallet needed. Purchase prepaid credits from HashProof, get an API key,
-                    and use it like any standard REST API. Contact{" "}
-                    <a href="mailto:hi@hashproof.dev">hi@hashproof.dev</a>.
+                    {fill("docs.qs.apikey.body", {
+                      link: (
+                        <a href="mailto:hi@hashproof.dev">hi@hashproof.dev</a>
+                      ),
+                    })}
                   </p>
                 </div>
                 <div className="docs-callout">
-                  <p className="docs-callout-title">AI Agent</p>
+                  <p className="docs-callout-title">
+                    {t("docs.qs.agent.title")}
+                  </p>
                   <p className="docs-callout-desc">
-                    Read <a href="https://hashproof.dev/skill.md" target="_blank" rel="noopener noreferrer">skill.md</a> and
-                    follow the instructions. The skill file has everything: what to ask the human, how to pay, and how to use templates.
+                    {fill("docs.qs.agent.body", {
+                      link: (
+                        <a
+                          href="https://hashproof.dev/skill.md"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          skill.md
+                        </a>
+                      ),
+                    })}
                   </p>
                 </div>
               </div>
             </SubSection>
 
-            <SubSection id="quickstart-x402" title="Quick start — Pay with crypto">
-              <p className="docs-p">Prerequisites: Node.js 18+, a wallet with USDC on Base or Celo, and a thirdweb Client ID.</p>
-              <CodeBlock lang="bash" label="terminal" code={`npm install thirdweb`} />
-              <CodeTabs tabs={[
-                { label: "Celo", lang: "js", code: x402Example("celo") },
-                { label: "Base", lang: "js", code: x402Example("base") },
-              ]} />
-              <CodeBlock lang="bash" label="terminal" code={`PRIVATE_KEY=0x... YOUR_NAME="Jane Doe" node issue.mjs`} />
-              <CodeBlock lang="bash" label="output" code={`https://hashproof.dev/verify/a1b2c3d4-...`} />
+            <SubSection id="quickstart-x402" title={t("docs.qs.x402.title")}>
+              <p className="docs-p">{t("docs.qs.x402.prereq")}</p>
+              <CodeBlock
+                lang="bash"
+                label={t("docs.label.terminal")}
+                code={`npm install thirdweb`}
+              />
+              <CodeTabs
+                tabs={[
+                  { label: "Celo", lang: "js", code: x402Example("celo") },
+                  { label: "Base", lang: "js", code: x402Example("base") },
+                ]}
+              />
+              <CodeBlock
+                lang="bash"
+                label={t("docs.label.terminal")}
+                code={`PRIVATE_KEY=0x... YOUR_NAME="Jane Doe" node issue.mjs`}
+              />
+              <CodeBlock
+                lang="bash"
+                label={t("docs.label.output")}
+                code={`https://hashproof.dev/verify/a1b2c3d4-...`}
+              />
             </SubSection>
 
-            <SubSection id="quickstart-apikey" title="Quick start — Pay with API key">
-              <p className="docs-p">Prerequisites: an API key from HashProof with prepaid credits.</p>
-              <CodeBlock lang="bash" label="terminal" code={apiKeyExample()} />
-              <CodeBlock lang="bash" label="output" code={`https://hashproof.dev/verify/a1b2c3d4-...`} />
+            <SubSection
+              id="quickstart-apikey"
+              title={t("docs.qs.apikey2.title")}
+            >
+              <p className="docs-p">{t("docs.qs.apikey2.prereq")}</p>
+              <CodeBlock
+                lang="bash"
+                label={t("docs.label.terminal")}
+                code={apiKeyExample()}
+              />
+              <CodeBlock
+                lang="bash"
+                label={t("docs.label.output")}
+                code={`https://hashproof.dev/verify/a1b2c3d4-...`}
+              />
             </SubSection>
 
-            <SubSection id="quickstart-agent" title="For AI agents">
+            <SubSection id="quickstart-agent" title={t("docs.qs.agent2.title")}>
               <p className="docs-p">
-                If you're building an agent that issues credentials, read the agent skill file at{" "}
-                <a href="https://hashproof.dev/skill.md" target="_blank" rel="noopener noreferrer">hashproof.dev/skill.md</a>.
-                It contains step-by-step instructions for agents: what to ask the human, how to call the API, and how to handle templates and payments.
+                {fill("docs.qs.agent2.body", {
+                  link: (
+                    <a
+                      href="https://hashproof.dev/skill.md"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      hashproof.dev/skill.md
+                    </a>
+                  ),
+                })}
               </p>
             </SubSection>
           </Section>
 
           {/* Authentication */}
-          <Section id="authentication" title="Authentication">
-            <SubSection id="auth-x402" title="Pay with crypto (x402)">
+          <Section id="authentication" title={t("docs.auth.title")}>
+            <SubSection id="auth-x402" title={t("docs.auth.x402.title")}>
               <p className="docs-p">
-                No API key needed. When you call a paid endpoint, the API returns <code>402 Payment Required</code> with
-                the amount and network. The thirdweb SDK signs a USDC transfer from your wallet and retries the request
-                automatically. No gas on your side. <strong>$0.10 USDC per credential</strong> on Base or Celo.
+                {fill("docs.auth.x402.body", {
+                  code: <code>402 Payment Required</code>,
+                  price: <strong>$0.10 USDC</strong>,
+                })}
               </p>
             </SubSection>
 
-            <SubSection id="auth-apikey" title="Pay with API key">
+            <SubSection id="auth-apikey" title={t("docs.auth.apikey.title")}>
               <p className="docs-p">
-                Send <code>Authorization: Bearer YOUR_API_KEY</code> or <code>X-API-Key: YOUR_API_KEY</code>.
-                Each issuance deducts 1 credit. The key is tied to a single issuer entity.
-                If you run out of credits, the API returns <code>402</code> with <code>code: "insufficient_credits"</code>.
-                Contact <a href="mailto:hi@hashproof.dev">hi@hashproof.dev</a> to purchase credits.
+                {fill("docs.auth.apikey.body1", {
+                  header1: <code>Authorization: Bearer YOUR_API_KEY</code>,
+                  header2: <code>X-API-Key: YOUR_API_KEY</code>,
+                })}{" "}
+                {fill("docs.auth.apikey.body2", {
+                  code: <code>402 code: &quot;insufficient_credits&quot;</code>,
+                  email: <a href="mailto:hi@hashproof.dev">hi@hashproof.dev</a>,
+                })}
               </p>
             </SubSection>
           </Section>
@@ -431,164 +529,254 @@ export default function Docs() {
               <span className="docs-method docs-method--post">POST</span>
               <code className="docs-path">/issueCredential</code>
             </div>
-            <p className="docs-p">
-              Issues one verifiable credential. Paid via x402 or API key.
-            </p>
+            <p className="docs-p">{t("docs.issue.lead")}</p>
 
-            <SubSection id="issue-body" title="Request body">
-              <ParamTable rows={[
-                ["issuer.display_name", "string", true, "Name of the issuing organization"],
-                ["issuer.slug", "string", true, "URL-safe identifier, e.g. acme-corp"],
-                ["platform.display_name", "string", true, "Name of the platform managing issuance"],
-                ["platform.slug", "string", true, "URL-safe identifier"],
-                ["holder.full_name", "string", true, "Full name of the credential recipient"],
-                ["holder.email", "string", false, "Email for delivery"],
-                ["context.type", "enum", true, "event · course · diploma · training · certification · membership · other"],
-                ["context.title", "string", true, "Name of the event, course, or program"],
-                ["context.starts_at", "ISO 8601", false, "Start date"],
-                ["context.ends_at", "ISO 8601", false, "End date"],
-                ["credential_type", "enum", true, "attendance · completion · achievement · participation · membership · certification"],
-                ["title", "string", true, "Title printed on the credential PDF"],
-                ["expires_at", "ISO 8601 | null", false, "Expiration date. null = never expires"],
-                ["values", "object", true, "Key-value pairs for template fields (e.g. holder_name, details)"],
-                ["template_slug", "string", false, "Slug of an existing template"],
-                ["template_id", "UUID", false, "UUID of an existing template"],
-                ["template", "object", false, "Inline template definition (create-only). See Templates."],
-                ["background_url_override", "string", false, "Override background image for this credential only"],
-                ["issuer_entity_id", "UUID", false, "Your verified entity ID (shows verified badge)"],
-                ["platform_entity_id", "UUID", false, "Platform entity ID"],
-              ]} />
+            <SubSection id="issue-body" title={t("docs.issue.body.title")}>
+              <ParamTable
+                rows={[
+                  [
+                    "issuer.display_name",
+                    "string",
+                    true,
+                    t("docs.f.issuerName"),
+                  ],
+                  ["issuer.slug", "string", true, t("docs.f.issuerSlug")],
+                  [
+                    "platform.display_name",
+                    "string",
+                    true,
+                    t("docs.f.platformName"),
+                  ],
+                  ["platform.slug", "string", true, t("docs.f.platformSlug")],
+                  ["holder.full_name", "string", true, t("docs.f.holderName")],
+                  ["holder.email", "string", false, t("docs.f.holderEmail")],
+                  [
+                    "context.type",
+                    "enum",
+                    true,
+                    t("docs.f.contextType") +
+                      ": event · course · diploma · training · certification · membership · other",
+                  ],
+                  ["context.title", "string", true, t("docs.f.contextTitle")],
+                  [
+                    "context.starts_at",
+                    "ISO 8601",
+                    false,
+                    t("docs.f.startsAt"),
+                  ],
+                  ["context.ends_at", "ISO 8601", false, t("docs.f.endsAt")],
+                  [
+                    "credential_type",
+                    "enum",
+                    true,
+                    t("docs.f.credentialType") +
+                      ": attendance · completion · achievement · participation · membership · certification",
+                  ],
+                  ["title", "string", true, t("docs.f.title")],
+                  [
+                    "expires_at",
+                    "ISO 8601 | null",
+                    false,
+                    t("docs.f.expiresAt"),
+                  ],
+                  ["values", "object", true, t("docs.f.values")],
+                  ["template_slug", "string", false, t("docs.f.templateSlug")],
+                  ["template_id", "UUID", false, t("docs.f.templateId")],
+                  ["template", "object", false, t("docs.f.template")],
+                  [
+                    "background_url_override",
+                    "string",
+                    false,
+                    t("docs.f.bgOverride"),
+                  ],
+                  ["issuer_entity_id", "UUID", false, t("docs.f.issuerEntity")],
+                  [
+                    "platform_entity_id",
+                    "UUID",
+                    false,
+                    t("docs.f.platformEntity"),
+                  ],
+                ]}
+              />
             </SubSection>
 
-            <SubSection id="issue-example" title="Minimal example">
-              <CodeBlock code={MINIMAL_EXAMPLE} label="request body" />
+            <SubSection
+              id="issue-example"
+              title={t("docs.issue.example.title")}
+            >
+              <CodeBlock
+                code={MINIMAL_EXAMPLE}
+                label={t("docs.label.requestBody")}
+              />
             </SubSection>
 
-            <SubSection id="issue-response" title="Response 200">
-              <CodeBlock code={ISSUE_RESPONSE} label="response" />
+            <SubSection
+              id="issue-response"
+              title={t("docs.issue.response.title")}
+            >
+              <CodeBlock
+                code={ISSUE_RESPONSE}
+                label={t("docs.label.response")}
+              />
               <p className="docs-p">
-                Share <code>verification_url</code> with the credential holder.
-                The QR code on the PDF points to that URL.
+                {fill("docs.issue.response.note", {
+                  field: <code>verification_url</code>,
+                })}
               </p>
             </SubSection>
 
-            <SubSection id="issue-errors" title="Errors">
-              <ParamTable rows={[
-                ["400", "", false, "Missing required field or invalid value"],
-                ["401", "", false, "Invalid API key"],
-                ["402", "", false, "Payment required (x402 challenge) or no credits left"],
-                ["403", "", false, "Entity suspended, or paying wallet not in authorized_wallets"],
-                ["500", "", false, "IPFS, on-chain, or DB error"],
-              ]} />
+            <SubSection id="issue-errors" title={t("docs.issue.errors.title")}>
+              <ParamTable
+                rows={[
+                  ["400", "", false, t("docs.e.400")],
+                  ["401", "", false, t("docs.e.401")],
+                  ["402", "", false, t("docs.e.402")],
+                  ["403", "", false, t("docs.e.403")],
+                  ["500", "", false, t("docs.e.500")],
+                ]}
+              />
             </SubSection>
           </Section>
 
           {/* Templates */}
-          <Section id="templates" title="Templates">
+          <Section id="templates" title={t("docs.tpl.title")}>
             <p className="docs-p">
-              A credential PDF has two parts: the <strong>background</strong> (the image) and the <strong>template</strong> (the layout).
-              Understanding the difference is key.
+              {fill("docs.tpl.lead", {
+                bg: <strong>{t("docs.tpl.bgWord")}</strong>,
+                tpl: <strong>{t("docs.tpl.tplWord")}</strong>,
+              })}
             </p>
 
-            <SubSection id="tpl-background" title="Background = the image">
+            <SubSection id="tpl-background" title={t("docs.tpl.bg.title")}>
+              <p className="docs-p">{t("docs.tpl.bg.body1")}</p>
               <p className="docs-p">
-                The background is a PNG or JPG image that fills the entire PDF page. It's the visual design of your certificate
-                — borders, logos, colors, decorative elements. It does NOT contain any dynamic text.
-              </p>
-              <p className="docs-p">
-                You can set a default background when creating the template, and override it per credential
-                with <code>background_url_override</code> (same layout, different image).
+                {fill("docs.tpl.bg.body2", {
+                  code: <code>background_url_override</code>,
+                })}
               </p>
             </SubSection>
 
-            <SubSection id="tpl-template" title="Template = the layout">
+            <SubSection id="tpl-template" title={t("docs.tpl.layout.title")}>
               <p className="docs-p">
-                The template defines <strong>where and how</strong> each piece of text is drawn on top of the background:
-                page dimensions, and for each field — position (<code>x</code>, <code>y</code>),
-                size (<code>width</code>), font (<code>font_size</code>, <code>font_color</code>),
-                alignment, bold/italic, and whether it's required.
+                {fill("docs.tpl.layout.body", {
+                  xy: (
+                    <>
+                      <code>x</code>, <code>y</code>
+                    </>
+                  ),
+                })}
               </p>
               <p className="docs-note">
-                Dimensions are in the same units as your background image.
-                If your image is 3508 x 2480 pixels, set <code>page_width: 3508</code> and <code>page_height: 2480</code>,
-                and use pixel coordinates for field positions.
+                {fill("docs.tpl.layout.note", {
+                  code: (
+                    <>
+                      <code>page_width: 3508</code>,{" "}
+                      <code>page_height: 2480</code>
+                    </>
+                  ),
+                })}
               </p>
             </SubSection>
 
-            <SubSection id="tpl-options" title="Which option to use">
+            <SubSection id="tpl-options" title={t("docs.tpl.options.title")}>
               <div className="docs-table-wrap">
                 <table className="docs-table">
                   <thead>
                     <tr>
-                      <th>Scenario</th>
-                      <th>What to send</th>
+                      <th>{t("docs.tpl.options.scenario")}</th>
+                      <th>{t("docs.tpl.options.send")}</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr>
-                      <td><strong>Default certificate</strong> (quick start)</td>
-                      <td>Omit all template fields. Use <code>values.holder_name</code> and optionally <code>values.details</code>.</td>
+                      <td>
+                        <strong>{t("docs.tpl.options.default")}</strong>
+                      </td>
+                      <td>{t("docs.tpl.options.defaultBody")}</td>
                     </tr>
                     <tr>
-                      <td><strong>Existing template</strong></td>
-                      <td><code>template_slug</code> or <code>template_id</code>. Provide <code>values</code> for each required field.</td>
+                      <td>
+                        <strong>{t("docs.tpl.options.existing")}</strong>
+                      </td>
+                      <td>{t("docs.tpl.options.existingBody")}</td>
                     </tr>
                     <tr>
-                      <td><strong>New custom template</strong> (first time)</td>
-                      <td><code>template</code> object with slug, name, background_url, page_width, page_height, fields_json. After this, reuse with <code>template_slug</code>.</td>
+                      <td>
+                        <strong>{t("docs.tpl.options.new")}</strong>
+                      </td>
+                      <td>{t("docs.tpl.options.newBody")}</td>
                     </tr>
                     <tr>
-                      <td><strong>Same template, different background</strong></td>
-                      <td><code>template_slug</code> + <code>background_url_override</code>. Layout stays the same; only the image changes.</td>
+                      <td>
+                        <strong>{t("docs.tpl.options.sameTpl")}</strong>
+                      </td>
+                      <td>{t("docs.tpl.options.sameTplBody")}</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
-              <p className="docs-p">
-                Send <strong>only one</strong> of <code>template_slug</code>, <code>template_id</code>,
-                or <code>template</code>. Sending more than one returns <code>400</code>.
-              </p>
+              <p className="docs-p">{t("docs.tpl.options.note")}</p>
             </SubSection>
 
-            <SubSection id="tpl-fields" title="Template field properties">
-              <ParamTable rows={[
-                ["template.slug",           "string", true, "Unique slug (global). Used later with template_slug."],
-                ["template.name",           "string", true, "Human-readable name"],
-                ["template.background_url", "string", true, "URL of the background image (PNG or JPG)"],
-                ["template.page_width",     "number", false, "Page width in same units as image. Default: 595"],
-                ["template.page_height",    "number", false, "Page height. Default: 842"],
-                ["template.fields_json",    "array",  true, "Array of field definitions"],
-                ["fields_json[].key",       "string", true, "Maps to a key in values{}"],
-                ["fields_json[].x",         "number", true, "Horizontal position from left"],
-                ["fields_json[].y",         "number", true, "Vertical position from top"],
-                ["fields_json[].width",     "number", false, "Text box width"],
-                ["fields_json[].font_size", "number", false, "Font size. Default: 12"],
-                ["fields_json[].font_color","string", false, "Hex color. Default: #000000"],
-                ["fields_json[].align",     "string", false, "left · center · right. Default: left"],
-                ["fields_json[].required",  "boolean",false, "If true, issuance fails when key is missing from values"],
-                ["fields_json[].bold",      "boolean", false, "Default: false"],
-                ["fields_json[].italic",    "boolean", false, "Default: false"],
-                ["fields_json[].underline", "boolean", false, "Default: false"],
-                ["fields_json[].strike",    "boolean", false, "Default: false"],
-              ]} />
+            <SubSection id="tpl-fields" title={t("docs.tpl.fields.title")}>
+              <ParamTable
+                rows={[
+                  ["template.slug", "string", true, t("docs.t.slug")],
+                  ["template.name", "string", true, t("docs.t.name")],
+                  ["template.background_url", "string", true, t("docs.t.bg")],
+                  ["template.page_width", "number", false, t("docs.t.pw")],
+                  ["template.page_height", "number", false, t("docs.t.ph")],
+                  ["template.fields_json", "array", true, t("docs.t.fields")],
+                  ["fields_json[].key", "string", true, t("docs.t.key")],
+                  ["fields_json[].x", "number", true, t("docs.t.x")],
+                  ["fields_json[].y", "number", true, t("docs.t.y")],
+                  ["fields_json[].width", "number", false, t("docs.t.width")],
+                  [
+                    "fields_json[].font_size",
+                    "number",
+                    false,
+                    t("docs.t.fontSize"),
+                  ],
+                  [
+                    "fields_json[].font_color",
+                    "string",
+                    false,
+                    t("docs.t.fontColor"),
+                  ],
+                  ["fields_json[].align", "string", false, t("docs.t.align")],
+                  [
+                    "fields_json[].required",
+                    "boolean",
+                    false,
+                    t("docs.t.required"),
+                  ],
+                  ["fields_json[].bold", "boolean", false, t("docs.t.bold")],
+                  ["fields_json[].italic", "boolean", false, t("docs.t.bold")],
+                  [
+                    "fields_json[].underline",
+                    "boolean",
+                    false,
+                    t("docs.t.bold"),
+                  ],
+                  ["fields_json[].strike", "boolean", false, t("docs.t.bold")],
+                ]}
+              />
             </SubSection>
 
-            <SubSection id="tpl-requirements" title="Discover required fields">
+            <SubSection id="tpl-requirements" title={t("docs.tpl.req.title")}>
               <div className="docs-endpoint">
                 <span className="docs-method docs-method--get">GET</span>
-                <code className="docs-path">/templates/:slug_or_id/requirements</code>
+                <code className="docs-path">
+                  /templates/:slug_or_id/requirements
+                </code>
               </div>
-              <p className="docs-p">
-                No auth required. Returns <code>required_keys</code> and the full <code>fields_json</code> so you know
-                exactly which values to send and where they'll appear.
-              </p>
+              <p className="docs-p">{t("docs.tpl.req.body")}</p>
             </SubSection>
 
-            <SubSection id="tpl-inline" title="Example: create a template inline">
-              <p className="docs-p">
-                Use this the first time you want a custom layout. After this, reuse with <code>template_slug</code>.
-              </p>
-              <CodeBlock code={`{
+            <SubSection id="tpl-inline" title={t("docs.tpl.inline.title")}>
+              <p className="docs-p">{t("docs.tpl.inline.body")}</p>
+              <CodeBlock
+                code={`{
   "issuer":   { "display_name": "Acme Corp", "slug": "acme-corp" },
   "platform": { "display_name": "Acme Corp", "slug": "acme-corp" },
   "holder":   { "full_name": "Jane Doe" },
@@ -625,14 +813,15 @@ export default function Docs() {
     "holder_name": "Jane Doe",
     "details": "For completing Intro to Blockchain"
   }
-}`} label="request body" />
-              <p className="docs-p">
-                The QR code is added automatically in the top-right corner — leave that area empty in your background.
-              </p>
+}`}
+                label={t("docs.label.requestBody")}
+              />
+              <p className="docs-p">{t("docs.tpl.inline.qr")}</p>
             </SubSection>
 
-            <SubSection id="tpl-reuse" title="Example: reuse an existing template">
-              <CodeBlock code={`{
+            <SubSection id="tpl-reuse" title={t("docs.tpl.reuse.title")}>
+              <CodeBlock
+                code={`{
   "issuer":   { "display_name": "Acme Corp", "slug": "acme-corp" },
   "platform": { "display_name": "Acme Corp", "slug": "acme-corp" },
   "holder":   { "full_name": "Jane Doe" },
@@ -644,48 +833,51 @@ export default function Docs() {
     "holder_name": "Jane Doe",
     "details": "Attended the expo stand."
   }
-}`} label="request body (template already created)" />
+}`}
+                label={t("docs.label.requestBodyReuse")}
+              />
             </SubSection>
           </Section>
 
           {/* Template Preview */}
-          <Section id="template-preview" title="Template Preview">
-            <p className="docs-p">
-              Before issuing real credentials, preview how your certificate looks.
-              No cost, no blockchain, no registration — just a PDF with a watermark.
-            </p>
+          <Section id="template-preview" title={t("docs.prev.title")}>
+            <p className="docs-p">{t("docs.prev.lead")}</p>
 
-            <SubSection id="preview-url" title="Preview via URL">
-              <p className="docs-p">
-                Open a URL with the template slug and field values as query parameters:
-              </p>
-              <CodeBlock lang="bash" label="URL" code={`https://hashproof.dev/preview/:slug?holder_name=Jane+Doe&details=Some+text&background_url=https://...`} />
-              <p className="docs-p">
-                The page generates the PDF in real time with a "PREVIEW" watermark (or "VISTA PREVIA" in Spanish).
-                You can download it, and the QR on the PDF points back to the same preview URL.
-              </p>
+            <SubSection id="preview-url" title={t("docs.prev.url.title")}>
+              <p className="docs-p">{t("docs.prev.url.body")}</p>
+              <CodeBlock
+                lang="bash"
+                label="URL"
+                code={`https://hashproof.dev/preview/:slug?holder_name=Jane+Doe&details=Some+text&background_url=https://...`}
+              />
+              <p className="docs-p">{t("docs.prev.url.note")}</p>
             </SubSection>
 
-            <SubSection id="preview-api" title="Preview via API">
+            <SubSection id="preview-api" title={t("docs.prev.api.title")}>
               <div className="docs-endpoint">
                 <span className="docs-method docs-method--post">POST</span>
                 <code className="docs-path">/templates/:slug/preview</code>
               </div>
-              <p className="docs-p">No auth required.</p>
-              <CodeBlock code={`{
+              <p className="docs-p">{t("docs.prev.api.noAuth")}</p>
+              <CodeBlock
+                code={`{
   "background_url": "https://your-cdn.com/certificate-bg.png",
   "fields": {
     "holder_name": "Jane Doe",
     "details": "For completing Intro to Blockchain"
   },
   "locale": "en"
-}`} label="request body" />
-              <ParamTable rows={[
-                ["background_url", "string", false, "Override the template's default background"],
-                ["fields", "object", false, "Key-value pairs for each template field"],
-                ["locale", "string", false, "\"en\" or \"es\" — controls watermark language"],
-              ]} />
-              <p className="docs-p">Returns a PDF with the watermark. Use this to verify field positions before issuing.</p>
+}`}
+                label={t("docs.label.requestBody")}
+              />
+              <ParamTable
+                rows={[
+                  ["background_url", "string", false, t("docs.p.bg")],
+                  ["fields", "object", false, t("docs.p.fields")],
+                  ["locale", "string", false, t("docs.p.locale")],
+                ]}
+              />
+              <p className="docs-p">{t("docs.prev.api.note")}</p>
             </SubSection>
           </Section>
 
@@ -695,40 +887,54 @@ export default function Docs() {
               <span className="docs-method docs-method--get">GET</span>
               <code className="docs-path">/verify/:id</code>
             </div>
-            <p className="docs-p">
-              Full 3-layer verification: blockchain contract, IPFS content hash, database.
-              If any layer fails to match, the credential is flagged. Free, no auth.
-            </p>
+            <p className="docs-p">{t("docs.verify.lead")}</p>
 
-            <SubSection id="verify-response" title="Response 200">
-              <CodeBlock code={VERIFY_RESPONSE} label="response" />
+            <SubSection
+              id="verify-response"
+              title={t("docs.verify.response.title")}
+            >
+              <CodeBlock
+                code={VERIFY_RESPONSE}
+                label={t("docs.label.response")}
+              />
             </SubSection>
 
-            <SubSection id="verify-status" title="status values">
-              <ParamTable rows={[
-                ["active", "", false, "Valid, not revoked, not expired"],
-                ["revoked", "", false, "Explicitly revoked on-chain"],
-                ["expired", "", false, "Past expires_at"],
-                ["not_found", "", false, "Not registered on-chain"],
-                ["unknown", "", false, "Contract unreachable"],
-              ]} />
+            <SubSection
+              id="verify-status"
+              title={t("docs.verify.status.title")}
+            >
+              <ParamTable
+                rows={[
+                  ["active", "", false, t("docs.s.active")],
+                  ["revoked", "", false, t("docs.s.revoked")],
+                  ["expired", "", false, t("docs.s.expired")],
+                  ["not_found", "", false, t("docs.s.notFound")],
+                  ["unknown", "", false, t("docs.s.unknown")],
+                ]}
+              />
             </SubSection>
 
-            <SubSection id="verify-other" title="Other endpoints">
+            <SubSection id="verify-other" title={t("docs.verify.other.title")}>
               <div className="docs-endpoint" style={{ marginBottom: "0.5rem" }}>
                 <span className="docs-method docs-method--get">GET</span>
                 <code className="docs-path">/verify/:id/contract</code>
-                <span className="docs-endpoint-note">Blockchain only</span>
+                <span className="docs-endpoint-note">
+                  {t("docs.verify.note.contract")}
+                </span>
               </div>
               <div className="docs-endpoint" style={{ marginBottom: "0.5rem" }}>
                 <span className="docs-method docs-method--get">GET</span>
                 <code className="docs-path">/verify/:id/ipfs</code>
-                <span className="docs-endpoint-note">IPFS integrity check</span>
+                <span className="docs-endpoint-note">
+                  {t("docs.verify.note.ipfs")}
+                </span>
               </div>
               <div className="docs-endpoint">
                 <span className="docs-method docs-method--get">GET</span>
                 <code className="docs-path">/verify/:id/pdf</code>
-                <span className="docs-endpoint-note">Download PDF. Add ?inline=1 to preview</span>
+                <span className="docs-endpoint-note">
+                  {t("docs.verify.note.pdf")}
+                </span>
               </div>
             </SubSection>
           </Section>
@@ -740,47 +946,65 @@ export default function Docs() {
               <code className="docs-path">/entities/:id</code>
             </div>
             <p className="docs-p">
-              Returns entity info and verification status. <code>:id</code> can be a UUID or slug.
-              Free, no auth.
+              {fill("docs.entities.lead", { id: <code>:id</code> })}
             </p>
-            <CodeBlock code={ENTITY_RESPONSE} label="response" />
+            <CodeBlock
+              code={ENTITY_RESPONSE}
+              label={t("docs.label.response")}
+            />
 
-            <SubSection id="entities-status" title="status values">
-              <ParamTable rows={[
-                ["unverified", "", false, "Registered but not yet verified"],
-                ["individual_verified", "", false, "Verified as a person"],
-                ["organization_verified", "", false, "Verified as an organization"],
-                ["suspended", "", false, "Suspended by HashProof"],
-              ]} />
+            <SubSection
+              id="entities-status"
+              title={t("docs.entities.status.title")}
+            >
+              <ParamTable
+                rows={[
+                  ["unverified", "", false, t("docs.es.unverified")],
+                  ["individual_verified", "", false, t("docs.es.individual")],
+                  [
+                    "organization_verified",
+                    "",
+                    false,
+                    t("docs.es.organization"),
+                  ],
+                  ["suspended", "", false, t("docs.es.suspended")],
+                ]}
+              />
             </SubSection>
           </Section>
 
           {/* entity verification */}
-          <Section id="entity-verification" title="Entity Verification">
-            <p className="docs-p">
-              Organizations and individuals can verify their identity through HashProof.
-              Verified issuers appear with a verified badge on every credential they issue.
-            </p>
+          <Section id="entity-verification" title={t("docs.ev.title")}>
+            <p className="docs-p">{t("docs.ev.lead")}</p>
 
-            <SubSection id="ev-how" title="How to request verification">
+            <SubSection id="ev-how" title={t("docs.ev.how.title")}>
               <ol className="docs-ol">
-                <li>Go to your entity page: <code>/entities/:slug</code></li>
-                <li>Click <strong>Request verification</strong>.</li>
-                <li>Fill the form (organization or individual) and pay $49 USDC.</li>
-                <li>HashProof reviews your request and approves it manually.</li>
-                <li>Once approved, your entity is marked as verified and your wallets are authorized.</li>
+                <li>
+                  {fill("docs.ev.how.1", {
+                    path: <code>/entities/:slug</code>,
+                  })}
+                </li>
+                <li>
+                  {fill("docs.ev.how.2", {
+                    action: <strong>{t("docs.ev.how.action")}</strong>,
+                  })}
+                </li>
+                <li>{t("docs.ev.how.3")}</li>
+                <li>{t("docs.ev.how.4")}</li>
+                <li>{t("docs.ev.how.5")}</li>
+                <li>{t("docs.ev.how.6")}</li>
               </ol>
             </SubSection>
 
-            <SubSection id="ev-wallets" title="Authorized wallets">
+            <SubSection id="ev-wallets" title={t("docs.ev.wallets.title")}>
               <p className="docs-p">
-                When you verify your entity, you declare which EVM wallets are authorized
-                to issue credentials on your behalf. Only those wallets can call
-                <code> POST /issueCredential</code> with your <code>issuer_entity_id</code>.
+                {fill("docs.ev.wallets.body", {
+                  endpoint: <code>POST /issueCredential</code>,
+                  field: <code>issuer_entity_id</code>,
+                })}
               </p>
             </SubSection>
           </Section>
-
         </main>
       </div>
     </div>
