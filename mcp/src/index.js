@@ -59,8 +59,14 @@ async function getPaidFetch() {
   }
 
   throw new Error(
-    "No payment method configured. Set HASHPROOF_API_KEY (prepaid credits) or HASHPROOF_WALLET_PRIVATE_KEY (USDC on Base or Celo, x402) in this MCP server's env. " +
-      "If the human has no wallet yet: generate a dedicated EVM wallet (never reuse their main wallet), write the private key directly into the MCP config env — NEVER show it in chat — share only the address, ask them to fund it with at least 0.10 USDC on Base or Celo, then restart the MCP server.",
+    "No payment method configured. This server pays from its own env, so one of these has to be set in the MCP config and the server restarted:\n\n" +
+      "1. HASHPROOF_WALLET_PRIVATE_KEY — pays $0.10 USDC per credential via x402 on Base or Celo, no account needed. " +
+      "If the human has no wallet yet: generate a dedicated EVM wallet (never reuse their main wallet), write the private key " +
+      "directly into the MCP config env — NEVER show it in chat — share only the address, and ask them to fund it with at " +
+      "least 0.10 USDC on Base or Celo.\n" +
+      "2. HASHPROOF_API_KEY — prepaid credits, no crypto. The human gets one from hi@hashproof.dev; it is tied to their entity " +
+      "and issues as that entity, so `issuer.slug` must match it.\n\n" +
+      "See https://hashproof.dev/skill.md",
   );
 }
 
@@ -74,7 +80,30 @@ function errorText(message) {
 }
 
 // ---------------------------------------------------------------- server
-const server = new McpServer({ name: "hashproof", version: "0.1.1" });
+
+// Loaded into the client's context when it connects, so the agent knows how
+// payment and issuer identity work *before* it composes a body — otherwise it
+// only ever sees four tool descriptions and improvises the rest.
+const INSTRUCTIONS = `HashProof issues verifiable credentials: each one is registered on Celo, pinned to IPFS, and gets a public verification URL plus a PDF with a QR code.
+
+Settle three things with your human before composing an issuance body:
+
+1. How they pay. This server pays from its own env: HASHPROOF_WALLET_PRIVATE_KEY signs x402 payments of $0.10 USDC per credential on Base or Celo (no account), or HASHPROOF_API_KEY spends prepaid credits (from hi@hashproof.dev, no crypto). Neither is set until someone puts it in the MCP config and restarts the server. If they have no wallet, generate a dedicated one — never their main wallet, never show the private key in chat, share only the address to fund.
+
+2. Who the issuer is. \`issuer\` is the organization granting the credential, \`platform\` is the system managing the issuance; set both to the same organization when there is no third party in between. An API key always issues as its own entity: \`issuer.slug\` must match that entity or the call is rejected. Paying with x402 leaves the issuer as free-text metadata unless the wallet is authorized by a registered entity. Either way, issuing in the name of another organization is not something a key or an extra field unlocks — say so plainly instead of looking for a way around it.
+
+3. Whether they want their own design. The default template needs no setup. For a custom one, iterate field positions with \`preview_template\` (free, nothing stored) and show the final PDF for approval before issuing. Backgrounds must already be hosted at a public image URL — there is no upload endpoint.
+
+Issuing costs money and writes to a blockchain: get explicit approval for the final body first. A credential can be revoked afterwards, never edited.
+
+Issuer names are self-asserted metadata. Verification reports \`issuer_verification_level\` — \`verified\` only when the issuing entity itself is verified, \`none\` otherwise. The contents are always tamper-evident; the issuer's identity is only as good as that level.
+
+Full reference: https://hashproof.dev/skill.md`;
+
+const server = new McpServer(
+  { name: "hashproof", version: "0.1.3" },
+  { instructions: INSTRUCTIONS },
+);
 
 server.tool(
   "get_template_requirements",
@@ -131,7 +160,7 @@ server.tool(
 
 server.tool(
   "issue_credential",
-  "Issue a verifiable credential — COSTS $0.10 USDC (x402) or 1 API-key credit per call. Get explicit human approval before calling. Requires HASHPROOF_API_KEY or HASHPROOF_WALLET_PRIVATE_KEY in the MCP server env (if neither is set, the error explains how to set up a dedicated wallet). The body follows the HashProof issueCredential schema: issuer{display_name,slug}, platform{display_name,slug}, holder{full_name}, context{type,title}, credential_type, title, values{...}, and optionally template_slug OR an inline template{...} (send only one). Returns id, verification_url, tx_hash and ipfs_cid. Full reference: https://hashproof.dev/skill.md",
+  "Issue a verifiable credential — COSTS $0.10 USDC (x402) or 1 API-key credit per call. Get explicit human approval before calling. Requires HASHPROOF_API_KEY or HASHPROOF_WALLET_PRIVATE_KEY in the MCP server env (if neither is set, the error explains both routes). With an API key the credential issues as the key's own entity: `issuer.slug` must match that entity or the call is rejected, so you cannot issue on behalf of another organization. The body follows the HashProof issueCredential schema: issuer{display_name,slug}, platform{display_name,slug}, holder{full_name}, context{type,title}, credential_type, title, values{...}, and optionally template_slug OR an inline template{...} (send only one). Returns id, verification_url, tx_hash and ipfs_cid. Full reference: https://hashproof.dev/skill.md",
   {
     body: z
       .record(z.any())
