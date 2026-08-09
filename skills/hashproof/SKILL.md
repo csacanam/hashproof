@@ -88,6 +88,7 @@ Body (default template — replace ALL placeholders with real values from Step 1
 - `platform` = the system that manages the issuance (e.g. an event platform, a learning management system).
 - If your human is issuing directly (not through a third-party platform), set both to the same organization.
 - If they are issuing through a platform (e.g. "Acme Corp issues through Peewah"), set `issuer` to "Acme Corp" and `platform` to "Peewah".
+- Naming an organization your human does not represent does not make the credential theirs, and with an API key it is rejected outright. See [Issuing for someone else](#issuing-for-someone-else).
 
 **About holder.full_name vs values.holder_name:**
 - `holder.full_name` is stored in the credential metadata (used for verification and search).
@@ -130,6 +131,8 @@ curl -X POST https://api.hashproof.dev/issueCredential \
 ```
 
 Each issuance deducts 1 credit. Contact `hi@hashproof.dev` to get an API key.
+
+**A key issues as its own entity.** It is tied to one entity, and every credential is issued as that entity: send `issuer.slug` matching it, or omit `issuer` and it is filled in for you. Any other slug is rejected with `403`. A key is not a way to issue in the name of another organization — if that is what your human wants, see **Issuing for someone else** below.
 
 ### Option B — Pay with crypto (x402)
 
@@ -219,6 +222,17 @@ console.log(data.verification_url);
 Both SDKs handle the 402 → sign → retry flow automatically. You do NOT need to handle 402 responses manually.
 
 **If neither SDK works**, implement the protocol manually: parse the base64 `PAYMENT-REQUIRED` header, sign a `TransferWithAuthorization` (EIP-3009) using the params in `accepts[].extra`, and resend with the `X-PAYMENT` header. See https://www.x402.org for the full spec.
+
+### Issuing for someone else
+
+`issuer` is free-text metadata: nothing stops you from putting "Acme University" there, and nothing about that claim is proven. Verification reports `issuer_verification_level` — `none` for a plain string, `verified` only when the credential is bound to a verified entity via `issuer_entity_id`.
+
+That binding is the part you cannot self-serve, and it is deliberate — it is what keeps anyone from issuing in a real institution's name:
+
+- **With an API key:** the entity is the key's own. You cannot point it at another one.
+- **With x402:** sending `issuer_entity_id` for a verified entity requires the paying wallet to be one of that entity's authorized wallets, or — when `platform_entity_id` is a different entity — an authorization the issuer has already approved for that platform. Otherwise: `403`.
+
+So if your human asks for a credential issued in another organization's name, do not go looking for a field that unlocks it. Tell them the credential will read as that organization but prove nothing, and that real attribution means that organization registering with HashProof and authorizing them. Then let them decide.
 
 ### Rate limits
 
@@ -389,7 +403,7 @@ Returns a PDF with a watermark. No cost, nothing is registered. Share the previe
 | `template_id` | UUID | no | UUID of an existing template |
 | `template` | object | no | Inline template definition (create-only) |
 | `background_url_override` | string | no | Override background for this credential only |
-| `issuer_entity_id` | UUID | no | Verified entity ID (shows verified badge) |
+| `issuer_entity_id` | UUID | no | Verified entity ID (shows verified badge). Not free to set — see [Issuing for someone else](#issuing-for-someone-else) |
 | `platform_entity_id` | UUID | no | Platform entity ID |
 | `expires_at` | ISO 8601 | no | Expiration date. `null` = never expires |
 
@@ -414,7 +428,7 @@ Free. No auth. Returns `status` (`active`, `revoked`, `expired`, `not_found`), i
 | `400` | Missing or invalid field | Read the error message — it tells you which field is wrong. Fix and retry. |
 | `401` | Invalid API key | Ask your human to check their API key. |
 | `402` | Payment required or no credits left | If using x402: the SDK handles this automatically. If using API key: the key has no credits left — tell your human to purchase more. |
-| `403` | Entity suspended or wallet not authorized | The issuer entity is suspended, or the wallet paying is not in the entity's authorized wallets. Tell your human to check their entity status. |
+| `403` | Entity suspended, wallet not authorized, or wrong issuer for the key | The issuer entity is suspended; or the wallet paying is not in the entity's authorized wallets; or you sent an `issuer.slug` that is not the API key's own entity. For the last one, fix the slug — it is not something to retry or work around. See [Issuing for someone else](#issuing-for-someone-else). |
 | `500` | Server error | Something went wrong on HashProof's side. Wait a moment and retry once. If it persists, report it. |
 
 ---

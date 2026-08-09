@@ -34,6 +34,8 @@ curl -s -X POST http://localhost:4022/issueCredential \
 
 If you have a prepaid API key from HashProof, use it as a Bearer token. No wallet, no x402, no crypto setup needed.
 
+The key is bound to one entity and issues as that entity: `issuer.slug` must match it (or omit `issuer` and it is filled in for you). Any other slug returns `403` — a key is not a way to issue in another organization's name.
+
 ```bash
 curl -s -X POST https://api.hashproof.dev/issueCredential \
   -H "Content-Type: application/json" \

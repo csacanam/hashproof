@@ -12,6 +12,10 @@ MCP server for [HashProof](https://hashproof.dev) — issue verifiable credentia
 
 The remote server has no wallet and cannot pay on your behalf, so it can't do x402. Use the local server if you want to pay per credential with USDC; use the remote one if you have a prepaid API key and don't want to run anything.
 
+Both send MCP `instructions` on connect, so a client learns how payment and issuer identity work before it composes anything.
+
+**An API key issues as its own entity.** The key is tied to one entity and every credential is issued as that entity: `issuer.slug` must match it, or the call is rejected with `403`. Paying with x402 leaves `issuer` as free-text metadata unless the wallet is authorized by a registered entity. Neither route lets you issue in another organization's name — that requires that organization to register and authorize you. See [hashproof.dev/skill.md](https://hashproof.dev/skill.md).
+
 ## Install — local (stdio)
 
 **Claude Code:**

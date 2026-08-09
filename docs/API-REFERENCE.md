@@ -388,7 +388,7 @@ For template design (PDF size, background, QR placement), see [`TEMPLATES.md`](.
 |--------|-------|
 | 400 | Missing required field or invalid value |
 | 402 | Payment required (x402 challenge) |
-| 403 | Entity is suspended, or paying wallet is not in `authorized_wallets` |
+| 403 | Entity is suspended, paying wallet is not in `authorized_wallets`, or `issuer.slug` is not the API key's own entity |
 | 500 | IPFS pin failed, on-chain registration failed, or DB error |
 
 ---
