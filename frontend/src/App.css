@@ -1,7 +1,11 @@
+/* width: 100% keeps the column pinned to the viewport. Without it a wide child
+   — the pricing table — widens the column past the screen and the whole page
+   scrolls sideways on a phone instead of just the table. */
 .page {
   flex: 1;
   display: flex;
   flex-direction: column;
+  width: 100%;
   max-width: 800px;
   margin: 0 auto;
   padding: 0 1.5rem 4rem;
