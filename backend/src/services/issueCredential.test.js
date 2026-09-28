@@ -33,8 +33,12 @@ async function mockDefaultRpc(fnName) {
   return { data: null, error: { message: `Unexpected rpc: ${fnName}` } };
 }
 
+const mockContactInsert = vi.fn(async () => ({ error: null }));
 vi.mock("../supabase.js", () => ({
-  supabase: { rpc: vi.fn().mockImplementation(mockDefaultRpc) },
+  supabase: {
+    rpc: vi.fn().mockImplementation(mockDefaultRpc),
+    from: vi.fn(() => ({ insert: (...a) => mockContactInsert(...a) })),
+  },
 }));
 
 vi.mock("./pinata.js", () => ({
@@ -210,6 +214,27 @@ describe("executeIssueCredential", () => {
     expect(prepareCall[1].p_payload.background_url_override).toBe(
       "https://cdn.example.com/event-bg.png"
     );
+  });
+
+  it("keeps the holder email out of the credential and stores it apart", async () => {
+    mockContactInsert.mockClear();
+    await executeIssueCredential({
+      ...validPayload,
+      holder: { ...validPayload.holder, email: " Ana@Example.com " },
+    });
+    const prepareCall = supabase.rpc.mock.calls.findLast((c) => c[0] === "prepare_credential");
+    expect(prepareCall[1].p_payload.holder).not.toHaveProperty("email");
+    expect(mockContactInsert).toHaveBeenCalledWith({ credential_id: "mock-id", email: "ana@example.com" });
+  });
+
+  it("still issues when the holder email is not an address, and stores nothing", async () => {
+    mockContactInsert.mockClear();
+    const out = await executeIssueCredential({
+      ...validPayload,
+      holder: { ...validPayload.holder, email: "ana" },
+    });
+    expect(out.id).toBe("mock-id");
+    expect(mockContactInsert).not.toHaveBeenCalled();
   });
 
   it("throws when template_id and template_slug are both provided", async () => {
@@ -548,5 +573,19 @@ describe("on-chain issuance pipeline", () => {
     await issuance;
 
     expect(getIssuanceLoad()).toEqual({ pendingSends: 0, awaitingReceipt: 0 });
+  });
+});
+
+describe("normalizeHolderEmail", () => {
+  it("lowercases and trims a valid address", async () => {
+    const { normalizeHolderEmail } = await vi.importActual("./issueCredential.js");
+    expect(normalizeHolderEmail("  Ana.Perez@Example.COM ")).toBe("ana.perez@example.com");
+  });
+
+  it("returns null for anything that is not an address", async () => {
+    const { normalizeHolderEmail } = await vi.importActual("./issueCredential.js");
+    for (const v of ["", "ana", "ana@", "@x.co", "a b@x.co", 42, null, undefined]) {
+      expect(normalizeHolderEmail(v)).toBeNull();
+    }
   });
 });

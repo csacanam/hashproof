@@ -239,7 +239,15 @@ So if your human asks for a credential issued in another organization's name, do
 - Requests **with valid payment** (x402 or API key): **60 requests/minute**
 - Requests **without payment** (e.g. failed x402, missing API key): **10 requests/minute**
 
-For bulk issuance, add a **2-second delay** between calls to stay well within limits.
+### Bulk issuance: async + idempotency
+
+For more than a handful of credentials, send each one with `"async": true` and an `Idempotency-Key` header that identifies that certificate (e.g. `attendee-42-event-7`):
+
+- The call answers `202` immediately with a `job_id` and a `status_url`; poll `GET /issuanceJobs/:id` until `status` is `completed`. Infrastructure failures are retried for you.
+- Repeating a request with the same `Idempotency-Key` returns the **same job**: it never issues or charges twice. This is what makes a bulk run safe to resume after a crash — resend every row with its key, and the ones already issued come back as they were.
+- Without a key, every call issues a new credential.
+
+Stay under 60 requests/minute; the queue sheds load with a `429` and `Retry-After` when it is full, which is safe to retry because nothing was issued.
 
 ---
 
@@ -306,7 +314,7 @@ When your human provides a background image and field positions, include the `te
 
 Important:
 - `page_width` and `page_height` must match the background image dimensions (in pixels).
-- `x`, `y`, `width` use the same units as the page.
+- `x`, `y`, `width` use the same units as the page. `y` is the **top edge** of the text line, not its vertical center — if your editor positions text by its center, subtract about 0.45 × `font_size`.
 - The QR code is drawn automatically in the top-right corner. Leave that area empty in the background.
 - Never issue with unverified positions — derive them yourself with the inline preview loop (`POST /template-previews`, free) and get your human's approval on the final preview first.
 - With a custom template, `title` is **metadata** (shown on the verification page) — it is NOT drawn on the PDF unless you add a field for it. Recommended: bake the title text into the background image.
@@ -394,6 +402,8 @@ Returns a PDF with a watermark. No cost, nothing is registered. Share the previe
 | `platform.display_name` | string | yes | Name of the platform managing issuance |
 | `platform.slug` | string | yes | URL-safe identifier |
 | `holder.full_name` | string | yes | Full name of the credential recipient |
+| `holder.email` | string | no | Recipient's email. **Private**: never written to the credential, IPFS or the chain. Recommended — it is how the recipient will find their credentials in HashProof later. |
+| `holder.external_id` | string | no | ID from your own system |
 | `context.type` | enum | yes | `event`, `course`, `diploma`, `training`, `certification`, `membership`, `other` |
 | `context.title` | string | yes | Name of the event, course, or program |
 | `credential_type` | enum | yes | `attendance`, `completion`, `achievement`, `participation`, `membership`, `certification` |
@@ -406,6 +416,35 @@ Returns a PDF with a watermark. No cost, nothing is registered. Share the previe
 | `issuer_entity_id` | UUID | no | Verified entity ID (shows verified badge). Not free to set — see [Issuing for someone else](#issuing-for-someone-else) |
 | `platform_entity_id` | UUID | no | Platform entity ID |
 | `expires_at` | ISO 8601 | no | Expiration date. `null` = never expires |
+| `async` | boolean | no | Answer `202` with a job instead of waiting for the chain. See [Bulk issuance](#bulk-issuance-async--idempotency) |
+| `idempotency_key` | string | no | Same as the `Idempotency-Key` header (async only) |
+
+---
+
+## Manage issued credentials
+
+Both need the API key of the entity that issued (or of the platform that issued for it). Free — no credits spent, and they work with a key at zero balance.
+
+**List:**
+
+```
+GET https://api.hashproof.dev/credentials?status=active&q=jane&limit=50&offset=0
+Authorization: Bearer <api_key>
+```
+
+Filters (all optional): `status` (`active`, `revoked`, `expired`), `q` (holder name contains), `context` (context title contains), `from` / `to` (ISO dates). Newest first; `limit` up to 100. Returns `{ total, limit, offset, credentials: [{ id, holder_name, context_title, status, issued_at, verification_url, … }] }`.
+
+**Revoke** — permanent, there is no un-revoke. Get your human's explicit approval first:
+
+```
+POST https://api.hashproof.dev/credentials/:id/revoke
+Authorization: Bearer <api_key>
+Content-Type: application/json
+
+{ "confirm": true, "reason": "Issued to the wrong person" }
+```
+
+Returns `{ id, status: "revoked", revoked_at, tx_hash, already_revoked }`. Revocation is written on-chain, so verification shows `revoked` from any of the three sources. Calling it again is safe: it answers `already_revoked: true` and sends nothing. A `503` means nothing changed — retry.
 
 ---
 

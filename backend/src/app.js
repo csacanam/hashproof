@@ -27,6 +27,9 @@ import { supabase } from "./supabase.js";
 import { CHAIN_CONFIG } from "./utils/chains.js";
 import { createCronRouter } from "./routes/cron.js";
 import { createMcpRouter } from "./routes/mcp.js";
+import { requireCaller } from "./middleware/caller.js";
+import { revokeCredential } from "./services/revokeCredential.js";
+import { listCredentials } from "./services/listCredentials.js";
 import { Buffer } from "node:buffer";
 import { randomUUID } from "node:crypto";
 import { sendError, classifyError } from "./utils/errors.js";
@@ -1180,6 +1183,55 @@ export function createApp(options = {}) {
       return res.json({ id, credits_balance: data?.credits_balance ?? 0 });
     } catch (err) {
       return sendError(res, err, { handler: "admin/api-keys patch" });
+    }
+  });
+
+  // ── Credential management (API key of the issuing entity) ─────────────
+
+  app.get("/credentials", readOnlyRateLimit, requireCaller(), async (req, res) => {
+    try {
+      // An admin has no entity of its own, so it names one.
+      const entityId = req.caller.kind === "admin" ? req.query.entity_id : req.caller.entityId;
+      if (!UUID_RE.test(String(entityId || ""))) {
+        return res.status(400).json({ error: "entity_id (UUID) is required with the admin secret" });
+      }
+      const { status, q, context, from, to, limit, offset } = req.query;
+      return res.json(
+        await listCredentials({ entityId, status, q, context, from, to, limit, offset }, baseUrl),
+      );
+    } catch (err) {
+      return sendError(res, err, { handler: "credentials list", entity_id: req.caller?.entityId });
+    }
+  });
+
+  // Irreversible, so it asks for { "confirm": true } rather than trusting that a
+  // POST to this path was meant. Repeating it is safe: an already revoked
+  // credential answers 200 with already_revoked: true and sends nothing.
+  app.post("/credentials/:id/revoke", readOnlyRateLimit, requireCaller(), async (req, res) => {
+    try {
+      if (req.body?.confirm !== true) {
+        return res.status(400).json({
+          error: 'Revocation is permanent. Send { "confirm": true } to proceed.',
+          code: "confirmation_required",
+        });
+      }
+      const result = await revokeCredential({
+        credentialId: req.params.id,
+        caller: req.caller,
+        reason: req.body?.reason,
+      });
+      return res.json(result);
+    } catch (err) {
+      if (err?.code === "revoke_chain_failed") {
+        console.error(`[error] ${JSON.stringify({ request_id: req.id, credential_id: req.params.id, cause: err.cause?.message })}`);
+        return res.status(503).set("Retry-After", "10").json({
+          error: "Could not revoke the credential on-chain right now. Nothing changed — retry in a few seconds.",
+          code: "chain_unavailable",
+          retryable: true,
+          request_id: req.id,
+        });
+      }
+      return sendError(res, err, { handler: "credentials revoke", credential_id: req.params.id });
     }
   });
 

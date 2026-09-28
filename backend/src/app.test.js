@@ -723,3 +723,34 @@ describe("HashProof API", () => {
     });
   });
 });
+
+describe("credential management routes", () => {
+  let app;
+  beforeEach(() => {
+    app = createApp({ skipPayment: true });
+    mockApiKeyEntity = null;
+  });
+
+  it("GET /credentials without a key is 401", async () => {
+    const res = await request(app).get("/credentials");
+    expect(res.status).toBe(401);
+  });
+
+  it("POST /credentials/:id/revoke refuses without an explicit confirm", async () => {
+    mockApiKeyEntity = { id: "k1", entity_id: "11111111-1111-4111-8111-111111111111", credits_balance: 0 };
+    const res = await request(app)
+      .post("/credentials/44444444-4444-4444-8444-444444444444/revoke")
+      .set("Authorization", "Bearer hp_test")
+      .send({});
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe("confirmation_required");
+  });
+
+  it("POST /credentials/:id/revoke with an unknown key is 401", async () => {
+    const res = await request(app)
+      .post("/credentials/44444444-4444-4444-8444-444444444444/revoke")
+      .set("Authorization", "Bearer hp_nope")
+      .send({ confirm: true });
+    expect(res.status).toBe(401);
+  });
+});

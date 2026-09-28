@@ -1,0 +1,551 @@
+[
+ {
+  "kind": "rpc:prepare_credential",
+  "args": {
+   "p_payload": {
+    "issuer": {
+     "display_name": "Peewah",
+     "slug": "peewah"
+    },
+    "platform": {
+     "display_name": "Peewah",
+     "slug": "peewah"
+    },
+    "holder": {
+     "full_name": "Diana Prieto"
+    },
+    "context": {
+     "type": "event",
+     "title": "Latam Architecture Day"
+    },
+    "template": null,
+    "template_id": null,
+    "template_slug": "basic-name",
+    "background_url_override": "https://cdn.peewah.co/bg.png",
+    "credential_type": "attendance",
+    "title": "Certificado de Asistencia",
+    "expires_at": null,
+    "values": {
+     "holder_name": "Diana Prieto",
+     "details": "Asistió"
+    }
+   },
+   "p_base_url": "https://hashproof.dev",
+   "p_contract_address": "0xregistry"
+  }
+ },
+ {
+  "kind": "artifacts",
+  "args": {
+   "credentialJson": {
+    "credentialSubject": {
+     "holder_name": "Diana Prieto",
+     "details": "Asistió"
+    },
+    "proof": {
+     "type": "HashProofBlockchain",
+     "contractAddress": "0xregistry"
+    }
+   },
+   "verificationUrl": "https://hashproof.dev/verify/cred-1"
+  }
+ },
+ {
+  "kind": "pin",
+  "args": {
+   "doc": {
+    "credentialSubject": {},
+    "proof": {
+     "type": "HashProofBlockchain",
+     "contractAddress": "0xregistry"
+    },
+    "document": {
+     "hash": "h"
+    },
+    "credentialSubjectRedaction": "hashproof/redacted-subject-v1"
+   },
+   "name": "cred-1.json"
+  }
+ },
+ {
+  "kind": "register",
+  "args": {
+   "addr": "0xregistry",
+   "a": [
+    "cred-1",
+    "bafy",
+    1790632800,
+    0,
+    {
+     "nonce": 7,
+     "gasLimit": "300000n",
+     "maxFeePerGas": "5n",
+     "maxPriorityFeePerGas": "1n"
+    }
+   ]
+  }
+ },
+ {
+  "kind": "rpc:finalize_credential",
+  "args": {
+   "p_prepared": {
+    "id": "cred-1",
+    "contract_address": "0xregistry",
+    "credential_json": {
+     "credentialSubject": {
+      "holder_name": "Diana Prieto",
+      "details": "Asistió"
+     },
+     "proof": {
+      "type": "HashProofBlockchain",
+      "contractAddress": "0xregistry"
+     },
+     "document": {
+      "hash": "h"
+     }
+    }
+   },
+   "p_ipfs_cid": "bafy",
+   "p_tx_hash": "0xtx"
+  }
+ },
+ {
+  "kind": "storePdf",
+  "args": {
+   "id": "cred-1"
+  }
+ },
+ {
+  "kind": "result",
+  "args": {
+   "id": "cred-1",
+   "verification_url": "https://hashproof.dev/verify/cred-1",
+   "tx_hash": "0xtx",
+   "ipfs_cid": "bafy",
+   "ipfs_uri": "https://gateway.pinata.cloud/ipfs/bafy",
+   "ok": true
+  }
+ },
+ {
+  "kind": "input-unmodified",
+  "args": {
+   "same": true
+  }
+ },
+ {
+  "kind": "rpc:prepare_credential",
+  "args": {
+   "p_payload": {
+    "issuer": {
+     "display_name": "Peewah",
+     "slug": "peewah"
+    },
+    "platform": {
+     "display_name": "Peewah",
+     "slug": "peewah"
+    },
+    "holder": {
+     "full_name": "Ana Ruiz",
+     "external_id": "att-42"
+    },
+    "context": {
+     "type": "event",
+     "title": "Latam Architecture Day"
+    },
+    "template": null,
+    "template_id": null,
+    "template_slug": "basic-name-and-extra",
+    "background_url_override": "https://cdn.peewah.co/bg.png",
+    "credential_type": "attendance",
+    "title": "Certificado de Asistencia",
+    "expires_at": null,
+    "values": {
+     "holder_name": "Ana Ruiz",
+     "details": "Asistió",
+     "extra": "8 horas"
+    }
+   },
+   "p_base_url": "https://hashproof.dev",
+   "p_contract_address": "0xregistry"
+  }
+ },
+ {
+  "kind": "artifacts",
+  "args": {
+   "credentialJson": {
+    "credentialSubject": {
+     "holder_name": "Ana Ruiz",
+     "details": "Asistió",
+     "extra": "8 horas"
+    },
+    "proof": {
+     "type": "HashProofBlockchain",
+     "contractAddress": "0xregistry"
+    }
+   },
+   "verificationUrl": "https://hashproof.dev/verify/cred-1"
+  }
+ },
+ {
+  "kind": "pin",
+  "args": {
+   "doc": {
+    "credentialSubject": {},
+    "proof": {
+     "type": "HashProofBlockchain",
+     "contractAddress": "0xregistry"
+    },
+    "document": {
+     "hash": "h"
+    },
+    "credentialSubjectRedaction": "hashproof/redacted-subject-v1"
+   },
+   "name": "cred-1.json"
+  }
+ },
+ {
+  "kind": "register",
+  "args": {
+   "addr": "0xregistry",
+   "a": [
+    "cred-1",
+    "bafy",
+    1790632800,
+    0,
+    {
+     "nonce": 8,
+     "gasLimit": "300000n",
+     "maxFeePerGas": "5n",
+     "maxPriorityFeePerGas": "1n"
+    }
+   ]
+  }
+ },
+ {
+  "kind": "rpc:finalize_credential",
+  "args": {
+   "p_prepared": {
+    "id": "cred-1",
+    "contract_address": "0xregistry",
+    "credential_json": {
+     "credentialSubject": {
+      "holder_name": "Ana Ruiz",
+      "details": "Asistió",
+      "extra": "8 horas"
+     },
+     "proof": {
+      "type": "HashProofBlockchain",
+      "contractAddress": "0xregistry"
+     },
+     "document": {
+      "hash": "h"
+     }
+    }
+   },
+   "p_ipfs_cid": "bafy",
+   "p_tx_hash": "0xtx"
+  }
+ },
+ {
+  "kind": "storePdf",
+  "args": {
+   "id": "cred-1"
+  }
+ },
+ {
+  "kind": "result",
+  "args": {
+   "id": "cred-1",
+   "verification_url": "https://hashproof.dev/verify/cred-1",
+   "tx_hash": "0xtx",
+   "ipfs_cid": "bafy",
+   "ipfs_uri": "https://gateway.pinata.cloud/ipfs/bafy",
+   "ok": true
+  }
+ },
+ {
+  "kind": "input-unmodified",
+  "args": {
+   "same": true
+  }
+ },
+ {
+  "kind": "rpc:prepare_credential",
+  "args": {
+   "p_payload": {
+    "issuer": {
+     "display_name": "Peewah",
+     "slug": "peewah"
+    },
+    "platform": {
+     "display_name": "Peewah",
+     "slug": "peewah"
+    },
+    "holder": {
+     "full_name": "Luis Díaz"
+    },
+    "context": {
+     "type": "event",
+     "title": "Latam Architecture Day"
+    },
+    "template": null,
+    "template_id": null,
+    "template_slug": "basic-name",
+    "background_url_override": "https://cdn.peewah.co/bg.png",
+    "credential_type": "attendance",
+    "title": "Certificado de Asistencia",
+    "expires_at": null,
+    "values": {
+     "holder_name": "Luis Díaz",
+     "details": "x"
+    }
+   },
+   "p_base_url": "https://hashproof.dev",
+   "p_contract_address": "0xregistry"
+  }
+ },
+ {
+  "kind": "artifacts",
+  "args": {
+   "credentialJson": {
+    "credentialSubject": {
+     "holder_name": "Luis Díaz",
+     "details": "x"
+    },
+    "proof": {
+     "type": "HashProofBlockchain",
+     "contractAddress": "0xregistry"
+    }
+   },
+   "verificationUrl": "https://hashproof.dev/verify/cred-1"
+  }
+ },
+ {
+  "kind": "pin",
+  "args": {
+   "doc": {
+    "credentialSubject": {},
+    "proof": {
+     "type": "HashProofBlockchain",
+     "contractAddress": "0xregistry"
+    },
+    "document": {
+     "hash": "h"
+    },
+    "credentialSubjectRedaction": "hashproof/redacted-subject-v1"
+   },
+   "name": "cred-1.json"
+  }
+ },
+ {
+  "kind": "register",
+  "args": {
+   "addr": "0xregistry",
+   "a": [
+    "cred-1",
+    "bafy",
+    1790632800,
+    0,
+    {
+     "nonce": 9,
+     "gasLimit": "300000n",
+     "maxFeePerGas": "5n",
+     "maxPriorityFeePerGas": "1n"
+    }
+   ]
+  }
+ },
+ {
+  "kind": "rpc:finalize_credential",
+  "args": {
+   "p_prepared": {
+    "id": "cred-1",
+    "contract_address": "0xregistry",
+    "credential_json": {
+     "credentialSubject": {
+      "holder_name": "Luis Díaz",
+      "details": "x"
+     },
+     "proof": {
+      "type": "HashProofBlockchain",
+      "contractAddress": "0xregistry"
+     },
+     "document": {
+      "hash": "h"
+     }
+    }
+   },
+   "p_ipfs_cid": "bafy",
+   "p_tx_hash": "0xtx"
+  }
+ },
+ {
+  "kind": "storePdf",
+  "args": {
+   "id": "cred-1"
+  }
+ },
+ {
+  "kind": "result",
+  "args": {
+   "id": "cred-1",
+   "verification_url": "https://hashproof.dev/verify/cred-1",
+   "tx_hash": "0xtx",
+   "ipfs_cid": "bafy",
+   "ipfs_uri": "https://gateway.pinata.cloud/ipfs/bafy",
+   "ok": true
+  }
+ },
+ {
+  "kind": "input-unmodified",
+  "args": {
+   "same": true
+  }
+ },
+ {
+  "kind": "rpc:prepare_credential",
+  "args": {
+   "p_payload": {
+    "issuer": {
+     "display_name": "Peewah",
+     "slug": "peewah"
+    },
+    "platform": {
+     "display_name": "Peewah",
+     "slug": "peewah"
+    },
+    "holder": {
+     "full_name": "Pepe"
+    },
+    "context": {
+     "type": "event",
+     "title": "Latam Architecture Day"
+    },
+    "template": {
+     "slug": "peewah-prueba",
+     "name": "p",
+     "background_url": "https://x/bg.png",
+     "page_width": 1056,
+     "page_height": 816,
+     "fields_json": [
+      {
+       "key": "campo_1",
+       "x": 1,
+       "y": 2
+      }
+     ]
+    },
+    "template_id": null,
+    "template_slug": null,
+    "background_url_override": null,
+    "credential_type": "attendance",
+    "title": "Certificado de Asistencia",
+    "expires_at": null,
+    "values": {
+     "campo_1": "a",
+     "campo_2": "b"
+    }
+   },
+   "p_base_url": "https://hashproof.dev",
+   "p_contract_address": "0xregistry"
+  }
+ },
+ {
+  "kind": "artifacts",
+  "args": {
+   "credentialJson": {
+    "credentialSubject": {
+     "campo_1": "a",
+     "campo_2": "b"
+    },
+    "proof": {
+     "type": "HashProofBlockchain",
+     "contractAddress": "0xregistry"
+    }
+   },
+   "verificationUrl": "https://hashproof.dev/verify/cred-1"
+  }
+ },
+ {
+  "kind": "pin",
+  "args": {
+   "doc": {
+    "credentialSubject": {},
+    "proof": {
+     "type": "HashProofBlockchain",
+     "contractAddress": "0xregistry"
+    },
+    "document": {
+     "hash": "h"
+    },
+    "credentialSubjectRedaction": "hashproof/redacted-subject-v1"
+   },
+   "name": "cred-1.json"
+  }
+ },
+ {
+  "kind": "register",
+  "args": {
+   "addr": "0xregistry",
+   "a": [
+    "cred-1",
+    "bafy",
+    1790632800,
+    0,
+    {
+     "nonce": 10,
+     "gasLimit": "300000n",
+     "maxFeePerGas": "5n",
+     "maxPriorityFeePerGas": "1n"
+    }
+   ]
+  }
+ },
+ {
+  "kind": "rpc:finalize_credential",
+  "args": {
+   "p_prepared": {
+    "id": "cred-1",
+    "contract_address": "0xregistry",
+    "credential_json": {
+     "credentialSubject": {
+      "campo_1": "a",
+      "campo_2": "b"
+     },
+     "proof": {
+      "type": "HashProofBlockchain",
+      "contractAddress": "0xregistry"
+     },
+     "document": {
+      "hash": "h"
+     }
+    }
+   },
+   "p_ipfs_cid": "bafy",
+   "p_tx_hash": "0xtx"
+  }
+ },
+ {
+  "kind": "storePdf",
+  "args": {
+   "id": "cred-1"
+  }
+ },
+ {
+  "kind": "result",
+  "args": {
+   "id": "cred-1",
+   "verification_url": "https://hashproof.dev/verify/cred-1",
+   "tx_hash": "0xtx",
+   "ipfs_cid": "bafy",
+   "ipfs_uri": "https://gateway.pinata.cloud/ipfs/bafy",
+   "ok": true
+  }
+ },
+ {
+  "kind": "input-unmodified",
+  "args": {
+   "same": true
+  }
+ }
+]

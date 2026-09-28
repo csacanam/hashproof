@@ -22,6 +22,8 @@ Key facts:
 - `POST /issueCredential` — $0.10 USDC (x402) or 1 API-key credit: issue one credential
 - `GET /templates/:ref/requirements` — free: required fields for a template
 - `POST /templates/:ref/preview` — free: watermarked preview PDF, nothing registered
+- `GET /credentials` — free, API key: list the credentials your entity issued
+- `POST /credentials/:id/revoke` — free, API key: revoke a credential on-chain (permanent)
 - `GET /verify/:id` — free: full 3-layer verification (database, IPFS, blockchain)
 - `GET /stats` — free: on-chain credential counters
 

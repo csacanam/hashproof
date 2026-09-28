@@ -13,6 +13,8 @@ By default, HashProof uses **x402** (USDC) and there is **no API key**. For ente
 | GET | `/` | — | Service info |
 | POST | `/issueCredential` | x402 $0.10 USDC **or** API key (prepaid) | Issue one credential |
 | GET | `/issuanceJobs/:id` | — | Status of an async issuance |
+| GET | `/credentials` | API key | List the credentials your entity issued |
+| POST | `/credentials/:id/revoke` | API key | Revoke a credential (permanent) |
 | GET | `/verify/:id` | — | Full verification (contract + IPFS + DB) |
 | GET | `/verify/:id/contract` | — | Blockchain-only status |
 | GET | `/verify/:id/ipfs` | — | IPFS vs DB integrity check |
@@ -117,6 +119,7 @@ Same fields as `issuer`. Can be the same entity as the issuer (set both to the s
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `full_name` | string | yes | Full name of the credential recipient |
+| `email` | string | no | Recipient's email. Stored privately: never written to the credential, IPFS or the chain. Recommended — it is how the recipient will find their credentials later |
 | `external_id` | string | no | ID from your own system |
 
 #### context `object` — required
@@ -300,6 +303,77 @@ The same `request_id` is returned in the `X-Request-Id` header and written to th
 Retryable responses include a `Retry-After` header in seconds. **Never retry a non-retryable error unchanged** — it will fail identically and, for issuance, may cost a credit.
 
 Async issuance handles retries for you: an infrastructure failure is retried with backoff until it succeeds, so only `failed` jobs need attention, and those are always payload problems.
+
+## GET /credentials
+
+The credentials your entity issued — as issuer, or as the platform issuing for someone else — newest first. Authenticate with any API key of the entity (`Authorization: Bearer <key>` or `X-API-Key`). Free; works with a key at zero credits.
+
+| Query | Description |
+|-------|-------------|
+| `status` | `active`, `revoked` or `expired` |
+| `q` | Holder name contains |
+| `context` | Context title contains |
+| `from`, `to` | ISO dates, on the issuance time |
+| `limit` | 1–100, default 50 |
+| `offset` | For pagination |
+
+Response `200 OK`:
+
+```json
+{
+  "total": 1284,
+  "limit": 50,
+  "offset": 0,
+  "credentials": [
+    {
+      "id": "51fb6ed9-…",
+      "holder_name": "Diana Prieto",
+      "context_title": "Gran Evento IA",
+      "template": "peewah-default",
+      "credential_type": "attendance",
+      "status": "active",
+      "issued_at": "2026-09-28T21:12:41Z",
+      "expires_at": null,
+      "revoked_at": null,
+      "revocation_reason": null,
+      "role": "issuer",
+      "tx_hash": "0x…",
+      "verification_url": "https://hashproof.dev/verify/51fb6ed9-…"
+    }
+  ]
+}
+```
+
+## POST /credentials/:id/revoke
+
+Revoke a credential. **Permanent**: the registry has no un-revoke. Only the entity that issued it, or the platform that issued for it, can revoke.
+
+```json
+{ "confirm": true, "reason": "Issued to the wrong person" }
+```
+
+`confirm: true` is required. `reason` is optional (up to 500 characters) and is shown to you when listing.
+
+Response `200 OK`:
+
+```json
+{
+  "id": "51fb6ed9-…",
+  "status": "revoked",
+  "revoked_at": "2026-09-28T22:03:10.118Z",
+  "tx_hash": "0x…",
+  "already_revoked": false
+}
+```
+
+The revocation is written on-chain, so `GET /verify/:id` reports `revoked` from the contract, not only from our database. Calling it again is safe: it returns `already_revoked: true` and sends nothing.
+
+| Status | Code | Meaning |
+|--------|------|---------|
+| 400 | `confirmation_required` | `confirm: true` missing |
+| 401 | `unauthorized` | No key, or an invalid one |
+| 404 | `not_found` | No such credential **for your entity** |
+| 503 | `chain_unavailable` | The chain did not accept it. Nothing changed; retry |
 
 ## GET /issuanceJobs/:id
 

@@ -154,7 +154,7 @@ function buildServer(apiKey) {
 
   server.tool(
     "issue_credential",
-    "Issue a verifiable credential — COSTS 1 API-key credit per call. Get explicit human approval before calling. This remote server requires a HashProof API key sent as `Authorization: Bearer <key>` in your MCP client's HTTP headers; it cannot pay with x402 on your behalf. The key issues as its own entity: `issuer.slug` must match that entity or the call is rejected, so you cannot issue on behalf of another organization. The body follows the HashProof issueCredential schema: issuer{display_name,slug}, platform{display_name,slug}, holder{full_name}, context{type,title}, credential_type, title, values{...}, and optionally template_slug OR an inline template{...} (send only one). Returns id, verification_url, tx_hash and ipfs_cid. Full reference: https://hashproof.dev/skill.md",
+    "Issue a verifiable credential — COSTS 1 API-key credit per call. Get explicit human approval before calling. This remote server requires a HashProof API key sent as `Authorization: Bearer <key>` in your MCP client's HTTP headers; it cannot pay with x402 on your behalf. The key issues as its own entity: `issuer.slug` must match that entity or the call is rejected, so you cannot issue on behalf of another organization. The body follows the HashProof issueCredential schema: issuer{display_name,slug}, platform{display_name,slug}, holder{full_name, email? (private, never on-chain)}, context{type,title}, credential_type, title, values{...}, and optionally template_slug OR an inline template{...} (send only one). Returns id, verification_url, tx_hash and ipfs_cid. Full reference: https://hashproof.dev/skill.md",
     {
       body: z
         .record(z.any())

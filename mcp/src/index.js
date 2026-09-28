@@ -160,7 +160,7 @@ server.tool(
 
 server.tool(
   "issue_credential",
-  "Issue a verifiable credential — COSTS $0.10 USDC (x402) or 1 API-key credit per call. Get explicit human approval before calling. Requires HASHPROOF_API_KEY or HASHPROOF_WALLET_PRIVATE_KEY in the MCP server env (if neither is set, the error explains both routes). With an API key the credential issues as the key's own entity: `issuer.slug` must match that entity or the call is rejected, so you cannot issue on behalf of another organization. The body follows the HashProof issueCredential schema: issuer{display_name,slug}, platform{display_name,slug}, holder{full_name}, context{type,title}, credential_type, title, values{...}, and optionally template_slug OR an inline template{...} (send only one). Returns id, verification_url, tx_hash and ipfs_cid. Full reference: https://hashproof.dev/skill.md",
+  "Issue a verifiable credential — COSTS $0.10 USDC (x402) or 1 API-key credit per call. Get explicit human approval before calling. Requires HASHPROOF_API_KEY or HASHPROOF_WALLET_PRIVATE_KEY in the MCP server env (if neither is set, the error explains both routes). With an API key the credential issues as the key's own entity: `issuer.slug` must match that entity or the call is rejected, so you cannot issue on behalf of another organization. The body follows the HashProof issueCredential schema: issuer{display_name,slug}, platform{display_name,slug}, holder{full_name, email? (private, never on-chain)}, context{type,title}, credential_type, title, values{...}, and optionally template_slug OR an inline template{...} (send only one). Returns id, verification_url, tx_hash and ipfs_cid. Full reference: https://hashproof.dev/skill.md",
   {
     body: z
       .record(z.any())

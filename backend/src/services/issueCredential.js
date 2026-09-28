@@ -18,6 +18,7 @@ import { getCeloProvider } from "../utils/celoProvider.js";
 
 const REGISTRY_ABI = [
   "function register(string credentialId, string cid, uint256 issuedAt, uint256 validUntil) external",
+  "function revoke(string credentialId) external",
 ];
 
 // A single registry wallet is shared across concurrent requests, so nonce
@@ -112,10 +113,11 @@ async function reserveNonce(provider, wallet) {
 }
 
 /**
- * Build and broadcast one register tx. Runs under sendLock. Returns the pending
- * tx without waiting for it to mine.
+ * Build and broadcast one registry tx. Runs under sendLock. Returns the pending
+ * tx without waiting for it to mine. `send(overrides)` makes the contract call;
+ * register and revoke share the wallet, so they must share this nonce handling.
  */
-async function broadcastRegisterTx(registry, provider, wallet, args) {
+async function broadcastTx(provider, wallet, send) {
   let fees = await getFees(provider);
   let lastErr;
 
@@ -124,11 +126,7 @@ async function broadcastRegisterTx(registry, provider, wallet, args) {
     try {
       // Explicit gasLimit skips an eth_estimateGas round-trip inside the lock;
       // register() is a fixed-cost write and unused gas is refunded.
-      const tx = await registry.register(args.credentialId, args.cid, args.issuedAt, args.validUntil, {
-        nonce,
-        gasLimit: GAS_LIMIT,
-        ...feeOverrides(fees),
-      });
+      const tx = await send({ nonce, gasLimit: GAS_LIMIT, ...feeOverrides(fees) });
       nextNonce = nonce + 1;
       lastSendAt = Date.now();
       return tx;
@@ -212,11 +210,27 @@ function enqueueBroadcast(fn) {
 }
 
 async function registerOnChain({ credentialId, cid, issuedAt, validUntil }) {
+  return sendRegistryTx(process.env.REGISTRY_CONTRACT_ADDRESS, credentialId, (registry, overrides) =>
+    registry.register(credentialId, cid, issuedAt, validUntil, overrides),
+  );
+}
+
+/**
+ * Mark a credential revoked in the registry it was registered in. Waits for the
+ * tx to mine. The contract refuses a second revoke, so callers check first.
+ * @returns {Promise<string>} tx hash
+ */
+export async function revokeOnChain({ credentialId, contractAddress }) {
+  return sendRegistryTx(contractAddress, credentialId, (registry, overrides) =>
+    registry.revoke(credentialId, overrides),
+  );
+}
+
+async function sendRegistryTx(contractAddress, credentialId, call) {
   if (process.env.SKIP_CHAIN === "true") {
     return `0x${crypto.randomBytes(32).toString("hex")}`;
   }
 
-  const contractAddress = process.env.REGISTRY_CONTRACT_ADDRESS;
   const pk = process.env.REGISTRY_PRIVATE_KEY;
 
   if (!contractAddress) throw new Error("REGISTRY_CONTRACT_ADDRESS missing");
@@ -230,7 +244,7 @@ async function registerOnChain({ credentialId, cid, issuedAt, validUntil }) {
   pendingSends++;
   try {
     tx = await enqueueBroadcast(() =>
-      broadcastRegisterTx(registry, provider, wallet, { credentialId, cid, issuedAt, validUntil }),
+      broadcastTx(provider, wallet, (overrides) => call(registry, overrides)),
     );
   } finally {
     pendingSends--;
@@ -263,6 +277,23 @@ export function validateTemplateValues(fieldsJson, values) {
       }
     }
   }
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Lowercased, trimmed email, or null when absent or not an address. */
+export function normalizeHolderEmail(value) {
+  if (typeof value !== "string") return null;
+  const email = value.trim().toLowerCase();
+  if (email.length > 254 || !EMAIL_RE.test(email)) return null;
+  return email;
+}
+
+async function storeHolderEmail(credentialId, email) {
+  const { error } = await supabase
+    .from("credential_holder_contacts")
+    .insert({ credential_id: credentialId, email });
+  if (error) throw new Error(error.message);
 }
 
 /**
@@ -338,11 +369,26 @@ export async function executeIssueCredential(payload) {
   const baseUrl = process.env.BASE_URL || "https://hashproof.example.com";
   const contractAddressEnv = process.env.REGISTRY_CONTRACT_ADDRESS || undefined;
 
+  // The email never enters the credential: credential_json is what gets hashed
+  // and pinned to IPFS, and an address there would be public forever. It goes
+  // to its own private table once the credential exists. An unusable address
+  // is dropped, not rejected: requests that were accepted before holder.email
+  // existed must keep being accepted.
+  // Without an email the holder goes through untouched — the same object as
+  // before holder.email existed, which is every request Peewah sends today.
+  let holderForCredential = holder;
+  let holderEmail = null;
+  if (holder && Object.prototype.hasOwnProperty.call(holder, "email")) {
+    const { email, ...rest } = holder;
+    holderForCredential = rest;
+    holderEmail = normalizeHolderEmail(email);
+  }
+
   const { data, error } = await supabase.rpc("prepare_credential", {
     p_payload: {
       issuer,
       platform,
-      holder,
+      holder: holderForCredential,
       context,
       template: template || null,
       template_id: template_id || null,
@@ -453,6 +499,14 @@ export async function executeIssueCredential(payload) {
       console.warn("[issueCredential] IPFS unpin failed after DB error:", unpinErr.message);
     }
     throw new Error(finalizeErr.message);
+  }
+
+  if (holderEmail) {
+    // The credential is already on-chain; a failure here must not turn a
+    // successful issuance into an error the caller would retry (and pay twice).
+    storeHolderEmail(credentialId, holderEmail).catch((err) =>
+      console.error(`[issueCredential] holder email store failed for ${credentialId}:`, err.message)
+    );
   }
 
   // Keep the exact bytes that were hashed. Rendering is deterministic, so a
