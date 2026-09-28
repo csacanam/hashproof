@@ -22,10 +22,7 @@ export function requireSession() {
         return res.status(401).json({ error: "Your session expired. Sign in again.", code: "unauthorized" });
       }
       // Only sessions that proved control of the inbox (email link or code).
-      // Supabase also allows password sign-ups outside the dashboard, and an
-      // unconfirmed password account created in someone else's name becomes
-      // usable once the real owner confirms the address. The dashboard never
-      // issues passwords, so a password session here is never legitimate.
+      // The dashboard never sets passwords, so it accepts no other method.
       if (!signedInByEmail(token)) {
         return res.status(401).json({ error: "Sign in with the link or code we email you.", code: "unauthorized" });
       }
