@@ -62,6 +62,28 @@ export async function verifyEmailCode({ email, token }) {
   return out;
 }
 
+// Types a link in our own email templates can carry. The template decides it:
+// a new address gets "signup", an invitation "invite", a returning user "magiclink".
+const LINK_TYPES = new Set(["magiclink", "signup", "invite", "email"]);
+
+/**
+ * Exchange the token_hash from a sign-in link for a session. The email links
+ * point at hashproof.dev/app/auth?token_hash=…&type=… instead of Supabase's own
+ * domain, so the link a person sees matches the brand that emailed them.
+ */
+export async function verifyEmailLink({ tokenHash, type }) {
+  const t = LINK_TYPES.has(type) ? type : "email";
+  const { data, error } = await isolatedClient().auth.verifyOtp({ token_hash: String(tokenHash || ""), type: t });
+  const out = sessionOut(data?.session);
+  if (error || !out) {
+    const err = new Error("This link is invalid or expired. Request a new one.");
+    err.status = 401;
+    err.code = "invalid_link";
+    throw err;
+  }
+  return out;
+}
+
 export async function refreshSession(refreshToken) {
   const { data, error } = await isolatedClient().auth.refreshSession({ refresh_token: String(refreshToken || "") });
   const out = sessionOut(data?.session);

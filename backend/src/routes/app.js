@@ -12,7 +12,7 @@ import rateLimit from "express-rate-limit";
 import { requireSession } from "../middleware/session.js";
 import { sendError } from "../utils/errors.js";
 import { getEntityBalance } from "../services/apiKeys.js";
-import { refreshSession, sendSignInEmail, verifyEmailCode } from "../services/auth.js";
+import { refreshSession, sendSignInEmail, verifyEmailCode, verifyEmailLink } from "../services/auth.js";
 import { getEntityById } from "../services/getEntity.js";
 import {
   MANAGER_ROLES,
@@ -125,6 +125,14 @@ export function createAppRouter({ baseUrl, frontendUrl, skipPayment = false }) {
       return res.json(await verifyEmailCode({ email: req.body?.email, token: req.body?.token }));
     } catch (err) {
       return fail(res, err, { handler: "app/auth/verify" });
+    }
+  });
+
+  router.post("/auth/verify-link", emailLimit, async (req, res) => {
+    try {
+      return res.json(await verifyEmailLink({ tokenHash: req.body?.token_hash, type: req.body?.type }));
+    } catch (err) {
+      return fail(res, err, { handler: "app/auth/verify-link" });
     }
   });
 

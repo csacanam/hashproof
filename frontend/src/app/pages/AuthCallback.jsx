@@ -1,21 +1,32 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { setSession } from "../api.js";
+import { API_URL, setSession } from "../api.js";
 import { useDashboard } from "../useDashboard.js";
 
 /**
- * Where the sign-in link lands. Supabase puts the session in the URL fragment
- * (#access_token=…&refresh_token=…); it is read here and removed from the
- * address bar before anything else runs.
+ * Where sign-in links land. Two shapes arrive here:
+ *
+ * - Our own email templates link to /app/auth?token_hash=…&type=…, so the link
+ *   matches the domain that sent it. The hash is exchanged for a session by the
+ *   backend.
+ * - Links Supabase builds itself (invitations sent before the templates, or a
+ *   template left at its default) come back with the session already in the
+ *   fragment: #access_token=…&refresh_token=….
+ *
+ * Either way the token is read once and removed from the address bar first.
  */
-/** Read the session out of the fragment once, and clear it from the address bar. */
-function readFragment() {
-  const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+function readLink() {
+  const query = new URLSearchParams(window.location.search);
+  const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ""));
   window.history.replaceState(null, "", window.location.pathname);
-  const access = params.get("access_token");
-  const refresh = params.get("refresh_token");
-  if (params.get("error_description") || !access || !refresh) {
-    return { error: params.get("error_description") || true };
+
+  const tokenHash = query.get("token_hash");
+  if (tokenHash) return { tokenHash, type: query.get("type") || "email" };
+
+  const access = fragment.get("access_token");
+  const refresh = fragment.get("refresh_token");
+  if (fragment.get("error_description") || !access || !refresh) {
+    return { error: fragment.get("error_description") || true };
   }
   let email = null;
   let id = null;
@@ -30,7 +41,8 @@ function readFragment() {
     session: {
       access_token: access,
       refresh_token: refresh,
-      expires_at: Number(params.get("expires_at")) || Math.floor(Date.now() / 1000) + Number(params.get("expires_in") || 3600),
+      expires_at:
+        Number(fragment.get("expires_at")) || Math.floor(Date.now() / 1000) + Number(fragment.get("expires_in") || 3600),
       user: { id, email },
     },
   };
@@ -39,22 +51,43 @@ function readFragment() {
 export default function AuthCallback() {
   const { t, reloadMe } = useDashboard();
   const navigate = useNavigate();
-  const [result] = useState(readFragment);
-  const error = result.error ? (result.error === true ? t("callback.invalid") : result.error) : "";
+  const [link] = useState(readLink);
+  const [failure, setFailure] = useState(link.error ? (link.error === true ? t("callback.invalid") : link.error) : "");
 
   useEffect(() => {
-    if (!result.session) return;
-    setSession(result.session);
-    reloadMe().then(() => navigate("/app", { replace: true }));
+    let cancelled = false;
+    async function signIn(session) {
+      setSession(session);
+      await reloadMe();
+      if (!cancelled) navigate("/app", { replace: true });
+    }
+    if (link.session) {
+      signIn(link.session);
+    } else if (link.tokenHash) {
+      fetch(`${API_URL}/app/auth/verify-link`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token_hash: link.tokenHash, type: link.type }),
+      })
+        .then(async (res) => {
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || t("callback.invalid"));
+          return signIn(data);
+        })
+        .catch((err) => !cancelled && setFailure(err.message));
+    }
+    return () => {
+      cancelled = true;
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="dash-auth">
       <div className="dash-card dash-auth-card">
-        {error ? (
+        {failure ? (
           <>
             <h1>{t("callback.failed")}</h1>
-            <p className="dash-error">{error}</p>
+            <p className="dash-error">{failure}</p>
             <Link to="/app/login" className="dash-btn">
               {t("callback.retry")}
             </Link>
