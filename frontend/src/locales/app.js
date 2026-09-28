@@ -35,6 +35,7 @@ export const appMessages = {
     "nav.balance": "Balance",
     "nav.credits": "credits",
     "nav.buyCredits": "Buy credits",
+    "nav.onKeys": "+{n} on API keys",
     "nav.signOut": "Sign out",
 
     "banner.unverified.title": "Unverified organization.",
@@ -117,6 +118,7 @@ export const appMessages = {
     "revoke.working": "Revoking on-chain…",
 
     "issue.title": "Issue credentials",
+    "issue.moveHint": "Your dashboard balance is empty, but your API keys have {n} credits. Move some here to issue from the dashboard.",
     "issue.subtitle": "Each credential uses 1 credit. You have {balance}.",
     "issue.what": "What you are certifying",
     "issue.template": "Template",
@@ -330,6 +332,7 @@ export const appMessages = {
     "nav.balance": "Saldo",
     "nav.credits": "créditos",
     "nav.buyCredits": "Comprar créditos",
+    "nav.onKeys": "+{n} en llaves de API",
     "nav.signOut": "Cerrar sesión",
 
     "banner.unverified.title": "Organización sin verificar.",
@@ -412,6 +415,7 @@ export const appMessages = {
     "revoke.working": "Revocando en la blockchain…",
 
     "issue.title": "Emitir credenciales",
+    "issue.moveHint": "El saldo del panel está vacío, pero tus llaves de API tienen {n} créditos. Mueve algunos aquí para emitir desde el panel.",
     "issue.subtitle": "Cada credencial usa 1 crédito. Tienes {balance}.",
     "issue.what": "Qué estás certificando",
     "issue.template": "Plantilla",

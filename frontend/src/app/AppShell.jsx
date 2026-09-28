@@ -61,6 +61,11 @@ export default function AppShell() {
             <span className="dash-label">{t("nav.balance")}</span>
             <strong>{overview ? formatNumber(overview.balance) : "—"}</strong>
             <span className="dash-muted">{t("nav.credits")}</span>
+            {overview?.api_keys_balance > 0 && (
+              <Link to="/app/developers" className="dash-small dash-balance-keys">
+                {t("nav.onKeys", { n: formatNumber(overview.api_keys_balance) })}
+              </Link>
+            )}
           </div>
           <Link to="/app/developers#buy" className="dash-btn dash-btn--small">
             {t("nav.buyCredits")}

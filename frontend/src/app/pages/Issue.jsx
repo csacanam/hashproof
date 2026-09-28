@@ -59,6 +59,12 @@ export default function Issue() {
         <div>
           <h1>{t("issue.title")}</h1>
           <p className="dash-muted">{t("issue.subtitle", { balance: formatNumber(overview?.balance ?? 0) })}</p>
+          {overview && overview.balance === 0 && overview.api_keys_balance > 0 && (
+            <p className="dash-note">
+              {t("issue.moveHint", { n: formatNumber(overview.api_keys_balance) })}{" "}
+              <Link to="/app/developers">{t("dev.move")}</Link>
+            </p>
+          )}
         </div>
       </header>
 

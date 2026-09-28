@@ -117,7 +117,7 @@ export default function Developers() {
               {t("nav.buyCredits")}
             </button>
             {activeKeys.length > 0 && (
-              <button className="dash-btn dash-btn--ghost" onClick={() => setMoving(true)}>
+              <button className={`dash-btn${panel.credits_balance === 0 ? "" : " dash-btn--ghost"}`} onClick={() => setMoving(true)}>
                 {t("dev.move")}
               </button>
             )}
@@ -385,8 +385,15 @@ function MoveDialog({ open, keys, onClose, onDone }) {
   useEffect(() => {
     if (!open) return;
     const panel = usable.find((k) => k.kind === "panel");
-    setFrom(panel?.id ?? "");
-    setTo(usable.find((k) => k.kind === "api")?.id ?? "");
+    const richest = usable.filter((k) => k.kind === "api").sort((a, b) => b.credits_balance - a.credits_balance)[0];
+    // An empty dashboard balance almost always means "bring credits here".
+    if (panel && panel.credits_balance === 0 && richest) {
+      setFrom(richest.id);
+      setTo(panel.id);
+    } else {
+      setFrom(panel?.id ?? "");
+      setTo(richest?.id ?? "");
+    }
     setAmount("");
     setError("");
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
