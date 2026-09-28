@@ -13,6 +13,7 @@ import { requireSession } from "../middleware/session.js";
 import { createX402Charge } from "../middleware/x402Charge.js";
 import { sendError } from "../utils/errors.js";
 import { appError } from "../utils/appError.js";
+import { refreshSession, sendSignInEmail, verifyEmailCode } from "../services/auth.js";
 import { getEntityById } from "../services/getEntity.js";
 import {
   MANAGER_ROLES,
@@ -112,6 +113,40 @@ export function createAppRouter({ baseUrl, frontendUrl, skipPayment = false }) {
       req.x402Credits = credits;
       return { cents: priceCents(credits, "x402"), description: `${credits} HashProof credits` };
     },
+  });
+
+  // Sign-in. Its own, tighter limit: each call can send an email.
+  const emailLimit = rateLimit({
+    windowMs: 60_000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many sign-in attempts. Wait a minute.", code: "rate_limited" },
+  });
+
+  router.post("/auth/email", emailLimit, async (req, res) => {
+    try {
+      await sendSignInEmail({ email: req.body?.email, redirectTo: `${frontendUrl}/app/auth` });
+      return res.json({ sent: true });
+    } catch (err) {
+      return fail(res, err, { handler: "app/auth/email" });
+    }
+  });
+
+  router.post("/auth/verify", emailLimit, async (req, res) => {
+    try {
+      return res.json(await verifyEmailCode({ email: req.body?.email, token: req.body?.token }));
+    } catch (err) {
+      return fail(res, err, { handler: "app/auth/verify" });
+    }
+  });
+
+  router.post("/auth/refresh", async (req, res) => {
+    try {
+      return res.json(await refreshSession(req.body?.refresh_token));
+    } catch (err) {
+      return fail(res, err, { handler: "app/auth/refresh" });
+    }
   });
 
   router.use(requireSession());

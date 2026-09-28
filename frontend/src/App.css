@@ -167,6 +167,7 @@
 }
 
 .home-nav-link:hover { color: var(--color-text); }
+.home-nav-link--cta { color: var(--color-accent); }
 
 /* Hero actions */
 .hero-actions {

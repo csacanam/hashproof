@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import Home from "./pages/Home.jsx";
 import Verify from "./pages/Verify.jsx";
@@ -7,6 +7,8 @@ import Compare from "./pages/Compare.jsx";
 import Docs from "./pages/Docs.jsx";
 import EntityVerification from "./pages/EntityVerification.jsx";
 import Preview from "./pages/Preview.jsx";
+
+const DashboardRoutes = lazy(() => import("./app/DashboardRoutes.jsx"));
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -38,6 +40,14 @@ function App() {
       <Route path="/docs" element={<Docs />} />
       <Route path="/entity-verification" element={<EntityVerification />} />
       <Route path="/preview/:slug" element={<Preview />} />
+      <Route
+        path="/app/*"
+        element={
+          <Suspense fallback={<div className="dash-loading" />}>
+            <DashboardRoutes />
+          </Suspense>
+        }
+      />
     </Routes>
     </>
   );
