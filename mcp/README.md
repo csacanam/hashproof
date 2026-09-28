@@ -70,7 +70,7 @@ Without that header the three free tools still work; `issue_credential` returns 
 
 | Env var | Required | Description |
 |---|---|---|
-| `HASHPROOF_API_KEY` | one of the two | Prepaid API key (contact hi@hashproof.dev). Takes precedence if both are set. |
+| `HASHPROOF_API_KEY` | one of the two | Prepaid API key (create one at https://hashproof.dev/app → Developers). Takes precedence if both are set. |
 | `HASHPROOF_WALLET_PRIVATE_KEY` | one of the two | EVM key of a wallet holding USDC — pays $0.10 per issuance via x402, gasless. Use a dedicated wallet with minimal funds. |
 | `HASHPROOF_X402_NETWORK` | no | `base` (default) or `celo` — where your USDC lives. |
 | `HASHPROOF_API_BASE` | no | Default `https://api.hashproof.dev`. |
@@ -89,6 +89,8 @@ The free tools (`get_template_requirements`, `preview_template`, `verify_credent
 | `preview_template` | free | Watermarked PDF from an **inline** template — iterate field positions without paying or storing anything; saved locally (stdio) or returned inline as base64 (remote) so vision-capable agents can inspect and adjust |
 | `issue_credential` | $0.10 | Issue one credential: registered on Celo, pinned to IPFS, returns `verification_url` |
 | `verify_credential` | free | 3-layer verification (database, IPFS, blockchain) of any credential id |
+| `list_credentials` | free, API key | What your organization issued, with status, name and event filters |
+| `revoke_credential` | free, API key | Revoke a credential on-chain — permanent; ask the human first |
 
 ## Typical flow
 

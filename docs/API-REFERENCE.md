@@ -38,7 +38,7 @@ Issues one verifiable credential. Requires **x402 payment** (USDC) **or** a vali
 
 ### API key (prepaid credits)
 
-**Enterprise plans:** To issue without x402 or crypto, contact [hi@hashproof.dev](mailto:hi@hashproof.dev) to purchase prepaid credits and receive an API key tied to your entity.
+**Enterprise plans:** To issue without x402 or crypto, sign in at [hashproof.dev/app](https://hashproof.dev/app), create an API key under Developers (tied to your organization) and buy credits by card ($0.20) or USDC ($0.10).
 
 For institutions that don't use crypto, HashProof can issue an **API key** tied to an entity and a **prepaid credit balance**. One credit = one credential; HashProof assumes the cost.
 

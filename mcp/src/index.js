@@ -64,7 +64,7 @@ async function getPaidFetch() {
       "If the human has no wallet yet: generate a dedicated EVM wallet (never reuse their main wallet), write the private key " +
       "directly into the MCP config env — NEVER show it in chat — share only the address, and ask them to fund it with at " +
       "least 0.10 USDC on Base or Celo.\n" +
-      "2. HASHPROOF_API_KEY — prepaid credits, no crypto. The human gets one from hi@hashproof.dev; it is tied to their entity " +
+      "2. HASHPROOF_API_KEY — prepaid credits, no crypto. The human creates one at https://hashproof.dev/app (Developers); it is tied to their organization " +
       "and issues as that entity, so `issuer.slug` must match it.\n\n" +
       "See https://hashproof.dev/skill.md",
   );
@@ -88,7 +88,7 @@ const INSTRUCTIONS = `HashProof issues verifiable credentials: each one is regis
 
 Settle three things with your human before composing an issuance body:
 
-1. How they pay. This server pays from its own env: HASHPROOF_WALLET_PRIVATE_KEY signs x402 payments of $0.10 USDC per credential on Base or Celo (no account), or HASHPROOF_API_KEY spends prepaid credits (from hi@hashproof.dev, no crypto). Neither is set until someone puts it in the MCP config and restarts the server. If they have no wallet, generate a dedicated one — never their main wallet, never show the private key in chat, share only the address to fund.
+1. How they pay. This server pays from its own env: HASHPROOF_WALLET_PRIVATE_KEY signs x402 payments of $0.10 USDC per credential on Base or Celo (no account), or HASHPROOF_API_KEY spends prepaid credits (created at https://hashproof.dev/app, credits by card or USDC). Neither is set until someone puts it in the MCP config and restarts the server. If they have no wallet, generate a dedicated one — never their main wallet, never show the private key in chat, share only the address to fund.
 
 2. Who the issuer is. \`issuer\` is the organization granting the credential, \`platform\` is the system managing the issuance; set both to the same organization when there is no third party in between. An API key always issues as its own entity: \`issuer.slug\` must match that entity or the call is rejected. Paying with x402 leaves the issuer as free-text metadata unless the wallet is authorized by a registered entity. Either way, issuing in the name of another organization is not something a key or an extra field unlocks — say so plainly instead of looking for a way around it.
 
@@ -180,6 +180,49 @@ server.tool(
     });
     const out = await res.json().catch(() => ({}));
     if (!res.ok) return errorText(`HTTP ${res.status}: ${out.error || "issuance failed"}`);
+    return text(out);
+  },
+);
+
+server.tool(
+  "list_credentials",
+  "List the credentials your API key's organization issued, newest first. Free (no credits). Filters: status (active/revoked/expired), q (holder name contains), context (event/course title contains), limit (≤100), offset. Returns total and, per credential, id, holder_name, context_title, status, issued_at and verification_url.",
+  {
+    status: z.enum(["active", "revoked", "expired"]).optional(),
+    q: z.string().optional().describe("Holder name contains"),
+    context: z.string().optional().describe("Event or course title contains"),
+    limit: z.number().int().min(1).max(100).optional(),
+    offset: z.number().int().min(0).optional(),
+  },
+  async (args) => {
+    const apiKey = process.env.HASHPROOF_API_KEY;
+    if (!apiKey) return errorText("Listing and revoking need HASHPROOF_API_KEY in this server's env (a wallet cannot identify your organization). Create one at https://hashproof.dev/app → Developers.");
+    const params = new URLSearchParams();
+    for (const [k, v] of Object.entries(args)) if (v !== undefined && v !== "") params.set(k, String(v));
+    const res = await fetch(`${API_BASE}/credentials?${params}`, { headers: { Authorization: `Bearer ${apiKey}` } });
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok) return errorText(`HTTP ${res.status}: ${out.error || "request failed"}`);
+    return text(out);
+  },
+);
+
+server.tool(
+  "revoke_credential",
+  "Revoke a credential your organization issued. PERMANENT — it is written on-chain and cannot be undone. Get your human's explicit approval naming the holder before calling. Free (no credits). Safe to repeat: an already revoked credential returns already_revoked: true.",
+  {
+    id: z.string().describe("Credential id (UUID)"),
+    reason: z.string().max(500).optional().describe("Why, for the organization's own records"),
+  },
+  async ({ id, reason }) => {
+    const apiKey = process.env.HASHPROOF_API_KEY;
+    if (!apiKey) return errorText("Listing and revoking need HASHPROOF_API_KEY in this server's env (a wallet cannot identify your organization). Create one at https://hashproof.dev/app → Developers.");
+    const res = await fetch(`${API_BASE}/credentials/${encodeURIComponent(id)}/revoke`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ confirm: true, ...(reason && { reason }) }),
+    });
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok) return errorText(`HTTP ${res.status}: ${out.error || "request failed"}`);
     return text(out);
   },
 );

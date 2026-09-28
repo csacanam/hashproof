@@ -1,7 +1,7 @@
 /**
  * Remote MCP server — Streamable HTTP transport at POST /mcp.
  *
- * Same four tools as the stdio package (hashproof-mcp on npm), with two
+ * Same six tools as the stdio package (hashproof-mcp on npm), with two
  * differences forced by running server-side instead of on the caller's machine:
  *
  *   - Payment: the stdio server signs x402 with the caller's own wallet key from
@@ -38,11 +38,11 @@ const INSTRUCTIONS = `HashProof issues verifiable credentials: each one is regis
 
 Settle three things with your human before composing an issuance body:
 
-1. How they pay. This remote server has no wallet, so issuing here needs a HashProof API key sent as \`Authorization: Bearer <key>\` in your MCP client's HTTP headers. To pay $0.10 USDC per credential from their own wallet instead, they use the stdio server (\`npx -y hashproof-mcp\`), which is a different install — you cannot switch to it from here. For prepaid credits without crypto, hi@hashproof.dev issues a key.
+1. How they pay. This remote server has no wallet, so issuing here needs a HashProof API key sent as \`Authorization: Bearer <key>\` in your MCP client's HTTP headers. To pay $0.10 USDC per credential from their own wallet instead, they use the stdio server (\`npx -y hashproof-mcp\`), which is a different install — you cannot switch to it from here. For prepaid credits without crypto, they create a key at https://hashproof.dev/app (Developers) and buy credits by card or USDC.
 
 2. Who the issuer is. \`issuer\` is the organization granting the credential, \`platform\` is the system managing the issuance; set both to the same organization when there is no third party in between. An API key always issues as its own entity: \`issuer.slug\` must match that entity or the call is rejected. Issuing in the name of another organization is not something a key or an extra field unlocks — say so plainly instead of looking for a way around it.
 
-3. Whether they want their own design. The default template needs no setup. For a custom one, iterate field positions with \`preview_template\` (free, nothing stored) and show the final PDF for approval before issuing. Backgrounds must already be hosted at a public image URL — there is no upload endpoint.
+3. Whether they want their own design. The default template needs no setup. For a custom one, iterate field positions with \`preview_template\` (free, nothing stored) and show the final PDF for approval before issuing. Backgrounds must be at a public image URL. The API has no upload endpoint; the dashboard at https://hashproof.dev/app uploads one and designs the template visually.
 
 Issuing costs money and writes to a blockchain: get explicit approval for the final body first. A credential can be revoked afterwards, never edited.
 
@@ -61,7 +61,7 @@ const NO_API_KEY_MESSAGE =
   "https://api.hashproof.dev/issueCredential with an x402 client. If they have no wallet yet, generate a " +
   "dedicated one (never their main wallet), write the private key straight into the MCP config — NEVER show it " +
   "in chat — share only the address, and ask them to fund it with at least 0.10 USDC.\n" +
-  "3. They want prepaid credits without touching crypto: hi@hashproof.dev issues a key tied to their entity.\n\n" +
+  "3. They want prepaid credits without touching crypto: they sign in at https://hashproof.dev/app, create a key under Developers (tied to their organization) and buy credits by card.\n\n" +
   "See https://hashproof.dev/skill.md";
 
 function text(t) {
@@ -169,6 +169,47 @@ function buildServer(apiKey) {
       });
       const out = await res.json().catch(() => ({}));
       if (!res.ok) return errorText(`HTTP ${res.status}: ${out.error || "issuance failed"}`);
+      return text(out);
+    },
+  );
+
+  server.tool(
+    "list_credentials",
+    "List the credentials your API key's organization issued, newest first. Free (no credits). Filters: status (active/revoked/expired), q (holder name contains), context (event/course title contains), limit (≤100), offset. Returns total and, per credential, id, holder_name, context_title, status, issued_at and verification_url.",
+    {
+      status: z.enum(["active", "revoked", "expired"]).optional(),
+      q: z.string().optional().describe("Holder name contains"),
+      context: z.string().optional().describe("Event or course title contains"),
+      limit: z.number().int().min(1).max(100).optional(),
+      offset: z.number().int().min(0).optional(),
+    },
+    async (args) => {
+      if (!apiKey) return errorText(NO_API_KEY_MESSAGE);
+      const params = new URLSearchParams();
+      for (const [k, v] of Object.entries(args)) if (v !== undefined && v !== "") params.set(k, String(v));
+      const res = await fetch(`${SELF_BASE}/credentials?${params}`, { headers: { Authorization: `Bearer ${apiKey}` } });
+      const out = await res.json().catch(() => ({}));
+      if (!res.ok) return errorText(`HTTP ${res.status}: ${out.error || "request failed"}`);
+      return text(out);
+    },
+  );
+
+  server.tool(
+    "revoke_credential",
+    "Revoke a credential your organization issued. PERMANENT — it is written on-chain and cannot be undone. Get your human's explicit approval naming the holder before calling. Free (no credits). Safe to repeat: an already revoked credential returns already_revoked: true.",
+    {
+      id: z.string().describe("Credential id (UUID)"),
+      reason: z.string().max(500).optional().describe("Why, for the organization's own records"),
+    },
+    async ({ id, reason }) => {
+      if (!apiKey) return errorText(NO_API_KEY_MESSAGE);
+      const res = await fetch(`${SELF_BASE}/credentials/${encodeURIComponent(id)}/revoke`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({ confirm: true, ...(reason && { reason }) }),
+      });
+      const out = await res.json().catch(() => ({}));
+      if (!res.ok) return errorText(`HTTP ${res.status}: ${out.error || "request failed"}`);
       return text(out);
     },
   );

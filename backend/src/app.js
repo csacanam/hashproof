@@ -31,6 +31,7 @@ import { requireCaller } from "./middleware/caller.js";
 import { revokeCredential } from "./services/revokeCredential.js";
 import { listCredentials } from "./services/listCredentials.js";
 import { createAppRouter } from "./routes/app.js";
+import { addMember, ensurePanelKey } from "./services/accounts.js";
 import { handleStripeWebhook } from "./services/payments.js";
 import { Buffer } from "node:buffer";
 import { randomUUID } from "node:crypto";
@@ -1261,6 +1262,27 @@ export function createApp(options = {}) {
       skipPayment,
     }),
   );
+
+  // Give someone dashboard access to an entity that already exists — one created
+  // before accounts did (Peewah), or one we set up for a client.
+  app.post("/admin/entities/:id/members", requireAdmin, async (req, res) => {
+    try {
+      const entity = await getEntityById(req.params.id);
+      if (!entity) return res.status(404).json({ error: "Entity not found" });
+      const frontendUrl = (process.env.FRONTEND_URL || baseUrl).replace(/\/$/, "");
+      const member = await addMember({
+        entityId: entity.id,
+        email: req.body?.email,
+        role: req.body?.role || "owner",
+        redirectTo: `${frontendUrl}/app`,
+      });
+      await ensurePanelKey(entity.id);
+      return res.status(201).json({ entity_id: entity.id, ...member });
+    } catch (err) {
+      if (err?.status && err?.code) return res.status(err.status).json({ error: err.message, code: err.code });
+      return sendError(res, err, { handler: "admin/entities/members" });
+    }
+  });
 
   // ── Cron / monitoring ──────────────────────────────────────────────────
   app.use("/cron", createCronRouter());

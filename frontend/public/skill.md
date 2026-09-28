@@ -130,7 +130,7 @@ curl -X POST https://api.hashproof.dev/issueCredential \
   -d '{ ... }'
 ```
 
-Each issuance deducts 1 credit. Contact `hi@hashproof.dev` to get an API key.
+Each issuance deducts 1 credit. Your human creates the key at https://hashproof.dev/app (Developers) and buys credits there by card or USDC.
 
 **A key issues as its own entity.** It is tied to one entity, and every credential is issued as that entity: send `issuer.slug` matching it, or omit `issuer` and it is filled in for you. Any other slug is rejected with `403`. A key is not a way to issue in the name of another organization — if that is what your human wants, see **Issuing for someone else** below.
 

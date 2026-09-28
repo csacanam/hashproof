@@ -185,6 +185,37 @@ curl -X PATCH https://your-api-url/admin/api-keys/{key_id} \
 
 ---
 
+## Dashboard (/app)
+
+Organizations sign in at `https://hashproof.dev/app`, create their organization (an `unverified` entity with them as owner), issue from the browser, and manage API keys and credits under Developers. The public API is unchanged; the dashboard uses its own routes under `/app` with a Supabase Auth session.
+
+### One-time setup
+
+1. **Migrations**, in order, in the Supabase SQL editor: `006_credential_revocation.sql`, `007_credential_holder_contacts.sql`, `008_accounts.sql`. All additive.
+2. **Supabase Auth** (Authentication → URL Configuration): Site URL `https://hashproof.dev`, and add `https://hashproof.dev/app/auth` to Redirect URLs.
+3. **Email sending**: Supabase's built-in mailer allows only a few emails per hour — set up custom SMTP (Authentication → Emails → SMTP) before opening sign-ups. Optionally add `{{ .Token }}` to the Magic Link template so people can type a code instead of clicking the link.
+4. **Stripe** (card purchases at $0.20/credit, minimum 50): set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` on the backend, and create a webhook endpoint `https://api.hashproof.dev/stripe/webhook` for `checkout.session.completed` and `checkout.session.async_payment_succeeded`. Until both variables are set, the dashboard shows card payments as unavailable and USDC (x402, $0.10/credit) still works.
+5. `FRONTEND_URL=https://hashproof.dev` on the backend (Stripe return URLs and invitation links).
+
+### Giving an existing entity dashboard access
+
+Entities created before accounts existed have no members. Add one (they get an invitation email if they have no account yet):
+
+```bash
+curl -X POST https://your-api-url/admin/entities/{entity_id}/members \
+  -H "Authorization: Bearer YOUR_ADMIN_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{ "email": "owner@organization.com", "role": "owner" }'
+```
+
+This also creates the entity's dashboard balance (an internal key whose secret is never shown). Existing API keys keep their own balances and appear under Developers; credits can be moved between keys there.
+
+### What gets notified
+
+Telegram receives each new organization and each credit purchase, so new sign-ups can be reviewed — names are self-asserted until verification.
+
+---
+
 ## How wallet authorization works on issuance
 
 When `POST /issueCredential` is called, the backend applies the following rules in order:
