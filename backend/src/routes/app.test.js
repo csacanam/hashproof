@@ -6,6 +6,10 @@ const ORG = "11111111-1111-4111-8111-111111111111";
 const KEY = "22222222-2222-4222-8222-222222222222";
 
 let users; // token -> user
+
+// Session tokens as Supabase issues them: the dashboard reads the amr claim.
+const tok = (name, method = "otp") =>
+  `h.${Buffer.from(JSON.stringify({ sub: name, amr: [{ method, timestamp: 1 }] })).toString("base64url")}.s`;
 let roles; // `${userId}:${entityId}` -> role
 
 vi.mock("../supabase.js", () => ({
@@ -75,7 +79,12 @@ function makeApp() {
 describe("dashboard routes", () => {
   let app;
   beforeEach(() => {
-    users = { owner: { id: "u-owner", email: "o@acme.co" }, issuer: { id: "u-issuer" }, stranger: { id: "u-x" } };
+    users = {
+      [tok("owner")]: { id: "u-owner", email: "o@acme.co" },
+      [tok("issuer")]: { id: "u-issuer" },
+      [tok("stranger")]: { id: "u-x" },
+      [tok("owner", "password")]: { id: "u-owner", email: "o@acme.co" },
+    };
     roles = { [`u-owner:${ORG}`]: "owner", [`u-issuer:${ORG}`]: "issuer" };
     issueFromDashboard.mockClear();
     createEntityKey.mockClear();
@@ -95,18 +104,23 @@ describe("dashboard routes", () => {
     expect((await request(app).get("/app/me").set("Authorization", "Bearer nope")).status).toBe(401);
   });
 
+  it("refuses a password session for a real account", async () => {
+    const res = await request(app).get("/app/me").set("Authorization", `Bearer ${tok("owner", "password")}`);
+    expect(res.status).toBe(401);
+  });
+
   it("does not accept an API key as a session", async () => {
     const res = await request(app).get("/app/me").set("Authorization", "Bearer hp_somekey");
     expect(res.status).toBe(401);
   });
 
   it("answers 404 to a non-member, the same as a missing organization", async () => {
-    const res = await request(app).get(`/app/organizations/${ORG}`).set("Authorization", "Bearer stranger");
+    const res = await request(app).get(`/app/organizations/${ORG}`).set("Authorization", `Bearer ${tok("stranger")}`);
     expect(res.status).toBe(404);
   });
 
   it("shows members the overview without internal fields", async () => {
-    const res = await request(app).get(`/app/organizations/${ORG}`).set("Authorization", "Bearer issuer");
+    const res = await request(app).get(`/app/organizations/${ORG}`).set("Authorization", `Bearer ${tok("issuer")}`);
     expect(res.status).toBe(200);
     expect(res.body.balance).toBe(7);
     expect(res.body.entity).not.toHaveProperty("authorized_wallets");
@@ -115,7 +129,7 @@ describe("dashboard routes", () => {
   it("lets any member issue, always as the organization", async () => {
     const res = await request(app)
       .post(`/app/organizations/${ORG}/issue`)
-      .set("Authorization", "Bearer issuer")
+      .set("Authorization", `Bearer ${tok("issuer")}`)
       .send({ input: { holder_name: "Ana" }, idempotency_key: "row-1" });
     expect(res.status).toBe(202);
     expect(issueFromDashboard.mock.calls[0][0].entity.id).toBe(ORG);
@@ -123,9 +137,9 @@ describe("dashboard routes", () => {
   });
 
   it("keeps key management to owners and admins", async () => {
-    const denied = await request(app).post(`/app/organizations/${ORG}/keys`).set("Authorization", "Bearer issuer").send({});
+    const denied = await request(app).post(`/app/organizations/${ORG}/keys`).set("Authorization", `Bearer ${tok("issuer")}`).send({});
     expect(denied.status).toBe(403);
-    const ok = await request(app).post(`/app/organizations/${ORG}/keys`).set("Authorization", "Bearer owner").send({ name: "prod" });
+    const ok = await request(app).post(`/app/organizations/${ORG}/keys`).set("Authorization", `Bearer ${tok("owner")}`).send({ name: "prod" });
     expect(ok.status).toBe(201);
     expect(ok.body.api_key).toBe("hp_new");
   });
@@ -133,7 +147,7 @@ describe("dashboard routes", () => {
   it("asks for confirmation before revoking", async () => {
     const res = await request(app)
       .post(`/app/organizations/${ORG}/credentials/abc/revoke`)
-      .set("Authorization", "Bearer issuer")
+      .set("Authorization", `Bearer ${tok("issuer")}`)
       .send({});
     expect(res.status).toBe(400);
     expect(res.body.code).toBe("confirmation_required");
@@ -142,7 +156,7 @@ describe("dashboard routes", () => {
   it("validates a whole batch without charging", async () => {
     const res = await request(app)
       .post(`/app/organizations/${ORG}/issue/validate`)
-      .set("Authorization", "Bearer issuer")
+      .set("Authorization", `Bearer ${tok("issuer")}`)
       .send({ rows: [{ holder_name: "Ana", context_title: "X", title: "T" }, { holder_name: "" }] });
     expect(res.body.valid).toBe(1);
     expect(res.body.errors).toEqual([{ row: 1, error: "holder_name is required" }]);
@@ -152,7 +166,7 @@ describe("dashboard routes", () => {
   it("buys credits over x402 for the amount in the body", async () => {
     const res = await request(app)
       .post(`/app/organizations/${ORG}/keys/${KEY}/x402`)
-      .set("Authorization", "Bearer owner")
+      .set("Authorization", `Bearer ${tok("owner")}`)
       .send({ credits: 25 });
     expect(res.status).toBe(200);
     expect(completeX402Purchase.mock.calls[0][0]).toMatchObject({ credits: 25 });
@@ -161,7 +175,7 @@ describe("dashboard routes", () => {
   it("rejects an x402 purchase under the minimum before any payment", async () => {
     const res = await request(app)
       .post(`/app/organizations/${ORG}/keys/${KEY}/x402`)
-      .set("Authorization", "Bearer owner")
+      .set("Authorization", `Bearer ${tok("owner")}`)
       .send({ credits: 3 });
     expect(res.status).toBe(400);
     expect(completeX402Purchase).not.toHaveBeenCalled();
@@ -171,7 +185,7 @@ describe("dashboard routes", () => {
     delete process.env.STRIPE_SECRET_KEY;
     const res = await request(app)
       .post(`/app/organizations/${ORG}/keys/${KEY}/checkout`)
-      .set("Authorization", "Bearer owner")
+      .set("Authorization", `Bearer ${tok("owner")}`)
       .send({ credits: 100 });
     expect(res.status).toBe(503);
     expect(res.body.code).toBe("stripe_unavailable");
