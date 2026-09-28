@@ -30,6 +30,8 @@ import { createMcpRouter } from "./routes/mcp.js";
 import { requireCaller } from "./middleware/caller.js";
 import { revokeCredential } from "./services/revokeCredential.js";
 import { listCredentials } from "./services/listCredentials.js";
+import { createAppRouter } from "./routes/app.js";
+import { handleStripeWebhook } from "./services/payments.js";
 import { Buffer } from "node:buffer";
 import { randomUUID } from "node:crypto";
 import { sendError, classifyError } from "./utils/errors.js";
@@ -75,6 +77,21 @@ export function createApp(options = {}) {
     origin: true,
     exposedHeaders: ["PAYMENT-REQUIRED", "payment-required", "X-PAYMENT-RESPONSE"],
   }));
+  // Stripe signs the exact bytes it sent, so this route reads the raw body and
+  // has to be registered before the JSON parser.
+  app.post("/stripe/webhook", express.raw({ type: "application/json", limit: "1mb" }), async (req, res) => {
+    try {
+      const out = await handleStripeWebhook(req.body, req.get("stripe-signature") || "");
+      return res.json({ received: true, ...out });
+    } catch (err) {
+      console.error("[stripe/webhook]", err.message);
+      // 400 on a bad signature so Stripe shows it as rejected; anything else is
+      // a 500 so Stripe retries the delivery.
+      const badSignature = err?.type === "StripeSignatureVerificationError";
+      return res.status(badSignature ? 400 : 500).json({ error: badSignature ? "Invalid signature" : "Webhook failed" });
+    }
+  });
+
   app.use(express.json());
 
   // Correlation id, echoed to the caller on every error. When someone reports
@@ -1234,6 +1251,16 @@ export function createApp(options = {}) {
       return sendError(res, err, { handler: "credentials revoke", credential_id: req.params.id });
     }
   });
+
+  // ── Dashboard (session auth) ───────────────────────────────────────────
+  app.use(
+    "/app",
+    createAppRouter({
+      baseUrl,
+      frontendUrl: (process.env.FRONTEND_URL || baseUrl).replace(/\/$/, ""),
+      skipPayment,
+    }),
+  );
 
   // ── Cron / monitoring ──────────────────────────────────────────────────
   app.use("/cron", createCronRouter());
