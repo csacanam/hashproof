@@ -154,6 +154,7 @@ const NAV = [
   { id: "issue-credential", label: "POST /issueCredential" },
   { id: "templates", label: t("docs.nav.templates") },
   { id: "template-preview", label: t("docs.nav.preview") },
+  { id: "manage", label: t("docs.nav.manage") },
   { id: "verify", label: "GET /verify/:id" },
   { id: "entities", label: "GET /entities/:id" },
   { id: "entity-verification", label: t("docs.nav.entityVerification") },
@@ -517,7 +518,7 @@ export default function Docs() {
                 })}{" "}
                 {fill("docs.auth.apikey.body2", {
                   code: <code>402 code: &quot;insufficient_credits&quot;</code>,
-                  email: <a href="mailto:hi@hashproof.dev">hi@hashproof.dev</a>,
+                  dashboard: <Link to="/app/developers">hashproof.dev/app</Link>,
                 })}
               </p>
             </SubSection>
@@ -878,6 +879,65 @@ export default function Docs() {
                 ]}
               />
               <p className="docs-p">{t("docs.prev.api.note")}</p>
+            </SubSection>
+          </Section>
+
+          {/* manage */}
+          <Section id="manage" title={t("docs.nav.manage")}>
+            <p className="docs-p">{t("docs.manage.lead")}</p>
+            <SubSection id="manage-list" title={t("docs.manage.list.title")}>
+              <div className="docs-endpoint">
+                <span className="docs-method docs-method--get">GET</span>
+                <code className="docs-path">/credentials</code>
+              </div>
+              <p className="docs-p">
+                {fill("docs.manage.list.body", {
+                  status: <code>status</code>,
+                  q: <code>q</code>,
+                  context: <code>context</code>,
+                  dates: <code>from / to</code>,
+                  page: <code>limit / offset</code>,
+                })}
+              </p>
+              <CodeBlock
+                lang="bash"
+                code={`curl "https://api.hashproof.dev/credentials?status=active&q=diana" \\
+  -H "Authorization: Bearer $HASHPROOF_API_KEY"`}
+              />
+              <CodeBlock
+                code={`{
+  "total": 1284,
+  "limit": 50,
+  "offset": 0,
+  "credentials": [
+    {
+      "id": "51fb6ed9-…",
+      "holder_name": "Diana Prieto",
+      "context_title": "Gran Evento IA",
+      "status": "active",
+      "issued_at": "2026-09-28T21:12:41Z",
+      "verification_url": "https://hashproof.dev/verify/51fb6ed9-…"
+    }
+  ]
+}`}
+                label={t("docs.label.response")}
+              />
+            </SubSection>
+            <SubSection id="manage-revoke" title={t("docs.manage.revoke.title")}>
+              <div className="docs-endpoint">
+                <span className="docs-method docs-method--post">POST</span>
+                <code className="docs-path">/credentials/:id/revoke</code>
+              </div>
+              <p className="docs-p">
+                {fill("docs.manage.revoke.body", {
+                  confirm: <code>{`{ "confirm": true }`}</code>,
+                  already: <code>already_revoked: true</code>,
+                })}
+              </p>
+              <CodeBlock
+                code={`{ "confirm": true, "reason": "Issued to the wrong person" }`}
+                label={t("docs.label.requestBody")}
+              />
             </SubSection>
           </Section>
 

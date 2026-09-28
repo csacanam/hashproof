@@ -33,6 +33,14 @@ export const docsMessages = {
     "docs.nav.authentication": "Authentication",
     "docs.nav.templates": "Templates",
     "docs.nav.preview": "Template preview",
+    "docs.nav.manage": "Manage credentials",
+    "docs.manage.lead":
+      "List what your organization issued and revoke credentials. Authenticate with any API key of the organization. Both are free and work with a key at zero credits.",
+    "docs.manage.list.title": "List",
+    "docs.manage.list.body": "Newest first. Filters: {status} (active, revoked, expired), {q} (holder name contains), {context} (event or course title contains), {dates} (ISO dates), {page} (up to 100 per page).",
+    "docs.manage.revoke.title": "Revoke",
+    "docs.manage.revoke.body":
+      "Permanent: the revocation is written on-chain and there is no undo, so the body must say {confirm}. Only the organization that issued the credential can revoke it. Repeating the call is safe: it answers {already}.",
     "docs.nav.entityVerification": "Entity verification",
 
     // ── Quick start ──
@@ -68,7 +76,7 @@ export const docsMessages = {
     "docs.auth.apikey.title": "Pay with an API key",
     "docs.auth.apikey.body1": "Send {header1} or {header2}.",
     "docs.auth.apikey.body2":
-      "Each issuance deducts 1 credit and the key belongs to a single issuer entity. If you run out of credits the API returns {code}. Write to {email} to buy more.",
+      "Each issuance deducts 1 credit and the key belongs to a single issuer entity. If you run out of credits the API returns {code}. Create keys and buy credits — by card at $0.20 or in USDC at $0.10 — at {dashboard}.",
 
     // ── issueCredential ──
     "docs.issue.lead":
@@ -260,6 +268,14 @@ export const docsMessages = {
     "docs.nav.authentication": "Autenticación",
     "docs.nav.templates": "Plantillas",
     "docs.nav.preview": "Vista previa de plantillas",
+    "docs.nav.manage": "Administrar credenciales",
+    "docs.manage.lead":
+      "Lista lo que tu organización emitió y revoca credenciales. Autentícate con cualquier API key de la organización. Ambas son gratis y funcionan con una key sin créditos.",
+    "docs.manage.list.title": "Listar",
+    "docs.manage.list.body": "De la más reciente a la más antigua. Filtros: {status} (active, revoked, expired), {q} (el nombre del titular contiene), {context} (el título del evento o curso contiene), {dates} (fechas ISO), {page} (hasta 100 por página).",
+    "docs.manage.revoke.title": "Revocar",
+    "docs.manage.revoke.body":
+      "Es permanente: la revocación queda escrita on-chain y no se puede deshacer, así que el body debe decir {confirm}. Solo la organización que emitió la credencial puede revocarla. Repetir la llamada es seguro: responde {already}.",
     "docs.nav.entityVerification": "Verificación de entidad",
 
     // ── Inicio rápido ──
@@ -295,7 +311,7 @@ export const docsMessages = {
     "docs.auth.apikey.title": "Pagar con API key",
     "docs.auth.apikey.body1": "Envía {header1} o {header2}.",
     "docs.auth.apikey.body2":
-      "Cada emisión descuenta 1 crédito y la key pertenece a una sola entidad emisora. Si te quedas sin créditos, la API responde {code}. Escribe a {email} para comprar más.",
+      "Cada emisión descuenta 1 crédito y la key pertenece a una sola entidad emisora. Si te quedas sin créditos, la API responde {code}. Crea llaves y compra créditos —con tarjeta a $0.20 o en USDC a $0.10— en {dashboard}.",
 
     // ── issueCredential ──
     "docs.issue.lead":
