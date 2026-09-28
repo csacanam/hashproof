@@ -374,7 +374,12 @@ export function createAppRouter({ baseUrl, frontendUrl, skipPayment = false }) {
       if (!isVoultiConfigured()) {
         return res.status(503).json({ error: "Crypto payments are not available yet.", code: "crypto_unavailable" });
       }
-      return res.status(201).json(await createVoultiInvoice({ entity: req.entity, user: req.user, credits: req.body?.credits }));
+      return res.status(201).json(await createVoultiInvoice({
+          entity: req.entity,
+          user: req.user,
+          credits: req.body?.credits,
+          returnUrl: `${frontendUrl}/app/developers?purchase=crypto`,
+        }));
     } catch (err) {
       return fail(res, err, { handler: "app/purchases crypto" });
     }

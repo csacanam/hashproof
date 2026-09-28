@@ -171,7 +171,7 @@ export async function handleStripeWebhook(rawBody, signature) {
  * invoice id is stored as the purchase's external_ref, so every invoice maps
  * back to exactly one purchase.
  */
-export async function createVoultiInvoice({ entity, user, credits }) {
+export async function createVoultiInvoice({ entity, user, credits, returnUrl }) {
   const commerceId = process.env.VOULTI_COMMERCE_ID;
   if (!commerceId) throw new Error("VOULTI_COMMERCE_ID not configured");
   const n = parseCredits(credits, "voulti");
@@ -187,6 +187,9 @@ export async function createVoultiInvoice({ entity, user, credits }) {
       reference: `hashproof:${entity.id}:${n}`,
       description: `${n.toLocaleString("en-US")} HashProof credits — ${entity.display_name}`.slice(0, 300),
       expires_at: new Date(Date.now() + VOULTI_INVOICE_TTL_MS).toISOString(),
+      // Voulti sends the payer here once the invoice is final. Its domain must be
+      // in the commerce's return domains, or Voulti rejects the invoice.
+      ...(returnUrl && { return_url: returnUrl }),
     }),
   });
   const body = await res.json().catch(() => ({}));

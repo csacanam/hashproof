@@ -35,7 +35,7 @@ export default function Developers() {
   // Back from Stripe: the webhook credits the organization, usually within seconds.
   const purchase = search.get("purchase");
   useEffect(() => {
-    if (purchase !== "success") return;
+    if (purchase !== "success" && purchase !== "crypto") return;
     const timers = [1500, 4000, 9000].map((ms) =>
       setTimeout(() => {
         load();
@@ -74,6 +74,14 @@ export default function Developers() {
       {purchase === "success" && (
         <div className="dash-banner dash-banner--ok" role="status">
           {t("dev.purchaseSuccess")}{" "}
+          <button className="dash-link" onClick={() => setSearch({})}>
+            ×
+          </button>
+        </div>
+      )}
+      {purchase === "crypto" && (
+        <div className="dash-banner dash-banner--ok" role="status">
+          {t("dev.cryptoReturn")}{" "}
           <button className="dash-link" onClick={() => setSearch({})}>
             ×
           </button>
