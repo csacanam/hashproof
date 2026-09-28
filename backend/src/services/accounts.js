@@ -115,10 +115,12 @@ export async function createOrganization({ user, displayName, slug, website }) {
 }
 
 /**
- * The key the dashboard spends from. Created on demand, one per entity (a
- * partial unique index guarantees it). Its secret is generated and thrown
- * away: nothing outside the backend can ever authenticate with it.
- * @returns {Promise<{ id: string, credits_balance: number }>}
+ * The key the dashboard issues with — it spends from the organization's balance
+ * like any other key, and its credits_used is the dashboard's own usage.
+ * Created on demand, one per entity (a partial unique index guarantees it). Its
+ * secret is generated and thrown away: nothing outside the backend can ever
+ * authenticate with it.
+ * @returns {Promise<{ id: string }>}
  */
 export async function ensurePanelKey(entityId, userId = null) {
   const existing = await getPanelKey(entityId);
@@ -132,10 +134,9 @@ export async function ensurePanelKey(entityId, userId = null) {
       key_hash: unusableHash,
       name: "Dashboard",
       kind: "panel",
-      credits_balance: 0,
       created_by: userId,
     })
-    .select("id, credits_balance")
+    .select("id")
     .single();
   if (error) {
     // Lost a race with another request creating it: use theirs.
@@ -148,7 +149,7 @@ export async function ensurePanelKey(entityId, userId = null) {
 export async function getPanelKey(entityId) {
   const { data, error } = await supabase
     .from("api_keys")
-    .select("id, credits_balance")
+    .select("id")
     .eq("entity_id", entityId)
     .eq("kind", "panel")
     .maybeSingle();

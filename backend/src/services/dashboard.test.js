@@ -149,16 +149,16 @@ describe("readImageInfo", () => {
 });
 
 describe("pricing", () => {
-  it("prices by method: $0.20 by card, $0.10 in USDC", () => {
+  it("prices by method: $0.20 by card, $0.10 in crypto", () => {
     expect(priceCents(50, "stripe")).toBe(1000);
-    expect(priceCents(50, "x402")).toBe(500);
+    expect(priceCents(50, "voulti")).toBe(500);
   });
 
   it("enforces the per-method minimum", () => {
     expect(() => parseCredits(49, "stripe")).toThrow(/between 50/);
     expect(parseCredits(50, "stripe")).toBe(50);
-    expect(() => parseCredits(9, "x402")).toThrow(/between 10/);
-    expect(() => parseCredits("abc", "x402")).toThrow();
+    expect(() => parseCredits(9, "voulti")).toThrow(/between 10/);
+    expect(() => parseCredits("abc", "voulti")).toThrow();
   });
 });
 

@@ -23,7 +23,8 @@ export function generateSecret() {
 }
 
 /**
- * Find API key by plain secret. Returns row with entity_id, id, credits_balance.
+ * Find API key by plain secret. credits_balance is the balance of the key's
+ * organization, which every key of it spends from (migration 009).
  * @param {string} plainKey
  * @returns {Promise<{ id: string, entity_id: string, credits_balance: number } | null>}
  */
@@ -32,11 +33,11 @@ export async function getByPlainKey(plainKey) {
   const keyHash = hashKey(plainKey.trim());
   const { data, error } = await supabase
     .from("api_keys")
-    .select("id, entity_id, credits_balance")
+    .select("id, entity_id, entities(credits_balance)")
     .eq("key_hash", keyHash)
     .single();
   if (error || !data) return null;
-  return data;
+  return { id: data.id, entity_id: data.entity_id, credits_balance: data.entities?.credits_balance ?? 0 };
 }
 
 /**
@@ -105,20 +106,27 @@ export async function createKey(entityId, initialCredits, name = null) {
   const credits = Math.max(0, Number(initialCredits) || 0);
   const { data, error } = await supabase
     .from("api_keys")
-    .insert({
-      entity_id: entityId,
-      key_hash: keyHash,
-      name: name || null,
-      credits_balance: credits,
-    })
-    .select("id, entity_id, name, credits_balance")
+    .insert({ entity_id: entityId, key_hash: keyHash, name: name || null })
+    .select("id, entity_id, name")
     .single();
   if (error) throw new Error(`Failed to create API key: ${error.message}`);
-  return {
-    ...data,
-    secret,
-    credits_balance: credits,
-  };
+  // initial_credits go to the organization, which the new key spends from.
+  const balance = credits > 0 ? await addEntityCredits(entityId, credits) : await getEntityBalance(entityId);
+  return { ...data, secret, credits_balance: balance };
+}
+
+/** The organization's balance, shared by all its keys and its dashboard. */
+export async function getEntityBalance(entityId) {
+  const { data, error } = await supabase.from("entities").select("credits_balance").eq("id", entityId).single();
+  if (error) throw new Error(error.message);
+  return data?.credits_balance ?? 0;
+}
+
+/** Add credits to an organization. Returns the new balance. */
+export async function addEntityCredits(entityId, amount) {
+  const { data, error } = await supabase.rpc("add_entity_credits", { p_entity_id: entityId, p_amount: amount });
+  if (error) throw new Error(error.message);
+  return data?.remaining ?? 0;
 }
 
 /**
@@ -133,7 +141,7 @@ export async function listKeys() {
   const entityIds = [...new Set(keys.map((k) => k.entity_id))];
   const { data: entities } = await supabase
     .from("entities")
-    .select("id, slug, display_name")
+    .select("id, slug, display_name, credits_balance")
     .in("id", entityIds);
   const byId = (entities || []).reduce((acc, e) => {
     acc[e.id] = e;
@@ -141,6 +149,8 @@ export async function listKeys() {
   }, {});
   return keys.map((k) => ({
     ...k,
+    // The balance is the organization's; every key of it shows the same one.
+    credits_balance: byId[k.entity_id]?.credits_balance ?? 0,
     entity_slug: byId[k.entity_id]?.slug ?? null,
     entity_display_name: byId[k.entity_id]?.display_name ?? null,
   }));

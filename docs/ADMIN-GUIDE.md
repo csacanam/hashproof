@@ -147,7 +147,9 @@ Clearing `authorized_wallets` immediately prevents any further credential issuan
 
 ## API keys (prepaid credits)
 
-For institutions that don't use crypto, you can create **API keys** tied to an entity and a **prepaid credit balance**. They call `POST /issueCredential` with `Authorization: Bearer <api_key>` (or `X-API-Key`); each successful issuance deducts 1 credit. You assume the cost (USDC) on your side.
+For institutions that don't use crypto, you can create **API keys** tied to an entity. Credits belong to the **entity**: all its keys and its dashboard spend from one balance, and each key only records how many it has used. They call `POST /issueCredential` with `Authorization: Bearer <api_key>` (or `X-API-Key`); each successful issuance deducts 1 credit from the entity. You assume the cost (USDC) on your side.
+
+Organizations can also create keys and buy credits themselves in the dashboard (see below); these admin endpoints remain for setting one up by hand.
 
 **Prerequisites:** The entity must exist in `entities`. Get its UUID from Supabase (Table Editor → `entities`).
 
@@ -172,9 +174,11 @@ Response includes **`api_key`** — the secret. **Show it only once** to the ins
 curl -H "Authorization: Bearer YOUR_ADMIN_SECRET" https://your-api-url/admin/api-keys
 ```
 
-Returns id, entity_slug, entity_display_name, name, credits_balance, last_used_at (no secrets).
+Returns id, entity_slug, entity_display_name, name, credits_balance (the entity's balance, the same on every key of it), credits_used, last_used_at (no secrets).
 
 ### Top up credits
+
+Adds to the key's **entity** — every key of it sees the new balance.
 
 ```bash
 curl -X PATCH https://your-api-url/admin/api-keys/{key_id} \
@@ -191,11 +195,12 @@ Organizations sign in at `https://hashproof.dev/app`, create their organization 
 
 ### One-time setup
 
-1. **Migrations**, in order, in the Supabase SQL editor: `006_credential_revocation.sql`, `007_credential_holder_contacts.sql`, `008_accounts.sql`. All additive.
+1. **Migrations**, in order, in the Supabase SQL editor: `006_credential_revocation.sql`, `007_credential_holder_contacts.sql`, `008_accounts.sql`, `009_organization_balance.sql`. 009 moves balances from keys to their entity; apply it **before** deploying the backend that reads the entity balance.
 2. **Supabase Auth** (Authentication → URL Configuration): Site URL `https://hashproof.dev`, and add `https://hashproof.dev/app/auth` to Redirect URLs.
 3. **Email sending**: Supabase's built-in mailer allows only a few emails per hour — set up custom SMTP (Authentication → Emails → SMTP) before opening sign-ups. Optionally add `{{ .Token }}` to the Magic Link template so people can type a code instead of clicking the link.
-4. **Stripe** (card purchases at $0.20/credit, minimum 50): set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` on the backend, and create a webhook endpoint `https://api.hashproof.dev/stripe/webhook` for `checkout.session.completed` and `checkout.session.async_payment_succeeded`. Until both variables are set, the dashboard shows card payments as unavailable and USDC (x402, $0.10/credit) still works. The Stripe account can be shared with other products: every HashProof checkout carries `metadata.product = "hashproof"` (on the session and its payment intent), and the webhook ignores events without it — other products' webhooks should likewise filter on their own tag.
-5. `FRONTEND_URL=https://hashproof.dev` on the backend (Stripe return URLs and invitation links).
+4. **Stripe** (card purchases at $0.20/credit, minimum 50): set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` on the backend, and create a webhook endpoint `https://api.hashproof.dev/stripe/webhook` for `checkout.session.completed` and `checkout.session.async_payment_succeeded`. Until both variables are set, the dashboard shows card payments as unavailable. The Stripe account can be shared with other products: every HashProof checkout carries `metadata.product = "hashproof"` (on the session and its payment intent), and the webhook ignores events without it — other products' webhooks should likewise filter on their own tag.
+5. **Voulti** (crypto purchases at $0.10/credit, minimum 10): set `VOULTI_COMMERCE_ID` (HashProof's commerce in Voulti) and `VOULTI_WEBHOOK_SECRET` (Receive Payments → Developers in Voulti), and point that commerce's confirmation URL to `https://api.hashproof.dev/voulti/webhook`. The webhook only names the invoice; the backend re-reads it from Voulti and checks the amount before crediting. Without `VOULTI_COMMERCE_ID` the dashboard shows crypto payments as unavailable.
+6. `FRONTEND_URL=https://hashproof.dev` on the backend (Stripe return URLs and invitation links).
 
 ### Giving an existing entity dashboard access
 
@@ -208,7 +213,7 @@ curl -X POST https://your-api-url/admin/entities/{entity_id}/members \
   -d '{ "email": "owner@organization.com", "role": "owner" }'
 ```
 
-This also creates the entity's dashboard balance (an internal key whose secret is never shown). Existing API keys keep their own balances and appear under Developers; credits can be moved between keys there.
+This also creates the key the dashboard issues with (internal, its secret is never shown). The entity's existing API keys appear under Developers, and the dashboard spends from the same entity balance they do.
 
 ### What gets notified
 

@@ -2,6 +2,8 @@ import { Link, NavLink, Navigate, Outlet, useLocation } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { useDashboard } from "./useDashboard.js";
 import { formatNumber } from "./format.js";
+import BuyLink from "./components/BuyLink.jsx";
+import BuyDialog from "./components/BuyDialog.jsx";
 
 const NAV = [
   { to: "/app", key: "nav.overview", end: true },
@@ -14,7 +16,7 @@ const NAV = [
 
 /** Signed-in area with an organization: sidebar, top bar, and the page. */
 export default function AppShell() {
-  const { t, session, loadingMe, organizations, org, setOrgId, overview, user, signOut } = useDashboard();
+  const { t, session, loadingMe, organizations, org, setOrgId, overview, user, signOut, buyOpen, closeBuy } = useDashboard();
   const location = useLocation();
 
   if (!session) return <Navigate to="/app/login" replace state={{ from: location.pathname }} />;
@@ -61,15 +63,8 @@ export default function AppShell() {
             <span className="dash-label">{t("nav.balance")}</span>
             <strong>{overview ? formatNumber(overview.balance) : "—"}</strong>
             <span className="dash-muted">{t("nav.credits")}</span>
-            {overview?.api_keys_balance > 0 && (
-              <Link to="/app/developers" className="dash-small dash-balance-keys">
-                {t("nav.onKeys", { n: formatNumber(overview.api_keys_balance) })}
-              </Link>
-            )}
           </div>
-          <Link to="/app/developers#buy" className="dash-btn dash-btn--small">
-            {t("nav.buyCredits")}
-          </Link>
+          <BuyLink className="dash-btn dash-btn--small" />
           <div className="dash-user">
             <span title={user?.email}>{user?.email}</span>
             <button type="button" className="dash-link" onClick={signOut}>
@@ -93,6 +88,7 @@ export default function AppShell() {
         )}
         <Outlet />
       </main>
+      <BuyDialog open={buyOpen} onClose={closeBuy} />
     </div>
   );
 }

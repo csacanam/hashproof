@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useDashboard } from "../useDashboard.js";
 import { formatDate, formatNumber } from "../format.js";
 import StatusPill from "../components/StatusPill.jsx";
+import BuyLink from "../components/BuyLink.jsx";
 
 export default function Overview() {
   const { t, org, overview } = useDashboard();
@@ -25,7 +26,7 @@ export default function Overview() {
         <div className="dash-stat">
           <span className="dash-label">{t("overview.balance")}</span>
           <strong>{overview ? formatNumber(overview.balance) : "—"}</strong>
-          <Link to="/app/developers#buy">{t("nav.buyCredits")}</Link>
+          <BuyLink />
         </div>
         <div className="dash-stat">
           <span className="dash-label">{t("overview.issued")}</span>
@@ -37,8 +38,8 @@ export default function Overview() {
           <strong>{c ? formatNumber(c.revoked) : "—"}</strong>
         </div>
         <div className="dash-stat">
-          <span className="dash-label">{t("overview.apiBalance")}</span>
-          <strong>{overview ? formatNumber(overview.api_keys_balance) : "—"}</strong>
+          <span className="dash-label">{t("overview.activeKeys")}</span>
+          <strong>{overview ? formatNumber(overview.active_api_keys) : "—"}</strong>
           <Link to="/app/developers">{t("nav.developers")}</Link>
         </div>
       </section>
@@ -48,7 +49,7 @@ export default function Overview() {
           <h2>{t("overview.start.title")}</h2>
           <ol>
             <li>
-              <Link to="/app/developers#buy">{t("overview.start.buy")}</Link> — {t("overview.start.buyBody")}
+              <BuyLink>{t("overview.start.buy")}</BuyLink> — {t("overview.start.buyBody")}
             </li>
             <li>
               <Link to="/app/templates">{t("overview.start.template")}</Link> — {t("overview.start.templateBody")}

@@ -30,6 +30,7 @@ export function DashboardProvider({ children }) {
     }
   });
   const [overview, setOverview] = useState(null);
+  const [buyOpen, setBuyOpen] = useState(false);
 
   useEffect(() => onSessionChange(setSessionState), []);
 
@@ -99,6 +100,9 @@ export function DashboardProvider({ children }) {
     overview,
     refreshOverview,
     orgPath: (p = "") => `/organizations/${org?.id}${p}`,
+    buyOpen,
+    openBuy: () => setBuyOpen(true),
+    closeBuy: () => setBuyOpen(false),
     signOut: () => {
       signOut();
       setMe(null);

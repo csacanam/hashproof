@@ -32,7 +32,7 @@ import { revokeCredential } from "./services/revokeCredential.js";
 import { listCredentials } from "./services/listCredentials.js";
 import { createAppRouter } from "./routes/app.js";
 import { addMember, ensurePanelKey } from "./services/accounts.js";
-import { handleStripeWebhook } from "./services/payments.js";
+import { handleStripeWebhook, syncVoultiInvoice, verifyVoultiSignature } from "./services/payments.js";
 import { Buffer } from "node:buffer";
 import { randomUUID } from "node:crypto";
 import { sendError, classifyError } from "./utils/errors.js";
@@ -90,6 +90,30 @@ export function createApp(options = {}) {
       // a 500 so Stripe retries the delivery.
       const badSignature = err?.type === "StripeSignatureVerificationError";
       return res.status(badSignature ? 400 : 500).json({ error: badSignature ? "Invalid signature" : "Webhook failed" });
+    }
+  });
+
+  // Voulti signs `${t}.${rawBody}` and gives up after ~2s, so: check the
+  // signature on the raw bytes, answer, and only then look the invoice up and
+  // credit it. The webhook only names the invoice; syncVoultiInvoice re-reads it
+  // from Voulti before crediting anything.
+  app.post("/voulti/webhook", express.raw({ type: "*/*", limit: "256kb" }), (req, res) => {
+    const raw = Buffer.isBuffer(req.body) ? req.body.toString("utf8") : "";
+    if (!verifyVoultiSignature(raw, req.get("x-voulti-signature"), process.env.VOULTI_WEBHOOK_SECRET)) {
+      return res.status(401).json({ error: "Invalid signature" });
+    }
+    let invoiceId = null;
+    try {
+      const body = JSON.parse(raw);
+      if (body?.status === "Paid") invoiceId = body.invoice_id;
+    } catch {
+      return res.status(400).json({ error: "Invalid JSON" });
+    }
+    res.json({ received: true });
+    if (invoiceId) {
+      syncVoultiInvoice(invoiceId).catch((err) =>
+        console.error(`[voulti/webhook] could not credit invoice ${invoiceId}:`, err.message),
+      );
     }
   });
 

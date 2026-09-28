@@ -10,9 +10,8 @@
 import express from "express";
 import rateLimit from "express-rate-limit";
 import { requireSession } from "../middleware/session.js";
-import { createX402Charge } from "../middleware/x402Charge.js";
 import { sendError } from "../utils/errors.js";
-import { appError } from "../utils/appError.js";
+import { getEntityBalance } from "../services/apiKeys.js";
 import { refreshSession, sendSignInEmail, verifyEmailCode } from "../services/auth.js";
 import { getEntityById } from "../services/getEntity.js";
 import {
@@ -20,7 +19,6 @@ import {
   addMember,
   createOrganization,
   getMembership,
-  getPanelKey,
   listMembers,
   listMemberships,
   removeMember,
@@ -39,20 +37,20 @@ import {
   getEntityKey,
   listEntityKeys,
   revokeEntityKey,
-  transferCredits,
 } from "../services/dashboardKeys.js";
 import {
   MAX_CREDITS_PER_PURCHASE,
   STRIPE_CREDIT_PRICE_CENTS,
   STRIPE_MIN_CREDITS,
-  X402_CREDIT_PRICE_CENTS,
-  X402_MIN_CREDITS,
-  completeX402Purchase,
+  VOULTI_CREDIT_PRICE_CENTS,
+  VOULTI_MIN_CREDITS,
+  createVoultiInvoice,
+  getPurchase,
+  isVoultiConfigured,
+  syncVoultiInvoice,
   createStripeCheckout,
   isStripeConfigured,
   listPurchases,
-  parseCredits,
-  priceCents,
 } from "../services/payments.js";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -99,20 +97,9 @@ export function createAppRouter({ baseUrl, frontendUrl, skipPayment = false }) {
   router.get("/pricing", (_req, res) => {
     res.json({
       stripe: { cents_per_credit: STRIPE_CREDIT_PRICE_CENTS, min_credits: STRIPE_MIN_CREDITS, available: isStripeConfigured() },
-      x402: { cents_per_credit: X402_CREDIT_PRICE_CENTS, min_credits: X402_MIN_CREDITS, currency: "USDC" },
+      crypto: { cents_per_credit: VOULTI_CREDIT_PRICE_CENTS, min_credits: VOULTI_MIN_CREDITS, available: isVoultiConfigured() },
       max_credits_per_purchase: MAX_CREDITS_PER_PURCHASE,
     });
-  });
-
-  // x402 settles the payment before the handler runs, so membership and the key
-  // must be checked before it too — nobody pays for a purchase that will fail.
-  const x402Charge = createX402Charge({
-    skipPayment,
-    priceFor: (req) => {
-      const credits = parseCredits(req.body?.credits, "x402");
-      req.x402Credits = credits;
-      return { cents: priceCents(credits, "x402"), description: `${credits} HashProof credits` };
-    },
   });
 
   // Sign-in. Its own, tighter limit: each call can send an email.
@@ -196,8 +183,8 @@ export function createAppRouter({ baseUrl, frontendUrl, skipPayment = false }) {
 
   org.get("/", async (req, res) => {
     try {
-      const [panel, keys, all, revoked] = await Promise.all([
-        getPanelKey(req.entity.id),
+      const [balance, keys, all, revoked] = await Promise.all([
+        getEntityBalance(req.entity.id),
         listEntityKeys(req.entity.id),
         listCredentials({ entityId: req.entity.id, limit: 5 }, baseUrl),
         listCredentials({ entityId: req.entity.id, status: "revoked", limit: 1 }, baseUrl),
@@ -206,10 +193,8 @@ export function createAppRouter({ baseUrl, frontendUrl, skipPayment = false }) {
       return res.json({
         entity,
         role: req.role,
-        balance: panel?.credits_balance ?? 0,
-        api_keys_balance: keys
-          .filter((k) => k.kind === "api" && !k.revoked_at)
-          .reduce((s, k) => s + (k.credits_balance || 0), 0),
+        balance,
+        active_api_keys: keys.filter((k) => k.kind === "api" && !k.revoked_at).length,
         credentials: { total: all.total, revoked: revoked.total, recent: all.credentials },
       });
     } catch (err) {
@@ -347,18 +332,6 @@ export function createAppRouter({ baseUrl, frontendUrl, skipPayment = false }) {
     }
   });
 
-  org.post("/keys/transfer", managersOnly, async (req, res) => {
-    try {
-      const { from_key_id, to_key_id, amount } = req.body || {};
-      if (!UUID_RE.test(from_key_id || "") || !UUID_RE.test(to_key_id || "")) throw new Error("API key not found");
-      return res.json(
-        await transferCredits({ entityId: req.entity.id, fromKeyId: from_key_id, toKeyId: to_key_id, amount }),
-      );
-    } catch (err) {
-      return fail(res, err, { handler: "app/keys transfer" });
-    }
-  });
-
   const loadKey = async (req, res, next) => {
     try {
       if (!UUID_RE.test(req.params.keyId)) throw new Error("API key not found");
@@ -377,56 +350,54 @@ export function createAppRouter({ baseUrl, frontendUrl, skipPayment = false }) {
     }
   });
 
-  org.post("/keys/:keyId/checkout", managersOnly, loadKey, async (req, res) => {
+  // Credits: bought for the organization, whichever way it pays.
+  org.post("/purchases/stripe", managersOnly, async (req, res) => {
     try {
       if (!isStripeConfigured()) {
         return res.status(503).json({ error: "Card payments are not available yet.", code: "stripe_unavailable" });
       }
-      if (req.key.revoked_at) throw appError("Cannot buy credits for a revoked key");
       return res.json(
         await createStripeCheckout({
           entity: req.entity,
-          key: req.key,
           user: req.user,
           credits: req.body?.credits,
           returnUrl: safeReturnUrl(req.body?.return_url, frontendUrl),
         }),
       );
     } catch (err) {
-      return fail(res, err, { handler: "app/keys checkout" });
+      return fail(res, err, { handler: "app/purchases stripe" });
     }
   });
 
-  org.post(
-    "/keys/:keyId/x402",
-    managersOnly,
-    loadKey,
-    (req, res, next) =>
-      req.key.revoked_at
-        ? res.status(400).json({ error: "Cannot buy credits for a revoked key", code: "invalid_payload" })
-        : next(),
-    x402Charge,
-    async (req, res) => {
-      try {
-        const out = await completeX402Purchase({
-          entity: req.entity,
-          key: req.key,
-          user: req.user,
-          credits: req.x402Credits,
-          txHash: req.x402.txHash,
-        });
-        const updated = await getEntityKey(req.entity.id, req.key.id);
-        return res.json({ ...out, credits: req.x402Credits, tx_hash: req.x402.txHash, credits_balance: updated.credits_balance });
-      } catch (err) {
-        // Paid but not credited: log loudly with the tx so it can be fixed by hand.
-        console.error(
-          `[app/x402] PAID BUT NOT CREDITED entity=${req.entity.id} key=${req.key.id} tx=${req.x402?.txHash} credits=${req.x402Credits}:`,
-          err.message,
-        );
-        return fail(res, err, { handler: "app/keys x402", tx: req.x402?.txHash });
+  org.post("/purchases/crypto", managersOnly, async (req, res) => {
+    try {
+      if (!isVoultiConfigured()) {
+        return res.status(503).json({ error: "Crypto payments are not available yet.", code: "crypto_unavailable" });
       }
-    },
-  );
+      return res.status(201).json(await createVoultiInvoice({ entity: req.entity, user: req.user, credits: req.body?.credits }));
+    } catch (err) {
+      return fail(res, err, { handler: "app/purchases crypto" });
+    }
+  });
+
+  // The page polls this while the payer is on Voulti's checkout; each call asks
+  // Voulti and credits the moment the invoice is paid.
+  org.get("/purchases/:purchaseId", async (req, res) => {
+    try {
+      if (!UUID_RE.test(req.params.purchaseId)) throw new Error("Purchase not found");
+      let purchase = await getPurchase(req.entity.id, req.params.purchaseId);
+      if (!purchase) throw new Error("Purchase not found");
+      let providerStatus = null;
+      if (purchase.method === "voulti" && purchase.status === "pending") {
+        providerStatus = (await syncVoultiInvoice(purchase.external_ref)).status;
+        purchase = await getPurchase(req.entity.id, req.params.purchaseId);
+      }
+      const { external_ref: _ref, ...out } = purchase;
+      return res.json({ ...out, provider_status: providerStatus, balance: await getEntityBalance(req.entity.id) });
+    } catch (err) {
+      return fail(res, err, { handler: "app/purchase status" });
+    }
+  });
 
   org.get("/purchases", async (req, res) => {
     try {

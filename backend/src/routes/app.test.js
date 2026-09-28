@@ -29,7 +29,6 @@ vi.mock("../services/accounts.js", () => ({
   getMembership: vi.fn(async (u, e) => roles[`${u}:${e}`] ?? null),
   listMemberships: vi.fn(async () => []),
   createOrganization: vi.fn(),
-  getPanelKey: vi.fn(async () => ({ id: "panel", credits_balance: 7 })),
   listMembers: vi.fn(async () => []),
   addMember: vi.fn(),
   removeMember: vi.fn(),
@@ -45,7 +44,7 @@ vi.mock("../services/dashboardIssuance.js", async (orig) => ({
 }));
 vi.mock("../services/issueCredential.js", () => ({ validateIssuancePayload: () => {} }));
 vi.mock("../services/issuanceJobs.js", () => ({ createIssuanceJob: vi.fn() }));
-vi.mock("../services/apiKeys.js", () => ({ deductCredit: vi.fn(), refundCredit: vi.fn() }));
+vi.mock("../services/apiKeys.js", () => ({ deductCredit: vi.fn(), refundCredit: vi.fn(), getEntityBalance: vi.fn(async () => 7) }));
 vi.mock("../services/dashboardTemplates.js", () => ({
   listTemplates: vi.fn(async () => []),
   createTemplate: vi.fn(async () => ({ id: "t1" })),
@@ -58,12 +57,11 @@ vi.mock("../services/dashboardKeys.js", () => ({
   createEntityKey: (...a) => createEntityKey(...a),
   getEntityKey: vi.fn(async (e, k) => ({ id: k, entity_id: e, name: "prod", credits_balance: 10, revoked_at: null })),
   revokeEntityKey: vi.fn(),
-  transferCredits: vi.fn(),
 }));
-const completeX402Purchase = vi.fn(async () => ({ credited: true, purchase_id: "p1" }));
+const createVoultiInvoice = vi.fn(async () => ({ purchase_id: "p1", invoice_id: "inv_1", url: "https://voulti.com/checkout/inv_1" }));
 vi.mock("../services/payments.js", async (orig) => ({
   ...(await orig()),
-  completeX402Purchase: (...a) => completeX402Purchase(...a),
+  createVoultiInvoice: (...a) => createVoultiInvoice(...a),
   listPurchases: vi.fn(async () => []),
 }));
 
@@ -88,7 +86,7 @@ describe("dashboard routes", () => {
     roles = { [`u-owner:${ORG}`]: "owner", [`u-issuer:${ORG}`]: "issuer" };
     issueFromDashboard.mockClear();
     createEntityKey.mockClear();
-    completeX402Purchase.mockClear();
+    createVoultiInvoice.mockClear();
     app = makeApp();
   });
 
@@ -96,7 +94,7 @@ describe("dashboard routes", () => {
     const res = await request(app).get("/app/pricing");
     expect(res.status).toBe(200);
     expect(res.body.stripe.cents_per_credit).toBe(20);
-    expect(res.body.x402.cents_per_credit).toBe(10);
+    expect(res.body.crypto.cents_per_credit).toBe(10);
   });
 
   it("requires a session", async () => {
@@ -163,28 +161,32 @@ describe("dashboard routes", () => {
     expect(issueFromDashboard).not.toHaveBeenCalled();
   });
 
-  it("buys credits over x402 for the amount in the body", async () => {
+  it("buys credits in crypto for the organization, not for a key", async () => {
+    process.env.VOULTI_COMMERCE_ID = "commerce_1";
     const res = await request(app)
-      .post(`/app/organizations/${ORG}/keys/${KEY}/x402`)
+      .post(`/app/organizations/${ORG}/purchases/crypto`)
       .set("Authorization", `Bearer ${tok("owner")}`)
       .send({ credits: 25 });
-    expect(res.status).toBe(200);
-    expect(completeX402Purchase.mock.calls[0][0]).toMatchObject({ credits: 25 });
+    expect(res.status).toBe(201);
+    expect(res.body.url).toBe("https://voulti.com/checkout/inv_1");
+    expect(createVoultiInvoice.mock.calls[0][0]).toMatchObject({ credits: 25 });
+    expect(createVoultiInvoice.mock.calls[0][0].entity.id).toBe(ORG);
   });
 
-  it("rejects an x402 purchase under the minimum before any payment", async () => {
+  it("keeps buying credits to owners and admins", async () => {
+    process.env.VOULTI_COMMERCE_ID = "commerce_1";
     const res = await request(app)
-      .post(`/app/organizations/${ORG}/keys/${KEY}/x402`)
-      .set("Authorization", `Bearer ${tok("owner")}`)
-      .send({ credits: 3 });
-    expect(res.status).toBe(400);
-    expect(completeX402Purchase).not.toHaveBeenCalled();
+      .post(`/app/organizations/${ORG}/purchases/crypto`)
+      .set("Authorization", `Bearer ${tok("issuer")}`)
+      .send({ credits: 25 });
+    expect(res.status).toBe(403);
+    expect(createVoultiInvoice).not.toHaveBeenCalled();
   });
 
   it("says card payments are unavailable until Stripe is configured", async () => {
     delete process.env.STRIPE_SECRET_KEY;
     const res = await request(app)
-      .post(`/app/organizations/${ORG}/keys/${KEY}/checkout`)
+      .post(`/app/organizations/${ORG}/purchases/stripe`)
       .set("Authorization", `Bearer ${tok("owner")}`)
       .send({ credits: 100 });
     expect(res.status).toBe(503);

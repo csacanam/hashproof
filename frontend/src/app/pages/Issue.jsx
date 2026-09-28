@@ -4,6 +4,7 @@ import { api, publicApi } from "../api.js";
 import { useDashboard } from "../useDashboard.js";
 import { formatNumber } from "../format.js";
 import { digest, guessColumn, parseCsv, toCsv } from "../csv.js";
+import BuyLink from "../components/BuyLink.jsx";
 
 const CONTEXT_TYPES = ["event", "course", "diploma", "training", "certification", "membership", "other"];
 const CREDENTIAL_TYPES = ["attendance", "completion", "achievement", "participation", "membership", "certification"];
@@ -59,12 +60,6 @@ export default function Issue() {
         <div>
           <h1>{t("issue.title")}</h1>
           <p className="dash-muted">{t("issue.subtitle", { balance: formatNumber(overview?.balance ?? 0) })}</p>
-          {overview && overview.balance === 0 && overview.api_keys_balance > 0 && (
-            <p className="dash-note">
-              {t("issue.moveHint", { n: formatNumber(overview.api_keys_balance) })}{" "}
-              <Link to="/app/developers">{t("dev.move")}</Link>
-            </p>
-          )}
         </div>
       </header>
 
@@ -246,7 +241,7 @@ function SingleIssue({ common, extraFields, ready }) {
       {state?.phase === "failed" && (
         <p className="dash-error">
           {state.error || state.job?.error || t("issue.failed")}{" "}
-          {state.code === "insufficient_credits" && <Link to="/app/developers#buy">{t("nav.buyCredits")}</Link>}
+          {state.code === "insufficient_credits" && <BuyLink />}
         </p>
       )}
       <button className="dash-btn" disabled={!ready || busy}>
@@ -462,7 +457,7 @@ function CsvIssue({ common, extraFields, ready }) {
             <>
               <p className={count > balance ? "dash-error" : "dash-muted"}>
                 {t("issue.cost", { n: formatNumber(count), balance: formatNumber(balance) })}{" "}
-                {count > balance && <Link to="/app/developers#buy">{t("nav.buyCredits")}</Link>}
+                {count > balance && <BuyLink />}
               </p>
               {validation?.errors?.length > 0 && (
                 <div className="dash-note dash-note--danger">
@@ -507,7 +502,7 @@ function CsvIssue({ common, extraFields, ready }) {
               {run.running && <p className="dash-muted">{t("issue.keepOpen")}</p>}
               {run.stoppedFor === "credits" && (
                 <p className="dash-error">
-                  {t("issue.stoppedCredits")} <Link to="/app/developers#buy">{t("nav.buyCredits")}</Link>
+                  {t("issue.stoppedCredits")} <BuyLink />
                 </p>
               )}
               {!run.running && (

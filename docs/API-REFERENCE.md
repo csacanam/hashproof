@@ -28,7 +28,7 @@ By default, HashProof uses **x402** (USDC) and there is **no API key**. For ente
 | POST | `/admin/issuer-authorizations` | `ADMIN_SECRET` header | Grant or revoke a platform's right to issue on behalf of an issuer |
 | POST | `/admin/api-keys` | `ADMIN_SECRET` header | Create an API key for an entity (prepaid credits) |
 | GET | `/admin/api-keys` | `ADMIN_SECRET` header | List API keys and balances |
-| PATCH | `/admin/api-keys/:id` | `ADMIN_SECRET` header | Add credits to an API key |
+| PATCH | `/admin/api-keys/:id` | `ADMIN_SECRET` header | Add credits to the key's organization |
 
 ---
 
@@ -806,7 +806,7 @@ Prepaid credits for institutions (no crypto). **Auth:** `Authorization: Bearer <
 
 ### GET /admin/api-keys — List keys
 
-**Response 200:** Array of `{ id, entity_id, entity_slug, entity_display_name, name, credits_balance, created_at, last_used_at }` (no secrets).
+**Response 200:** Array of `{ id, entity_id, entity_slug, entity_display_name, name, credits_balance, credits_used, created_at, last_used_at }` (no secrets). `credits_balance` is the organization's balance, shared by all its keys.
 
 ### PATCH /admin/api-keys/:id — Add credits
 
