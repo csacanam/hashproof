@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { API_URL, setSession } from "../api.js";
@@ -15,7 +15,6 @@ export default function Login() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => setError(""), [step]);
 
   if (session) return <Navigate to={location.state?.from || "/app"} replace />;
 
@@ -30,6 +29,13 @@ export default function Login() {
         body: JSON.stringify({ email }),
       });
       const data = await res.json().catch(() => ({}));
+      if (res.status === 429) {
+        // Supabase allows one email per address per minute. The last one is
+        // still valid, so move on to the code step instead of a dead end.
+        setStep("sent");
+        setError(t("login.rateLimited"));
+        return;
+      }
       if (!res.ok) throw new Error(data.error || t("login.error"));
       setStep("sent");
     } catch (err) {
@@ -110,7 +116,7 @@ export default function Login() {
             <button className="dash-btn" disabled={busy || code.length < 6}>
               {busy ? t("common.verifying") : t("login.verify")}
             </button>
-            <button type="button" className="dash-link" onClick={() => setStep("email")}>
+            <button type="button" className="dash-link" onClick={() => { setError(""); setStep("email"); }}>
               {t("login.otherEmail")}
             </button>
           </form>

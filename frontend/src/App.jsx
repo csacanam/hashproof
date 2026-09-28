@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect } from "react";
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Home from "./pages/Home.jsx";
 import Verify from "./pages/Verify.jsx";
 import Entity from "./pages/Entity.jsx";
@@ -27,7 +27,23 @@ function MiniPayConnect() {
   return null;
 }
 
+/**
+ * Sign-in links from Supabase land with the session in the fragment. If one
+ * arrives anywhere other than /app/auth (an invitation sent before the redirect
+ * was set, Supabase falling back to the site URL), hand it to the page that
+ * reads it instead of dropping it.
+ */
+function useStrayAuthFragment() {
+  const { pathname, hash } = useLocation();
+  if (pathname !== "/app/auth" && /(^|[#&])(access_token|error_description)=/.test(hash)) {
+    return `/app/auth${hash}`;
+  }
+  return null;
+}
+
 function App() {
+  const authRedirect = useStrayAuthFragment();
+  if (authRedirect) return <Navigate to={authRedirect} replace />;
   return (
     <>
       <ScrollToTop />

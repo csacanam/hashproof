@@ -452,7 +452,7 @@ export function createAppRouter({ baseUrl, frontendUrl, skipPayment = false }) {
         return res.status(403).json({ error: "Only an owner can add another owner.", code: "forbidden" });
       }
       return res.status(201).json(
-        await addMember({ entityId: req.entity.id, email: req.body?.email, role, redirectTo: `${frontendUrl}/app` }),
+        await addMember({ entityId: req.entity.id, email: req.body?.email, role, redirectTo: `${frontendUrl}/app/auth` }),
       );
     } catch (err) {
       return fail(res, err, { handler: "app/members add" });

@@ -1274,7 +1274,7 @@ export function createApp(options = {}) {
         entityId: entity.id,
         email: req.body?.email,
         role: req.body?.role || "owner",
-        redirectTo: `${frontendUrl}/app`,
+        redirectTo: `${frontendUrl}/app/auth`,
       });
       await ensurePanelKey(entity.id);
       return res.status(201).json({ entity_id: entity.id, ...member });

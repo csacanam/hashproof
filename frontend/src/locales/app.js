@@ -52,6 +52,7 @@ export const appMessages = {
     "login.verify": "Sign in",
     "login.otherEmail": "Use another email",
     "login.error": "Something went wrong. Try again.",
+    "login.rateLimited": "We already sent you an email less than a minute ago. Use that one (check spam too), or wait a minute to request another.",
     "login.developers": "Only need the API?",
     "login.docs": "Read the docs",
 
@@ -346,6 +347,7 @@ export const appMessages = {
     "login.verify": "Ingresar",
     "login.otherEmail": "Usar otro correo",
     "login.error": "Algo salió mal. Intenta de nuevo.",
+    "login.rateLimited": "Ya te enviamos un correo hace menos de un minuto. Usa ese (revisa también spam), o espera un minuto para pedir otro.",
     "login.developers": "¿Solo necesitas la API?",
     "login.docs": "Lee la documentación",
 
