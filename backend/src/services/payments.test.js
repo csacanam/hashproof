@@ -54,7 +54,7 @@ const SESSION = {
   id: "cs_test_1",
   payment_status: "paid",
   amount_total: 2000,
-  metadata: { entity_id: "e1", api_key_id: "k1", user_id: "u1", credits: "100" },
+  metadata: { product: "hashproof", entity_id: "e1", api_key_id: "k1", user_id: "u1", credits: "100" },
 };
 
 describe("handleStripeWebhook", () => {
@@ -74,6 +74,14 @@ describe("handleStripeWebhook", () => {
     await handleStripeWebhook(...signed(SESSION));
     expect(purchases).toHaveLength(1);
     expect(balances.k1).toBe(100);
+  });
+
+  it("ignores other products' checkouts on the shared account, even when paid", async () => {
+    const other = { ...SESSION, metadata: { ...SESSION.metadata, product: "peewah" } };
+    expect(await handleStripeWebhook(...signed(other))).toEqual({ handled: false, ignored: "other_product" });
+    const untagged = { ...SESSION, metadata: {} };
+    expect((await handleStripeWebhook(...signed(untagged))).ignored).toBe("other_product");
+    expect(balances.k1).toBeUndefined();
   });
 
   it("refuses a bad signature", async () => {

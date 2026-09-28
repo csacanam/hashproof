@@ -26,6 +26,11 @@ export const X402_CREDIT_PRICE_CENTS = Math.round(Number(ISSUE_CREDENTIAL_PRICE_
 export const X402_MIN_CREDITS = 10;
 export const MAX_CREDITS_PER_PURCHASE = 100_000;
 
+// The Stripe account is shared with other products, and so is its event stream.
+// Every session we create carries this tag, on the session and on its payment
+// intent, and the webhook ignores anything without it.
+export const STRIPE_PRODUCT_TAG = "hashproof";
+
 let stripeClient = null;
 function stripe() {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -76,7 +81,17 @@ export async function createStripeCheckout({ entity, key, user, credits, returnU
     ],
     customer_email: user.email || undefined,
     client_reference_id: entity.id,
-    metadata: { entity_id: entity.id, api_key_id: key.id, user_id: user.id, credits: String(n) },
+    metadata: {
+      product: STRIPE_PRODUCT_TAG,
+      entity_id: entity.id,
+      api_key_id: key.id,
+      user_id: user.id,
+      credits: String(n),
+    },
+    payment_intent_data: {
+      description: `HashProof credits — ${entity.display_name}`,
+      metadata: { product: STRIPE_PRODUCT_TAG, entity_id: entity.id, api_key_id: key.id, credits: String(n) },
+    },
     success_url: `${returnUrl}${returnUrl.includes("?") ? "&" : "?"}purchase=success&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${returnUrl}${returnUrl.includes("?") ? "&" : "?"}purchase=cancelled`,
   });
@@ -111,9 +126,11 @@ export async function handleStripeWebhook(rawBody, signature) {
     return { handled: false };
   }
   const session = event.data.object;
+  const md = session.metadata || {};
+  // Another product's checkout on the same account: not ours, nothing to log.
+  if (md.product !== STRIPE_PRODUCT_TAG) return { handled: false, ignored: "other_product" };
   if (session.payment_status !== "paid") return { handled: false };
 
-  const md = session.metadata || {};
   const credits = Math.trunc(Number(md.credits));
   if (!md.api_key_id || !md.entity_id || !(credits > 0)) {
     console.error("[payments] paid session without our metadata", session.id);
