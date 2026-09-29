@@ -71,12 +71,16 @@ export function credentialEmail({ locale, holder, issuer, context, verificationU
 /**
  * Email a holder their credential. Never throws: the credential already exists,
  * and a failed email must not look like a failed issuance.
- * @returns {Promise<boolean>} whether SendGrid accepted it
+ *
+ * The credential id travels with the email as a SendGrid custom arg, so the
+ * delivery events SendGrid reports later can be matched to it.
+ *
+ * @returns {Promise<{ ok: boolean, messageId: string | null, error: string | null }>}
  */
-export async function sendCredentialEmail({ to, locale, holder, issuer, context, verificationUrl }) {
+export async function sendCredentialEmail({ to, locale, holder, issuer, context, verificationUrl, credentialId }) {
   if (!isMailerConfigured()) {
     console.warn("[mailer] SENDGRID_API_KEY/SENDGRID_FROM not set; credential email skipped");
-    return false;
+    return { ok: false, messageId: null, error: "Email is not configured" };
   }
   const { subject, html, text } = credentialEmail({ locale, holder, issuer, context, verificationUrl });
   try {
@@ -93,16 +97,18 @@ export async function sendCredentialEmail({ to, locale, holder, issuer, context,
           { type: "text/plain", value: text },
           { type: "text/html", value: html },
         ],
+        ...(credentialId && { custom_args: { hashproof_credential_id: credentialId } }),
         tracking_settings: { click_tracking: { enable: false } },
       }),
     });
     if (!res.ok) {
-      console.error("[mailer] SendGrid refused a credential email:", res.status, (await res.text()).slice(0, 300));
-      return false;
+      const detail = (await res.text()).slice(0, 300);
+      console.error("[mailer] SendGrid refused a credential email:", res.status, detail);
+      return { ok: false, messageId: null, error: `SendGrid ${res.status}` };
     }
-    return true;
+    return { ok: true, messageId: res.headers.get("x-message-id"), error: null };
   } catch (err) {
     console.error("[mailer] credential email failed:", err.message);
-    return false;
+    return { ok: false, messageId: null, error: "Could not reach SendGrid" };
   }
 }

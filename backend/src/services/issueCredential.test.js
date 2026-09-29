@@ -63,6 +63,10 @@ vi.mock("./credentialArtifacts.js", () => ({
 
 const mockSendCredentialEmail = vi.fn(async () => true);
 vi.mock("./mailer.js", () => ({ sendCredentialEmail: (...a) => mockSendCredentialEmail(...a) }));
+const mockRecordSend = vi.fn(async () => {});
+vi.mock("./holderNotify.js", () => ({ recordSend: (...a) => mockRecordSend(...a) }));
+// The email chain runs after issuance returns; let it finish.
+const settle = () => new Promise((ok) => setTimeout(ok, 0));
 
 vi.mock("./pdfStore.js", () => ({
   storePdf: vi.fn().mockResolvedValue(true),
@@ -233,6 +237,7 @@ describe("executeIssueCredential", () => {
   it("emails the holder only when the issuance asks for it", async () => {
     mockSendCredentialEmail.mockClear();
     await executeIssueCredential({ ...validPayload, holder: { ...validPayload.holder, email: "ana@example.com" } });
+    await settle();
     expect(mockSendCredentialEmail).not.toHaveBeenCalled();
 
     await executeIssueCredential({
@@ -241,6 +246,7 @@ describe("executeIssueCredential", () => {
       notify_holder: true,
       notify_locale: "en",
     });
+    await settle();
     expect(mockSendCredentialEmail).toHaveBeenCalledWith(
       expect.objectContaining({
         to: "ana@example.com",
@@ -249,14 +255,18 @@ describe("executeIssueCredential", () => {
         issuer: "Test Issuer",
         context: "Blockchain 101",
         verificationUrl: expect.stringMatching(/\/verify\/mock-id$/),
+        credentialId: "mock-id",
       }),
     );
+    // What SendGrid answered is recorded against the credential.
+    expect(mockRecordSend).toHaveBeenCalledWith("mock-id", true);
   });
 
   it("does not email without a usable address, even when asked", async () => {
     mockSendCredentialEmail.mockClear();
     await executeIssueCredential({ ...validPayload, notify_holder: true });
     await executeIssueCredential({ ...validPayload, holder: { ...validPayload.holder, email: "nope" }, notify_holder: true });
+    await settle();
     expect(mockSendCredentialEmail).not.toHaveBeenCalled();
   });
 

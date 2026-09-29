@@ -33,6 +33,7 @@ import { listCredentials } from "./services/listCredentials.js";
 import { createAppRouter } from "./routes/app.js";
 import { addMember, ensurePanelKey } from "./services/accounts.js";
 import { handleStripeWebhook, syncVoultiInvoice, verifyVoultiSignature } from "./services/payments.js";
+import { applySendgridEvents, verifySendgridSignature } from "./services/holderNotify.js";
 import { Buffer } from "node:buffer";
 import { randomUUID } from "node:crypto";
 import { sendError, classifyError } from "./utils/errors.js";
@@ -114,6 +115,31 @@ export function createApp(options = {}) {
       syncVoultiInvoice(invoiceId).catch((err) =>
         console.error(`[voulti/webhook] could not credit invoice ${invoiceId}:`, err.message),
       );
+    }
+  });
+
+  // SendGrid's Event Webhook: delivery outcomes of the credential emails. The
+  // signature covers the raw bytes, so this also sits before the JSON parser.
+  app.post("/sendgrid/events", express.raw({ type: "*/*", limit: "5mb" }), async (req, res) => {
+    const raw = Buffer.isBuffer(req.body) ? req.body.toString("utf8") : "";
+    const ok = verifySendgridSignature(
+      raw,
+      req.get("x-twilio-email-event-webhook-signature"),
+      req.get("x-twilio-email-event-webhook-timestamp"),
+      process.env.SENDGRID_WEBHOOK_PUBLIC_KEY,
+    );
+    if (!ok) return res.status(401).json({ error: "Invalid signature" });
+    let events;
+    try {
+      events = JSON.parse(raw);
+    } catch {
+      return res.status(400).json({ error: "Invalid JSON" });
+    }
+    try {
+      return res.json(await applySendgridEvents(events));
+    } catch (err) {
+      console.error("[sendgrid/events]", err.message);
+      return res.status(500).json({ error: "Could not apply events" });
     }
   });
 

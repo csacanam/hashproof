@@ -603,3 +603,9 @@
 .dash-editor-panel .dash-grid-3 { gap: 0.45rem; }
 .dash-editor-panel .dash-grid-3 input,
 .dash-editor-panel .dash-grid-3 select { padding-left: 0.5rem; padding-right: 0.35rem; font-size: 0.875rem; }
+
+.dash-email { display: flex; flex-direction: column; gap: 0.1rem; }
+.dash-email-status { font-size: 0.8rem; font-weight: 600; }
+.dash-email-status--ok { color: #4ade80; }
+.dash-email-status--bad { color: #f87171; }
+.dash-email-status--muted { color: var(--color-text-muted); }

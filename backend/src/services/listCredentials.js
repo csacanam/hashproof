@@ -36,7 +36,7 @@ export async function listCredentials(
   let query = supabase
     .from("credentials")
     .select(
-      `id, credential_type, created_at, expires_at, revoked_at, revocation_reason, revocation_tx_hash, tx_hash, issuer_entity_id, platform_entity_id, holder_name:credential_json->credentialSubject->>full_name, ${contextSel}, templates(slug)`,
+      `id, credential_type, created_at, expires_at, revoked_at, revocation_reason, revocation_tx_hash, tx_hash, issuer_entity_id, platform_entity_id, holder_name:credential_json->credentialSubject->>full_name, ${contextSel}, templates(slug), credential_holder_contacts(email, notify_status, notified_at, notify_updated_at, notify_detail)`,
       { count: "exact" },
     )
     .or(`issuer_entity_id.eq.${entityId},platform_entity_id.eq.${entityId}`)
@@ -79,8 +79,21 @@ export async function listCredentials(
       role: c.issuer_entity_id === entityId ? "issuer" : "platform",
       tx_hash: c.tx_hash,
       verification_url: `${root}/verify/${c.id}`,
+      // The holder's email and whether it reached them. Private to the
+      // organization; never part of the credential itself.
+      holder_email: contact(c)?.email ?? null,
+      email_status: contact(c)?.notify_status ?? null,
+      email_sent_at: contact(c)?.notified_at ?? null,
+      email_updated_at: contact(c)?.notify_updated_at ?? null,
+      email_detail: contact(c)?.notify_detail ?? null,
     })),
   };
+}
+
+// One-to-one embed: PostgREST returns an object, or an array on older setups.
+function contact(c) {
+  const v = c.credential_holder_contacts;
+  return Array.isArray(v) ? v[0] : v;
 }
 
 function escapeLike(s) {

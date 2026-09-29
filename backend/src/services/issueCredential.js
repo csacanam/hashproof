@@ -13,6 +13,7 @@ import { buildIpfsDocument } from "./ipfsDocument.js";
 import { buildCredentialArtifacts } from "./credentialArtifacts.js";
 import { storePdf } from "./pdfStore.js";
 import { sendCredentialEmail } from "./mailer.js";
+import { recordSend } from "./holderNotify.js";
 import crypto from "node:crypto";
 import { Contract, Wallet } from "ethers";
 import { getCeloProvider } from "../utils/celoProvider.js";
@@ -503,24 +504,28 @@ export async function executeIssueCredential(payload) {
   }
 
   if (holderEmail) {
-    // The credential is already on-chain; a failure here must not turn a
-    // successful issuance into an error the caller would retry (and pay twice).
-    storeHolderEmail(credentialId, holderEmail).catch((err) =>
-      console.error(`[issueCredential] holder email store failed for ${credentialId}:`, err.message)
-    );
-  }
-
-  // Opt-in only: the dashboard asks for it; an API integration gets it only by
-  // sending notify_holder: true. Fire and forget, like the store above.
-  if (holderEmail && payload.notify_holder === true) {
-    sendCredentialEmail({
-      to: holderEmail,
-      locale: payload.notify_locale,
-      holder: holder?.full_name,
-      issuer: issuer?.display_name,
-      context: context?.title,
-      verificationUrl: `${baseUrl}/verify/${credentialId}`,
-    }).catch(() => {});
+    // The credential is already on-chain; nothing here may turn a successful
+    // issuance into an error the caller would retry (and pay twice). One chain,
+    // in order: store the address, then — only if asked (the dashboard does; an
+    // API integration opts in with notify_holder: true) — email the holder and
+    // record what SendGrid said, on the row just stored.
+    storeHolderEmail(credentialId, holderEmail)
+      .then(async () => {
+        if (payload.notify_holder !== true) return;
+        const result = await sendCredentialEmail({
+          to: holderEmail,
+          locale: payload.notify_locale,
+          holder: holder?.full_name,
+          issuer: issuer?.display_name,
+          context: context?.title,
+          verificationUrl: `${baseUrl}/verify/${credentialId}`,
+          credentialId,
+        });
+        await recordSend(credentialId, result);
+      })
+      .catch((err) =>
+        console.error(`[issueCredential] holder email store/send failed for ${credentialId}:`, err.message)
+      );
   }
 
   // Keep the exact bytes that were hashed. Rendering is deterministic, so a

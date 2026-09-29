@@ -25,6 +25,7 @@ import {
 } from "../services/accounts.js";
 import { listCredentials } from "../services/listCredentials.js";
 import { revokeCredential } from "../services/revokeCredential.js";
+import { resendCredentialEmail } from "../services/holderNotify.js";
 import { buildPayload, issueFromDashboard } from "../services/dashboardIssuance.js";
 import {
   createTemplate,
@@ -243,6 +244,25 @@ export function createAppRouter({ baseUrl, frontendUrl, skipPayment = false }) {
         });
       }
       return fail(res, err, { handler: "app/revoke" });
+    }
+  });
+
+  // Email a credential to its holder again, or for the first time; a new
+  // address replaces the stored one.
+  org.post("/credentials/:credentialId/notify", async (req, res) => {
+    try {
+      if (!UUID_RE.test(req.params.credentialId)) throw new Error("Credential not found");
+      return res.json(
+        await resendCredentialEmail({
+          entity: req.entity,
+          credentialId: req.params.credentialId,
+          email: req.body?.email,
+          locale: req.body?.locale === "en" ? "en" : "es",
+          baseUrl,
+        }),
+      );
+    } catch (err) {
+      return fail(res, err, { handler: "app/credentials notify" });
     }
   });
 
