@@ -5,11 +5,11 @@
  * Credits belong to the organization, and every API key of it and its dashboard
  * spend from that one balance (migration 009), so a purchase names no key.
  *
- * Credits cost $0.50 by card and $0.45 in crypto. What the dashboard sells is the
- * product around the credential (templates, bulk issuance, revocation, a team).
- * The 10% crypto discount is roughly what a card costs us that stablecoins do not
- * — Stripe's fee over Voulti's, plus chargeback risk — so it can be explained,
- * and it does not make the card price look inflated.
+ * Credits cost $0.25 by card and $0.22 in crypto: below the pay-as-you-go price
+ * of the closest platform (POK, $0.30), whatever the volume. The ~10% crypto
+ * discount is roughly what a card costs us that stablecoins do not — Stripe's
+ * fee over Voulti's, plus chargeback risk — so it can be explained, and it does
+ * not make the card price look inflated.
  * Paying per call with x402 on /issueCredential stays at $0.10 — the developer
  * path, for agents and scripts that carry their own wallet.
  * Card purchases have a higher minimum because Stripe charges a fixed fee per
@@ -27,9 +27,9 @@ import { supabase } from "../supabase.js";
 import { sendTelegramAlert } from "../utils/notify.js";
 import { escapeHtml } from "./accounts.js";
 
-export const STRIPE_CREDIT_PRICE_CENTS = 50;
+export const STRIPE_CREDIT_PRICE_CENTS = 25;
 export const STRIPE_MIN_CREDITS = 25;
-export const VOULTI_CREDIT_PRICE_CENTS = 45;
+export const VOULTI_CREDIT_PRICE_CENTS = 22;
 export const VOULTI_MIN_CREDITS = 10;
 export const MAX_CREDITS_PER_PURCHASE = 100_000;
 

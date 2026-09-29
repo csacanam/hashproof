@@ -53,7 +53,7 @@ function signed(session, type = "checkout.session.completed") {
 const SESSION = {
   id: "cs_test_1",
   payment_status: "paid",
-  amount_total: 5000,
+  amount_total: 2500,
   metadata: { product: "hashproof", entity_id: "e1", user_id: "u1", credits: "100" },
 };
 
@@ -106,12 +106,12 @@ describe("handleStripeWebhook", () => {
 
 describe("Voulti", () => {
   beforeEach(() => {
-    purchases = [{ id: "pv", method: "voulti", external_ref: "inv_1", status: "pending", credits: 100, entity_id: "e1", amount_usd_cents: 4500 }];
+    purchases = [{ id: "pv", method: "voulti", external_ref: "inv_1", status: "pending", credits: 100, entity_id: "e1", amount_usd_cents: 2200 }];
     balances = {};
   });
 
   const invoice = (fields) =>
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ id: "inv_1", fiat_currency: "USD", amount_fiat: 45, ...fields })));
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ id: "inv_1", fiat_currency: "USD", amount_fiat: 22, ...fields })));
 
   it("credits the organization once the invoice is Paid, and only once", async () => {
     invoice({ status: "Paid" });

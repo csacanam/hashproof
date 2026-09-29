@@ -43,7 +43,7 @@ export const homeMessages = {
     "home.pricing.api": "HashProof · API",
     "home.pricing.dashboard": "HashProof · Dashboard",
     "home.pricing.note":
-      "Two ways to issue with us. Through the API you pay $0.10 per credential over x402. In the dashboard — templates, spreadsheet uploads, revocation, your team, no code — credits cost $0.45 in crypto or $0.50 by card. Notice the middle column: at exactly 10,000 a year Certifier is cheaper than both, because that is the size of its plan; the difference appears when your volume does not match a plan, which is most years.",
+      "Two ways to issue with us. Through the API you pay $0.10 per credential over x402. In the dashboard — templates, spreadsheet uploads, revocation, your team, no code — credits cost $0.22 in crypto or $0.25 by card, below any per-credential price above. Where a yearly plan is cheaper, it is because you prepay a volume: at exactly 10,000 Certifier beats both of our prices, and above about 12,000 a year POK's $3,000 plan beats the dashboard. We never ask for a commitment — you pay for what you issued.",
     "home.pricing.compare": "Compare in detail:",
 
     // What the recipient gets
@@ -108,7 +108,7 @@ export const homeMessages = {
     "home.pricing.api": "HashProof · API",
     "home.pricing.dashboard": "HashProof · Panel",
     "home.pricing.note":
-      "Hay dos formas de emitir con nosotros. Por API pagas $0,10 por credencial vía x402. En el panel —plantillas, carga desde Excel, revocación, tu equipo, sin programar— los créditos cuestan $0,45 en cripto o $0,50 con tarjeta. Fíjate en la columna del medio: a exactamente 10.000 al año Certifier sale más barato que ambos, porque ese es el tamaño de su plan; la diferencia aparece cuando tu volumen no coincide con un plan, que es casi siempre.",
+      "Hay dos formas de emitir con nosotros. Por API pagas $0,10 por credencial vía x402. En el panel —plantillas, carga desde Excel, revocación, tu equipo, sin programar— los créditos cuestan $0,22 en cripto o $0,25 con tarjeta, por debajo de cualquier precio por credencial de la tabla. Donde un plan anual sale más barato es porque pagas un volumen por adelantado: a exactamente 10.000 Certifier le gana a nuestros dos precios, y por encima de unas 12.000 al año el plan de $3.000 de POK le gana al panel. Nosotros nunca pedimos compromiso: pagas lo que emitiste.",
     "home.pricing.compare": "Comparar en detalle:",
 
     // Qué recibe la persona
@@ -156,9 +156,9 @@ export const homeMessages = {
 export const PRICING_ROWS = [
   { key: "hashproof", nameKey: "home.pricing.api", name: "HashProof · API", model: "perCredential",
     costs: { v2000: "$200", v10000: "$1,000", v20000: "$2,000" }, highlight: true },
-  // Credits in the dashboard: $0.45 in crypto, $0.50 by card.
+  // Credits in the dashboard: $0.22 in crypto, $0.25 by card.
   { key: "hashproof-dashboard", nameKey: "home.pricing.dashboard", name: "HashProof · Dashboard", model: "perCredential",
-    costs: { v2000: "$900–$1,000", v10000: "$4,500–$5,000", v20000: "$9,000–$10,000" }, highlight: true },
+    costs: { v2000: "$440–$500", v10000: "$2,200–$2,500", v20000: "$4,400–$5,000" }, highlight: true },
   { key: "pok", name: "POK · Blockchain Verify", model: "perCredential",
     costs: { v2000: "$600", v10000: "$3,000", v20000: "$3,000" } },
   { key: "certifier", name: "Certifier", model: "perTier",

@@ -48,7 +48,7 @@ export default function Compare() {
             `${OUR_COSTS.v2000} for 2,000 a year, ${OUR_COSTS.v10000} for 10,000, ${OUR_COSTS.v20000} for 20,000. ` +
             `${rival.name} charges: ${t(rival.how)}. ${money(rival.costs.v2000)} for 2,000 a year, ` +
             `${money(rival.costs.v10000)} for 10,000, ${money(rival.costs.v20000)} for 20,000. ` +
-            `In the HashProof dashboard (no code, templates and bulk upload), credits cost $0.45 in crypto or $0.50 by card. ` +
+            `In the HashProof dashboard (no code, templates and bulk upload), credits cost $0.22 in crypto or $0.25 by card. ` +
             `Prices verified ${PRICE_CHECK_DATE} against published pricing pages.`,
         },
       },

@@ -93,8 +93,8 @@ describe("dashboard routes", () => {
   it("serves pricing without a session", async () => {
     const res = await request(app).get("/app/pricing");
     expect(res.status).toBe(200);
-    expect(res.body.stripe.cents_per_credit).toBe(50);
-    expect(res.body.crypto.cents_per_credit).toBe(45);
+    expect(res.body.stripe.cents_per_credit).toBe(25);
+    expect(res.body.crypto.cents_per_credit).toBe(22);
   });
 
   it("requires a session", async () => {

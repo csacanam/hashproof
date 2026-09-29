@@ -30,7 +30,7 @@ export const compareMessages = {
     "cmp.pricing.v10000": "10,000 a year",
     "cmp.pricing.v20000": "20,000 a year",
     "cmp.pricing.ours": "HashProof",
-    "cmp.pricing.ourPlan": "$0.10 per certificate through the API ($0.45–$0.50 in the dashboard)",
+    "cmp.pricing.ourPlan": "$0.10 per certificate through the API ($0.22–$0.25 in the dashboard)",
     "cmp.pricing.notPublished": "Not published",
     "cmp.pricing.approx":
       "Figures marked ~ are worked out from the published per-recipient rate; the vendor does not publish a price at that volume.",
@@ -130,7 +130,7 @@ export const compareMessages = {
     "cmp.pricing.v10000": "10.000 al año",
     "cmp.pricing.v20000": "20.000 al año",
     "cmp.pricing.ours": "HashProof",
-    "cmp.pricing.ourPlan": "$0,10 por certificado vía API ($0,45–$0,50 en el panel)",
+    "cmp.pricing.ourPlan": "$0,10 por certificado vía API ($0,22–$0,25 en el panel)",
     "cmp.pricing.notPublished": "No lo publican",
     "cmp.pricing.approx":
       "Las cifras con ~ salen de la tarifa por receptor publicada; el proveedor no publica precio para ese volumen.",

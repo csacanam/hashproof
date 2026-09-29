@@ -149,9 +149,9 @@ describe("readImageInfo", () => {
 });
 
 describe("pricing", () => {
-  it("prices credits at $0.50 by card and $0.45 in crypto", () => {
-    expect(priceCents(50, "stripe")).toBe(2500);
-    expect(priceCents(50, "voulti")).toBe(2250);
+  it("prices credits at $0.25 by card and $0.22 in crypto", () => {
+    expect(priceCents(50, "stripe")).toBe(1250);
+    expect(priceCents(50, "voulti")).toBe(1100);
   });
 
   it("enforces the per-method minimum", () => {
