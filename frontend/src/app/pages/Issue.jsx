@@ -9,7 +9,6 @@ import BuyLink from "../components/BuyLink.jsx";
 const CONTEXT_TYPES = ["event", "course", "diploma", "training", "certification", "membership", "other"];
 const CREDENTIAL_TYPES = ["attendance", "completion", "achievement", "participation", "membership", "certification"];
 const CONCURRENCY = 4;
-const TEXT_MODE = "__text__";
 
 const POLL_MS = 3000;
 
@@ -295,9 +294,10 @@ function CsvIssue({ common, extraFields, ready }) {
         holder_name: r[map.name],
         holder_email: map.email ? r[map.email] : "",
         values: Object.fromEntries(
-          Object.entries(map.fields)
-            .filter(([, src]) => src)
-            .map(([k, src]) => [k, typeof src === "string" ? r[src] : fillTags(src.text, r)]),
+          Object.entries(map.fields).map(([k, src]) => [
+            k,
+            src?.mode === "column" ? r[src.col] ?? "" : src?.mode === "text" ? fillTags(src.text, r) : "",
+          ]),
         ),
       }, { on: notify, locale }),
     );
@@ -323,7 +323,11 @@ function CsvIssue({ common, extraFields, ready }) {
     const parsed = parseCsv(text);
     setFile({ name: f.name, text, ...parsed });
     const fields = {};
-    for (const fld of extraFields) fields[fld.key] = parsed.headers.find((h) => h.toLowerCase() === fld.key.toLowerCase()) ?? "";
+    for (const fld of extraFields) {
+      const col = parsed.headers.find((h) => h.toLowerCase() === fld.key.toLowerCase());
+      // No matching column: start in text mode, so the box is in plain sight.
+      fields[fld.key] = col ? { mode: "column", col } : { mode: "text", text: "" };
+    }
     setMap({ name: guessColumn(parsed.headers, "name"), email: guessColumn(parsed.headers, "email"), fields });
     setValidation(null);
     setRun(null);
@@ -539,27 +543,52 @@ function CsvIssue({ common, extraFields, ready }) {
                       {f.required ? " *" : ""}
                     </span>
                     <div className="dash-mapping-value">
-                      <select
-                        value={typeof map.fields[f.key] === "object" ? TEXT_MODE : map.fields[f.key] || ""}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          const next = v === TEXT_MODE ? { text: map.fields[f.key]?.text ?? "" } : v;
-                          setMap({ ...map, fields: { ...map.fields, [f.key]: next } });
-                        }}
-                      >
-                        <option value="">{t("issue.none")}</option>
-                        {file.headers.map((h) => (
-                          <option key={h}>{h}</option>
+                      <div className="dash-segmented" role="radiogroup">
+                        {[
+                          ["column", t("issue.mode.column")],
+                          ["text", t("issue.mode.text")],
+                          ["none", t("issue.mode.none")],
+                        ].map(([mode, label]) => (
+                          <button
+                            key={mode}
+                            type="button"
+                            role="radio"
+                            aria-checked={map.fields[f.key]?.mode === mode}
+                            className={map.fields[f.key]?.mode === mode ? "is-active" : ""}
+                            onClick={() => {
+                              const cur = map.fields[f.key] || {};
+                              const next =
+                                mode === "column"
+                                  ? { mode, col: cur.col || file.headers.find((h) => h !== map.name && h !== map.email) || file.headers[0] }
+                                  : mode === "text"
+                                    ? { mode, text: cur.text || "" }
+                                    : { mode };
+                              setMap({ ...map, fields: { ...map.fields, [f.key]: { ...cur, ...next } } });
+                            }}
+                          >
+                            {label}
+                          </button>
                         ))}
-                        <option value={TEXT_MODE}>{t("issue.textWithTags")}</option>
-                      </select>
-                      {typeof map.fields[f.key] === "object" && (
+                      </div>
+                      {map.fields[f.key]?.mode === "column" && (
+                        <select
+                          value={map.fields[f.key].col}
+                          onChange={(e) => setMap({ ...map, fields: { ...map.fields, [f.key]: { ...map.fields[f.key], col: e.target.value } } })}
+                        >
+                          {file.headers.map((h) => (
+                            <option key={h}>{h}</option>
+                          ))}
+                        </select>
+                      )}
+                      {map.fields[f.key]?.mode === "text" && (
                         <>
                           <textarea
                             rows={2}
                             value={map.fields[f.key].text}
                             placeholder={t("issue.textPh", { tag: `{${file.headers[2] || file.headers[1] || file.headers[0]}}` })}
-                            onChange={(e) => setMap({ ...map, fields: { ...map.fields, [f.key]: { text: e.target.value } } })}
+                            onChange={(e) =>
+                              setMap({ ...map, fields: { ...map.fields, [f.key]: { ...map.fields[f.key], text: e.target.value } } })
+                            }
                           />
                           <div className="dash-tags">
                             <span className="dash-muted dash-small">{t("issue.insertTag")}</span>
@@ -569,15 +598,20 @@ function CsvIssue({ common, extraFields, ready }) {
                                 type="button"
                                 className="dash-chip"
                                 onClick={() =>
-                                  setMap({ ...map, fields: { ...map.fields, [f.key]: { text: `${map.fields[f.key].text}{${h}}` } } })
+                                  setMap({
+                                    ...map,
+                                    fields: { ...map.fields, [f.key]: { ...map.fields[f.key], text: `${map.fields[f.key].text}{${h}}` } },
+                                  })
                                 }
                               >
                                 {`{${h}}`}
                               </button>
                             ))}
                           </div>
+                          <small className="dash-muted">{t("issue.textHelp")}</small>
                         </>
                       )}
+                      {map.fields[f.key]?.mode === "none" && <small className="dash-muted">{t("issue.noneHelp")}</small>}
                     </div>
                   </Fragment>
                 ))}
