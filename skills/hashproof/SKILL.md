@@ -404,6 +404,8 @@ Returns a PDF with a watermark. No cost, nothing is registered. Share the previe
 | `holder.full_name` | string | yes | Full name of the credential recipient |
 | `holder.email` | string | no | Recipient's email. **Private**: never written to the credential, IPFS or the chain. Recommended — it is how the recipient will find their credentials in HashProof later. |
 | `holder.external_id` | string | no | ID from your own system |
+| `notify_holder` | boolean | no | `true` to have HashProof email the recipient their credential once issued (needs `holder.email`). Off by default. |
+| `notify_locale` | string | no | `es` (default) or `en`, for that email |
 | `context.type` | enum | yes | `event`, `course`, `diploma`, `training`, `certification`, `membership`, `other` |
 | `context.title` | string | yes | Name of the event, course, or program |
 | `credential_type` | enum | yes | `attendance`, `completion`, `achievement`, `participation`, `membership`, `certification` |

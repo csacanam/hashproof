@@ -61,6 +61,9 @@ vi.mock("./credentialArtifacts.js", () => ({
   })),
 }));
 
+const mockSendCredentialEmail = vi.fn(async () => true);
+vi.mock("./mailer.js", () => ({ sendCredentialEmail: (...a) => mockSendCredentialEmail(...a) }));
+
 vi.mock("./pdfStore.js", () => ({
   storePdf: vi.fn().mockResolvedValue(true),
   getStoredPdf: vi.fn().mockResolvedValue(null),
@@ -225,6 +228,37 @@ describe("executeIssueCredential", () => {
     const prepareCall = supabase.rpc.mock.calls.findLast((c) => c[0] === "prepare_credential");
     expect(prepareCall[1].p_payload.holder).not.toHaveProperty("email");
     expect(mockContactInsert).toHaveBeenCalledWith({ credential_id: "mock-id", email: "ana@example.com" });
+  });
+
+  it("emails the holder only when the issuance asks for it", async () => {
+    mockSendCredentialEmail.mockClear();
+    await executeIssueCredential({ ...validPayload, holder: { ...validPayload.holder, email: "ana@example.com" } });
+    expect(mockSendCredentialEmail).not.toHaveBeenCalled();
+
+    await executeIssueCredential({
+      ...validPayload,
+      holder: { ...validPayload.holder, email: "ana@example.com" },
+      notify_holder: true,
+      notify_locale: "en",
+    });
+    expect(mockSendCredentialEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "ana@example.com",
+        locale: "en",
+        holder: "Juan Pérez",
+        issuer: "Test Issuer",
+        context: "Blockchain 101",
+        verificationUrl: expect.stringMatching(/\/verify\/mock-id$/),
+        pdfUrl: expect.stringMatching(/\/verify\/mock-id\/pdf$/),
+      }),
+    );
+  });
+
+  it("does not email without a usable address, even when asked", async () => {
+    mockSendCredentialEmail.mockClear();
+    await executeIssueCredential({ ...validPayload, notify_holder: true });
+    await executeIssueCredential({ ...validPayload, holder: { ...validPayload.holder, email: "nope" }, notify_holder: true });
+    expect(mockSendCredentialEmail).not.toHaveBeenCalled();
   });
 
   it("still issues when the holder email is not an address, and stores nothing", async () => {

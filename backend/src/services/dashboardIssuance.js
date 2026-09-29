@@ -73,6 +73,11 @@ export function buildPayload(entity, input) {
     title: String(input.title ?? "").trim(),
     values,
     ...(input.template_slug && { template_slug: String(input.template_slug) }),
+    // Email the credential to the holder once it is issued: asked for per issue.
+    ...(input.notify_holder === true && holder.email && {
+      notify_holder: true,
+      notify_locale: input.notify_locale === "en" ? "en" : "es",
+    }),
     ...(expiresAt && { expires_at: expiresAt }),
   };
 

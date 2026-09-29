@@ -120,6 +120,8 @@ Same fields as `issuer`. Can be the same entity as the issuer (set both to the s
 |-------|------|----------|-------------|
 | `full_name` | string | yes | Full name of the credential recipient |
 | `email` | string | no | Recipient's email. Stored privately: never written to the credential, IPFS or the chain. Recommended — it is how the recipient will find their credentials later |
+
+To have HashProof email the recipient their credential once it is issued, add `"notify_holder": true` at the top level of the body (and optionally `"notify_locale": "en"`; default Spanish). Nothing is emailed without it, even when `holder.email` is present.
 | `external_id` | string | no | ID from your own system |
 
 #### context `object` — required

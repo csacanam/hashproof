@@ -147,7 +147,7 @@ export default function Issue() {
   );
 }
 
-function buildInput(common, row) {
+function buildInput(common, row, notify) {
   return {
     template_slug: common.template_slug,
     context_type: common.context_type,
@@ -158,13 +158,15 @@ function buildInput(common, row) {
     holder_name: row.holder_name,
     holder_email: row.holder_email || undefined,
     values: row.values,
+    ...(notify?.on && row.holder_email && { notify_holder: true, notify_locale: notify.locale }),
   };
 }
 
 function SingleIssue({ common, extraFields, ready }) {
-  const { t, orgPath, refreshOverview } = useDashboard();
+  const { t, locale, orgPath, refreshOverview } = useDashboard();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [notify, setNotify] = useState(true);
   const [values, setValues] = useState({});
   const [state, setState] = useState(null); // {phase, job, error}
   // One key per form: a double click, or a retry after a network blip, yields one credential.
@@ -176,7 +178,10 @@ function SingleIssue({ common, extraFields, ready }) {
     try {
       const out = await api(orgPath("/issue"), {
         method: "POST",
-        body: { input: buildInput(common, { holder_name: name, holder_email: email, values }), idempotency_key: keyRef.current },
+        body: {
+          input: buildInput(common, { holder_name: name, holder_email: email, values }, { on: notify, locale }),
+          idempotency_key: keyRef.current,
+        },
       });
       setState({ phase: "waiting" });
       refreshOverview();
@@ -229,6 +234,11 @@ function SingleIssue({ common, extraFields, ready }) {
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           <small className="dash-muted">{t("issue.holderEmailHelp")}</small>
         </label>
+          {email && (
+            <label className="dash-check">
+              <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} /> {t("issue.notifyOne")}
+            </label>
+          )}
         {extraFields.map((f) => (
           <label className="dash-field" key={f.key}>
             <span>
@@ -255,12 +265,13 @@ function SingleIssue({ common, extraFields, ready }) {
 }
 
 function CsvIssue({ common, extraFields, ready }) {
-  const { t, orgPath, overview, refreshOverview } = useDashboard();
+  const { t, locale, orgPath, overview, refreshOverview } = useDashboard();
   const [file, setFile] = useState(null); // {name, text, headers, rows}
   const [map, setMap] = useState({ name: "", email: "", fields: {} });
   const [validation, setValidation] = useState(null);
   const [run, setRun] = useState(null); // {results: [{status, url, id, error}], running}
   const [zip, setZip] = useState(null); // {done, total} while the ZIP is being built
+  const [notify, setNotify] = useState(true);
   const abortRef = useRef(null);
 
   useEffect(() => () => abortRef.current?.abort(), []);
@@ -289,9 +300,9 @@ function CsvIssue({ common, extraFields, ready }) {
             .filter(([, src]) => src)
             .map(([k, src]) => [k, typeof src === "string" ? r[src] : fillTags(src.text, r)]),
         ),
-      }),
+      }, { on: notify, locale }),
     );
-  }, [file, map, common]);
+  }, [file, map, common, notify, locale]);
 
   async function validate() {
     setValidation({ loading: true });
@@ -463,6 +474,11 @@ function CsvIssue({ common, extraFields, ready }) {
                 ))}
               </select>
             </label>
+              {map.email && (
+                <label className="dash-check">
+                  <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} /> {t("issue.notifyAll")}
+                </label>
+              )}
             {extraFields.map((f) => (
               <label className="dash-field" key={f.key}>
                 <span>

@@ -12,6 +12,7 @@ import { pinJsonToIpfs, unpinCid } from "./pinata.js";
 import { buildIpfsDocument } from "./ipfsDocument.js";
 import { buildCredentialArtifacts } from "./credentialArtifacts.js";
 import { storePdf } from "./pdfStore.js";
+import { sendCredentialEmail } from "./mailer.js";
 import crypto from "node:crypto";
 import { Contract, Wallet } from "ethers";
 import { getCeloProvider } from "../utils/celoProvider.js";
@@ -507,6 +508,20 @@ export async function executeIssueCredential(payload) {
     storeHolderEmail(credentialId, holderEmail).catch((err) =>
       console.error(`[issueCredential] holder email store failed for ${credentialId}:`, err.message)
     );
+  }
+
+  // Opt-in only: the dashboard asks for it; an API integration gets it only by
+  // sending notify_holder: true. Fire and forget, like the store above.
+  if (holderEmail && payload.notify_holder === true) {
+    sendCredentialEmail({
+      to: holderEmail,
+      locale: payload.notify_locale,
+      holder: holder?.full_name,
+      issuer: issuer?.display_name,
+      context: context?.title,
+      verificationUrl: `${baseUrl}/verify/${credentialId}`,
+      pdfUrl: `${baseUrl}/verify/${credentialId}/pdf`,
+    }).catch(() => {});
   }
 
   // Keep the exact bytes that were hashed. Rendering is deterministic, so a
