@@ -46,6 +46,7 @@ export default function TemplateEditor() {
   const [preview, setPreview] = useState(null);
   const [loaded, setLoaded] = useState(isNew && !search.get("from"));
   const [qrBusy, setQrBusy] = useState(null); // share of the QR corner that is not plain background
+  const [dragging, setDragging] = useState(false);
 
   // Load the template being edited, or the one being duplicated.
   useEffect(() => {
@@ -81,9 +82,17 @@ export default function TemplateEditor() {
   const page = bg ? { page_width: bg.width, page_height: bg.height } : null;
   const field = fields[selected];
 
-  async function upload(e) {
-    const file = e.target.files?.[0];
+  function onPick(e) {
+    uploadFile(e.target.files?.[0]);
+    e.target.value = "";
+  }
+
+  async function uploadFile(file) {
     if (!file) return;
+    if (!["image/png", "image/jpeg"].includes(file.type)) {
+      setError({ message: t("editor.backgroundType") });
+      return;
+    }
     setBusy("upload");
     setError(null);
     try {
@@ -109,7 +118,6 @@ export default function TemplateEditor() {
       setError({ message: err.message });
     } finally {
       setBusy("");
-      e.target.value = "";
     }
   }
 
@@ -206,11 +214,42 @@ export default function TemplateEditor() {
                 <span>{t("editor.name")}</span>
                 <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("editor.namePh")} />
               </label>
-              <label className="dash-field">
+              <div className="dash-field">
                 <span>{t("editor.background")}</span>
-                <input type="file" accept="image/png,image/jpeg" onChange={upload} disabled={busy === "upload"} />
-                <small className="dash-muted">{busy === "upload" ? t("editor.uploading") : t("editor.backgroundHelp")}</small>
-              </label>
+                {!bg ? (
+                  <label
+                    className={`dash-drop${dragging ? " is-over" : ""}${busy === "upload" ? " is-busy" : ""}`}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setDragging(true);
+                    }}
+                    onDragLeave={() => setDragging(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setDragging(false);
+                      uploadFile(e.dataTransfer.files?.[0]);
+                    }}
+                  >
+                    <input type="file" accept="image/png,image/jpeg" onChange={onPick} disabled={busy === "upload"} />
+                    <strong>{busy === "upload" ? t("editor.uploading") : t("editor.drop")}</strong>
+                    <span className="dash-muted">{t("editor.backgroundHelp")}</span>
+                  </label>
+                ) : (
+                  <div className="dash-file">
+                    <img className="dash-file-thumb" src={bg.url} alt="" />
+                    <div>
+                      <strong>{t("editor.backgroundSet")}</strong>
+                      <div className="dash-muted dash-small">
+                        {bg.width} × {bg.height} px · {t("editor.backgroundQr")}
+                      </div>
+                    </div>
+                    <label className="dash-link dash-file-change">
+                      {busy === "upload" ? t("editor.uploading") : t("editor.changeImage")}
+                      <input type="file" accept="image/png,image/jpeg" onChange={onPick} disabled={busy === "upload"} hidden />
+                    </label>
+                  </div>
+                )}
+              </div>
             </div>
 
             {bg && (
