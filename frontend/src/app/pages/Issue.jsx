@@ -5,6 +5,8 @@ import { useDashboard } from "../useDashboard.js";
 import { formatNumber } from "../format.js";
 import { decodeCsv, digest, fillTags, guessColumn, parseCsv, toCsv } from "../csv.js";
 import BuyLink from "../components/BuyLink.jsx";
+import { issueDate, resolveText, templateVariables } from "../textFields.js";
+import { getPreferredLocale } from "../../i18n.js";
 
 const CONTEXT_TYPES = ["event", "course", "diploma", "training", "certification", "membership", "other"];
 const CREDENTIAL_TYPES = ["attendance", "completion", "achievement", "participation", "membership", "certification"];
@@ -47,10 +49,16 @@ export default function Issue() {
   }, [org?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const template = templates?.find((x) => x.slug === common.template_slug) ?? null;
-  // Fields the person fills per credential, besides the name (filled from the holder).
+  // What to ask for per credential: the template's own fields (besides the
+  // name, filled from the holder), and the {tags} its text zones use that are
+  // not filled automatically. Text zones themselves are resolved, not asked.
+  const textFields = useMemo(() => (template?.fields_json || []).filter((f) => typeof f.text === "string"), [template]);
   const extraFields = useMemo(
-    () => (template?.fields_json || []).filter((f) => f.key !== "holder_name"),
-    [template],
+    () => [
+      ...(template?.fields_json || []).filter((f) => f.key !== "holder_name" && typeof f.text !== "string"),
+      ...templateVariables(textFields).map((v) => ({ key: v, variable: true })),
+    ],
+    [template, textFields],
   );
 
   const commonReady = common.context_title.trim() && common.title.trim() && common.template_slug;
@@ -138,15 +146,26 @@ export default function Issue() {
       </div>
 
       {mode === "single" ? (
-        <SingleIssue common={common} extraFields={extraFields} ready={Boolean(commonReady)} />
+        <SingleIssue common={common} extraFields={extraFields} textFields={textFields} ready={Boolean(commonReady)} />
       ) : (
-        <CsvIssue common={common} extraFields={extraFields} ready={Boolean(commonReady)} />
+        <CsvIssue common={common} extraFields={extraFields} textFields={textFields} ready={Boolean(commonReady)} />
       )}
     </div>
   );
 }
 
-function buildInput(common, row, notify) {
+function buildInput(common, row, notify, textFields = []) {
+  // Variables feed the text zones; only the template's real fields are sent.
+  const variables = new Set(templateVariables(textFields));
+  const values = Object.fromEntries(Object.entries(row.values || {}).filter(([k]) => !variables.has(k)));
+  for (const f of textFields) {
+    values[f.key] = resolveText(f.text, {
+      holder: row.holder_name,
+      context: common.context_title,
+      date: issueDate(getPreferredLocale()),
+      variables: row.values,
+    });
+  }
   return {
     template_slug: common.template_slug,
     context_type: common.context_type,
@@ -156,12 +175,12 @@ function buildInput(common, row, notify) {
     ...(common.expires_at && { expires_at: new Date(`${common.expires_at}T23:59:59`).toISOString() }),
     holder_name: row.holder_name,
     holder_email: row.holder_email || undefined,
-    values: row.values,
+    values,
     ...(notify?.on && row.holder_email && { notify_holder: true, notify_locale: notify.locale }),
   };
 }
 
-function SingleIssue({ common, extraFields, ready }) {
+function SingleIssue({ common, extraFields, textFields, ready }) {
   const { t, locale, orgPath, refreshOverview } = useDashboard();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -178,7 +197,7 @@ function SingleIssue({ common, extraFields, ready }) {
       const out = await api(orgPath("/issue"), {
         method: "POST",
         body: {
-          input: buildInput(common, { holder_name: name, holder_email: email, values }, { on: notify, locale }),
+          input: buildInput(common, { holder_name: name, holder_email: email, values }, { on: notify, locale }, textFields),
           idempotency_key: keyRef.current,
         },
       });
@@ -237,7 +256,7 @@ function SingleIssue({ common, extraFields, ready }) {
         {extraFields.map((f) => (
           <label className="dash-field" key={f.key}>
             <span>
-              {t("issue.map.field", { field: f.key })}
+              {f.variable ? t("issue.map.variable", { tag: `{${f.key}}` }) : t("issue.map.field", { field: f.key })}
               {f.required ? " *" : ""}
             </span>
             <input required={f.required} value={values[f.key] || ""} onChange={(e) => setValues({ ...values, [f.key]: e.target.value })} />
@@ -268,7 +287,7 @@ function SingleIssue({ common, extraFields, ready }) {
   );
 }
 
-function CsvIssue({ common, extraFields, ready }) {
+function CsvIssue({ common, extraFields, textFields, ready }) {
   const { t, locale, orgPath, overview, refreshOverview } = useDashboard();
   const [file, setFile] = useState(null); // {name, text, headers, rows}
   const [map, setMap] = useState({ name: "", email: "", fields: {} });
@@ -299,9 +318,9 @@ function CsvIssue({ common, extraFields, ready }) {
             src?.mode === "column" ? r[src.col] ?? "" : src?.mode === "text" ? fillTags(src.text, r) : "",
           ]),
         ),
-      }, { on: notify, locale }),
+      }, { on: notify, locale }, textFields),
     );
-  }, [file, map, common, notify, locale]);
+  }, [file, map, common, notify, locale, textFields]);
 
   // One button: check every row first (free), and only issue if all pass.
   async function checkAndIssue() {
@@ -466,7 +485,9 @@ function CsvIssue({ common, extraFields, ready }) {
   const counts = run?.results.reduce((acc, r) => ((acc[r.status] = (acc[r.status] || 0) + 1), acc), {}) ?? {};
 
   const previewRows = run ? inputs : inputs.slice(0, 5);
-  const fieldKeys = extraFields.map((f) => f.key);
+  // The preview shows what each certificate will say: the template's fields and
+  // its text zones resolved — not the variables that went into them.
+  const fieldKeys = [...extraFields.filter((f) => !f.variable).map((f) => f.key), ...textFields.map((f) => f.key)];
   const busy = validation?.loading || run?.running;
 
   return (
@@ -539,7 +560,7 @@ function CsvIssue({ common, extraFields, ready }) {
                 {extraFields.map((f) => (
                   <Fragment key={f.key}>
                     <span className="dash-mapping-label">
-                      {t("issue.map.field", { field: f.key })}
+                      {f.variable ? t("issue.map.variable", { tag: `{${f.key}}` }) : t("issue.map.field", { field: f.key })}
                       {f.required ? " *" : ""}
                     </span>
                     <div className="dash-mapping-value">

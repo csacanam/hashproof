@@ -5,6 +5,7 @@ import { useDashboard } from "../useDashboard.js";
 import Modal from "../components/Modal.jsx";
 import PdfViewer from "../../components/PdfViewer.jsx";
 import { qrCornerBusyness, qrZone } from "../qr.js";
+import { BUILTIN_TAGS, resolveText, templateVariables } from "../textFields.js";
 
 function overlapsQr(f, pageWidth) {
   const q = qrZone(pageWidth);
@@ -27,6 +28,19 @@ function newField(key, page) {
     required: key === "holder_name",
     bold: key === "holder_name",
   };
+}
+
+/** What a field shows in the editor and the preview: text zones resolved with sample values. */
+function sampleValue(f, samples, t) {
+  if (typeof f.text === "string") {
+    return resolveText(f.text, {
+      holder: samples.holder_name || SAMPLE.holder_name,
+      context: t("editor.sampleEvent"),
+      date: new Intl.DateTimeFormat(undefined, { dateStyle: "long" }).format(new Date()),
+      variables: samples.__vars || {},
+    });
+  }
+  return samples[f.key] || f.key;
 }
 
 export default function TemplateEditor() {
@@ -125,11 +139,24 @@ export default function TemplateEditor() {
     setFields((fs) => fs.map((f, j) => (j === i ? { ...f, ...p } : f)));
   }
 
-  function addField() {
+  function addField(kind = "value") {
     const used = new Set(fields.map((f) => f.key));
-    const key = !used.has("holder_name") ? "holder_name" : !used.has("details") ? "details" : `field_${fields.length + 1}`;
+    let key;
+    if (kind === "text") {
+      let n = 1;
+      while (used.has(`texto_${n}`)) n++;
+      key = `texto_${n}`;
+    } else {
+      key = !used.has("holder_name") ? "holder_name" : !used.has("details") ? "details" : `field_${fields.length + 1}`;
+    }
     const f = newField(key, page);
-    f.y = Math.min(page.page_height - f.font_size * 2, f.y + fields.length * f.font_size * 1.6);
+    if (kind === "text") {
+      f.text = t("editor.textDefault");
+      f.font_size = Math.round(f.font_size * 0.55);
+      f.bold = false;
+      f.required = false;
+    }
+    f.y = Math.round(Math.min(page.page_height - f.font_size * 2, f.y + fields.length * f.font_size * 1.6));
     setFields([...fields, f]);
     setSelected(fields.length);
   }
@@ -145,7 +172,7 @@ export default function TemplateEditor() {
           background_url: bg.url,
           ...page,
           fields_json: fields,
-          values: Object.fromEntries(fields.map((f) => [f.key, samples[f.key] ?? f.key])),
+          values: Object.fromEntries(fields.map((f) => [f.key, sampleValue(f, samples, t)])),
           locale: navigator.language?.startsWith("es") ? "es" : "en",
         }),
       });
@@ -256,7 +283,7 @@ export default function TemplateEditor() {
               <Canvas
                 bg={bg}
                 fields={fields}
-                samples={samples}
+                display={(f) => sampleValue(f, samples, t)}
                 selected={selected}
                 onSelect={setSelected}
                 onMove={(i, p) => patch(i, p)}
@@ -271,13 +298,19 @@ export default function TemplateEditor() {
             <aside className="dash-card dash-editor-panel">
               <div className="dash-card-head">
                 <h2>{t("editor.fields")}</h2>
-                <button type="button" className="dash-btn dash-btn--small" onClick={addField} disabled={fields.length >= 20}>
-                  + {t("editor.addField")}
-                </button>
+                <div className="dash-row">
+                  <button type="button" className="dash-btn dash-btn--small dash-btn--ghost" onClick={() => addField("value")} disabled={fields.length >= 20}>
+                    + {t("editor.addField")}
+                  </button>
+                  <button type="button" className="dash-btn dash-btn--small" onClick={() => addField("text")} disabled={fields.length >= 20}>
+                    + {t("editor.addText")}
+                  </button>
+                </div>
               </div>
               <div className="dash-field-list">
                 {fields.map((f, i) => (
                   <button key={i} type="button" className={`dash-chip${i === selected ? " is-active" : ""}`} onClick={() => setSelected(i)}>
+                    {typeof f.text === "string" ? "¶ " : ""}
                     {f.key}
                   </button>
                 ))}
@@ -291,12 +324,32 @@ export default function TemplateEditor() {
                       value={field.key}
                       onChange={(e) => patch(selected, { key: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_") })}
                     />
-                    <small className="dash-muted">{t("editor.keyHelp")}</small>
+                    {typeof field.text !== "string" && <small className="dash-muted">{t("editor.keyHelp")}</small>}
                   </label>
-                  <label className="dash-field">
-                    <span>{t("editor.sample")}</span>
-                    <input value={samples[field.key] ?? ""} onChange={(e) => setSamples({ ...samples, [field.key]: e.target.value })} />
-                  </label>
+                  {typeof field.text === "string" ? (
+                    <div className="dash-field">
+                      <span>{t("editor.text")}</span>
+                      <textarea rows={3} value={field.text} maxLength={500} onChange={(e) => patch(selected, { text: e.target.value })} />
+                      <div className="dash-tags">
+                        <span className="dash-muted dash-small">{t("issue.insertTag")}</span>
+                        {BUILTIN_TAGS.map((tag) => (
+                          <button key={tag} type="button" className="dash-chip" onClick={() => patch(selected, { text: `${field.text}${tag}` })}>
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
+                      <small className="dash-muted">
+                        {t("editor.textHelp")}
+                        {templateVariables([field]).length > 0 &&
+                          ` ${t("editor.textAsks", { tags: templateVariables([field]).map((v) => `{${v}}`).join(", ") })}`}
+                      </small>
+                    </div>
+                  ) : (
+                    <label className="dash-field">
+                      <span>{t("editor.sample")}</span>
+                      <input value={samples[field.key] ?? ""} onChange={(e) => setSamples({ ...samples, [field.key]: e.target.value })} />
+                    </label>
+                  )}
                   <div className="dash-grid-3">
                     <label className="dash-field">
                       <span>X</span>
@@ -337,7 +390,13 @@ export default function TemplateEditor() {
                       <input type="checkbox" checked={field.italic === true} onChange={(e) => patch(selected, { italic: e.target.checked })} /> {t("editor.italic")}
                     </label>
                     <label className="dash-check">
-                      <input type="checkbox" checked={field.required === true} onChange={(e) => patch(selected, { required: e.target.checked })} /> {t("editor.required")}
+                      <input
+                        type="checkbox"
+                        disabled={typeof field.text === "string"}
+                        checked={field.required === true}
+                        onChange={(e) => patch(selected, { required: e.target.checked })}
+                      />{" "}
+                      {t("editor.required")}
                     </label>
                   </div>
                   <button
@@ -369,7 +428,7 @@ export default function TemplateEditor() {
  * the top-left of the text box, in page pixels. Drag a field to move it; drag
  * its right edge to change its width.
  */
-function Canvas({ bg, fields, samples, selected, onSelect, onMove }) {
+function Canvas({ bg, fields, display, selected, onSelect, onMove }) {
   const wrapRef = useRef(null);
   const [scale, setScale] = useState(0);
   const drag = useRef(null);
@@ -435,10 +494,12 @@ function Canvas({ bg, fields, samples, selected, onSelect, onMove }) {
               textAlign: f.align || "left",
               fontWeight: f.bold ? 700 : 400,
               fontStyle: f.italic ? "italic" : "normal",
+              // Text zones wrap within their width, as the PDF renderer does.
+              whiteSpace: typeof f.text === "string" ? "normal" : undefined,
             }}
             onPointerDown={(e) => onPointerDown(e, i, "move")}
           >
-            {samples[f.key] || f.key}
+            {display(f)}
             <span className="dash-canvas-handle" onPointerDown={(e) => onPointerDown(e, i, "resize")} />
           </div>
         ))}

@@ -115,6 +115,13 @@ describe("validateLayout", () => {
     });
   });
 
+  it("keeps the wording of a text zone, trimmed and bounded", () => {
+    const f = { ...ok.fields_json[0], key: "texto_1", required: false, text: "  Asistió a {evento} con {horas} horas  " };
+    expect(validateLayout({ ...ok, fields_json: [f] }).fields_json[0].text).toBe("Asistió a {evento} con {horas} horas");
+    expect(validateLayout({ ...ok, fields_json: [{ ...f, text: "x".repeat(900) }] }).fields_json[0].text).toHaveLength(500);
+    expect(validateLayout(ok).fields_json[0]).not.toHaveProperty("text");
+  });
+
   it("rejects fields outside the page, repeated keys and bad colors", () => {
     const f = ok.fields_json[0];
     expect(() => validateLayout({ ...ok, fields_json: [{ ...f, x: 500 }] })).toThrow(/fit inside/);

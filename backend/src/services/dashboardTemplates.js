@@ -81,6 +81,9 @@ export function validateLayout({ page_width, page_height, fields_json }) {
       required: f.required === true,
       ...(f.bold === true && { bold: true }),
       ...(f.italic === true && { italic: true }),
+      // A text zone: fixed wording with {tags}, resolved per credential by the
+      // dashboard before issuing. The renderer only ever reads values[key].
+      ...(typeof f.text === "string" && f.text.trim() && { text: f.text.trim().slice(0, 500) }),
     };
   });
 
