@@ -145,7 +145,7 @@ export const appMessages = {
     "issue.done.view": "Open verification page",
     "issue.done.another": "Issue another",
     "issue.csvHelp":
-      "One row per recipient, with a header row. We detect the name and email columns; you can change them. Commas or semicolons both work.",
+      "One row per recipient, straight from Excel or Google Sheets. A header row is optional; we detect the name and email columns and you can change them.",
     "issue.rows": "{n} rows",
     "issue.colName": "Column with the name",
     "issue.colEmail": "Column with the email",
@@ -442,7 +442,7 @@ export const appMessages = {
     "issue.done.view": "Abrir página de verificación",
     "issue.done.another": "Emitir otra",
     "issue.csvHelp":
-      "Una fila por persona, con fila de encabezados. Detectamos las columnas de nombre y correo; puedes cambiarlas. Sirve con comas o con punto y coma.",
+      "Una fila por persona, tal como sale de Excel o Google Sheets. La fila de encabezados es opcional; detectamos las columnas de nombre y correo y puedes cambiarlas.",
     "issue.rows": "{n} filas",
     "issue.colName": "Columna con el nombre",
     "issue.colEmail": "Columna con el correo",

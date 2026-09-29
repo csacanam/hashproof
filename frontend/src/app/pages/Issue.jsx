@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { api, publicApi } from "../api.js";
 import { useDashboard } from "../useDashboard.js";
 import { formatNumber } from "../format.js";
-import { digest, guessColumn, parseCsv, toCsv } from "../csv.js";
+import { decodeCsv, digest, guessColumn, parseCsv, toCsv } from "../csv.js";
 import BuyLink from "../components/BuyLink.jsx";
 
 const CONTEXT_TYPES = ["event", "course", "diploma", "training", "certification", "membership", "other"];
@@ -265,7 +265,7 @@ function CsvIssue({ common, extraFields, ready }) {
   async function onFile(e) {
     const f = e.target.files?.[0];
     if (!f) return;
-    const text = await f.text();
+    const text = decodeCsv(await f.arrayBuffer());
     const parsed = parseCsv(text);
     setFile({ name: f.name, text, ...parsed });
     const fields = {};
