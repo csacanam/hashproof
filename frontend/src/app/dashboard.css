@@ -394,3 +394,110 @@
   .dash-editor-panel { position: static; }
   .dash-methods { grid-template-columns: 1fr; }
 }
+
+/* ── Bulk issue (CSV) ────────────────────────────────────── */
+.dash-csv { display: flex; flex-direction: column; gap: 1.5rem; }
+.dash-step { display: grid; grid-template-columns: 2rem minmax(0, 1fr); gap: 0.9rem; }
+.dash-step-n {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  background: rgba(34, 211, 238, 0.12);
+  color: var(--color-accent);
+}
+.dash-step-body { min-width: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+.dash-step-body h3 { margin: 0.3rem 0 0; font-size: 1rem; }
+
+.dash-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 2rem 1rem;
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.dash-drop:hover, .dash-drop.is-over { border-color: var(--color-accent); background: rgba(34, 211, 238, 0.05); }
+.dash-drop input { display: none; }
+.dash-drop span { max-width: 36rem; font-size: 0.85rem; }
+
+.dash-file {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+}
+.dash-file-icon {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  padding: 0.45rem 0.5rem;
+  border-radius: 6px;
+  background: rgba(74, 222, 128, 0.15);
+  color: #4ade80;
+}
+.dash-file-change { margin-left: auto; cursor: pointer; }
+
+.dash-mapping {
+  display: grid;
+  grid-template-columns: minmax(10rem, 14rem) minmax(0, 1fr);
+  gap: 0.6rem 1rem;
+  align-items: start;
+  max-width: 44rem;
+}
+.dash-mapping-label { padding-top: 0.65rem; font-size: 0.9rem; font-weight: 600; }
+.dash-mapping-value { display: flex; flex-direction: column; gap: 0.5rem; }
+.dash-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
+
+.dash-toggle {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-start;
+  gap: 0.75rem !important;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  cursor: pointer;
+  max-width: 44rem;
+}
+.dash-toggle input { margin-top: 0.2rem; width: 1.05rem; height: 1.05rem; accent-color: var(--color-accent); flex: none; }
+.dash-toggle span { display: flex; flex-direction: column; gap: 0.2rem; font-weight: 400; }
+.dash-toggle strong { font-size: 0.925rem; }
+.dash-toggle small { font-size: 0.8rem; }
+
+.dash-preview { border: 1px solid var(--color-border); border-radius: var(--radius); }
+.dash-preview .dash-table th { background: var(--color-bg); }
+.dash-preview-more { margin: 0; padding: 0.5rem 0.75rem; border-top: 1px solid var(--color-border); }
+.dash-cell-text { min-width: 12rem; }
+.dash-table tr.is-invalid td { background: rgba(248, 113, 113, 0.06); }
+
+.dash-issue-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1rem 1.1rem;
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+}
+
+@media (max-width: 640px) {
+  .dash-mapping { grid-template-columns: 1fr; }
+  .dash-mapping-label { padding-top: 0; }
+}
+
+/* In page forms the action button sits at its natural width, like the others. */
+.dash-card.dash-form > .dash-btn { align-self: flex-start; min-width: 12rem; }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, publicApi } from "../api.js";
 import { useDashboard } from "../useDashboard.js";
@@ -234,21 +234,26 @@ function SingleIssue({ common, extraFields, ready }) {
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           <small className="dash-muted">{t("issue.holderEmailHelp")}</small>
         </label>
-          {email && (
-            <label className="dash-check">
-              <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} /> {t("issue.notifyOne")}
-            </label>
-          )}
+
         {extraFields.map((f) => (
           <label className="dash-field" key={f.key}>
             <span>
-              {f.key}
+              {t("issue.map.field", { field: f.key })}
               {f.required ? " *" : ""}
             </span>
             <input required={f.required} value={values[f.key] || ""} onChange={(e) => setValues({ ...values, [f.key]: e.target.value })} />
           </label>
         ))}
       </div>
+      {email && (
+        <label className="dash-toggle">
+          <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} />
+          <span>
+            <strong>{t("issue.notifyOne")}</strong>
+            <small className="dash-muted">{t("issue.notifyHelp")}</small>
+          </span>
+        </label>
+      )}
       <p className="dash-muted">{t("issue.costOne")}</p>
       {state?.phase === "failed" && (
         <p className="dash-error">
@@ -271,23 +276,17 @@ function CsvIssue({ common, extraFields, ready }) {
   const [validation, setValidation] = useState(null);
   const [run, setRun] = useState(null); // {results: [{status, url, id, error}], running}
   const [zip, setZip] = useState(null); // {done, total} while the ZIP is being built
+  const [dragging, setDragging] = useState(false);
   const [notify, setNotify] = useState(true);
   const abortRef = useRef(null);
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
-  async function onFile(e) {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    const text = decodeCsv(await f.arrayBuffer());
-    const parsed = parseCsv(text);
-    setFile({ name: f.name, text, ...parsed });
-    const fields = {};
-    for (const fld of extraFields) fields[fld.key] = parsed.headers.find((h) => h.toLowerCase() === fld.key.toLowerCase()) ?? "";
-    setMap({ name: guessColumn(parsed.headers, "name"), email: guessColumn(parsed.headers, "email"), fields });
-    setValidation(null);
-    setRun(null);
+  function onFile(e) {
+    loadFile(e.target.files?.[0]);
+    e.target.value = "";
   }
+
 
   const inputs = useMemo(() => {
     if (!file || !map.name) return [];
@@ -304,13 +303,30 @@ function CsvIssue({ common, extraFields, ready }) {
     );
   }, [file, map, common, notify, locale]);
 
-  async function validate() {
+  // One button: check every row first (free), and only issue if all pass.
+  async function checkAndIssue() {
     setValidation({ loading: true });
+    let result;
     try {
-      setValidation(await api(orgPath("/issue/validate"), { method: "POST", body: { rows: inputs } }));
+      result = await api(orgPath("/issue/validate"), { method: "POST", body: { rows: inputs } });
     } catch (err) {
       setValidation({ error: err.message });
+      return;
     }
+    setValidation(result);
+    if (!result.errors?.length) start();
+  }
+
+  async function loadFile(f) {
+    if (!f) return;
+    const text = decodeCsv(await f.arrayBuffer());
+    const parsed = parseCsv(text);
+    setFile({ name: f.name, text, ...parsed });
+    const fields = {};
+    for (const fld of extraFields) fields[fld.key] = parsed.headers.find((h) => h.toLowerCase() === fld.key.toLowerCase()) ?? "";
+    setMap({ name: guessColumn(parsed.headers, "name"), email: guessColumn(parsed.headers, "email"), fields });
+    setValidation(null);
+    setRun(null);
   }
 
   async function start() {
@@ -445,209 +461,264 @@ function CsvIssue({ common, extraFields, ready }) {
   const balance = overview?.balance ?? 0;
   const counts = run?.results.reduce((acc, r) => ((acc[r.status] = (acc[r.status] || 0) + 1), acc), {}) ?? {};
 
+  const previewRows = run ? inputs : inputs.slice(0, 5);
+  const fieldKeys = extraFields.map((f) => f.key);
+  const busy = validation?.loading || run?.running;
+
   return (
-    <section className="dash-card dash-form">
-      <p className="dash-muted">{t("issue.csvHelp")}</p>
-      <input type="file" accept=".csv,text/csv" onChange={onFile} disabled={run?.running} />
+    <section className="dash-card dash-csv">
+      {/* 1. File */}
+      <div className="dash-step">
+        <span className="dash-step-n">1</span>
+        <div className="dash-step-body">
+          <h3>{t("issue.step.file")}</h3>
+          {!file ? (
+            <label
+              className={`dash-drop${dragging ? " is-over" : ""}`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragging(false);
+                loadFile(e.dataTransfer.files?.[0]);
+              }}
+            >
+              <input type="file" accept=".csv,text/csv" onChange={onFile} disabled={run?.running} />
+              <strong>{t("issue.drop.title")}</strong>
+              <span className="dash-muted">{t("issue.csvHelp")}</span>
+            </label>
+          ) : (
+            <div className="dash-file">
+              <span className="dash-file-icon" aria-hidden>CSV</span>
+              <div>
+                <strong>{file.name}</strong>
+                <div className="dash-muted dash-small">{t("issue.rows", { n: formatNumber(file.rows.length) })}</div>
+              </div>
+              {!run?.running && (
+                <label className="dash-link dash-file-change">
+                  {t("issue.changeFile")}
+                  <input type="file" accept=".csv,text/csv" onChange={onFile} hidden />
+                </label>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
 
       {file && (
         <>
-          <p>
-            <strong>{file.name}</strong> — {t("issue.rows", { n: formatNumber(file.rows.length) })}
-          </p>
-          <div className="dash-grid-2">
-            <label className="dash-field">
-              <span>{t("issue.colName")}</span>
-              <select value={map.name} onChange={(e) => setMap({ ...map, name: e.target.value })}>
-                <option value="">—</option>
-                {file.headers.map((h) => (
-                  <option key={h}>{h}</option>
-                ))}
-              </select>
-            </label>
-            <label className="dash-field">
-              <span>{t("issue.colEmail")}</span>
-              <select value={map.email} onChange={(e) => setMap({ ...map, email: e.target.value })}>
-                <option value="">{t("issue.none")}</option>
-                {file.headers.map((h) => (
-                  <option key={h}>{h}</option>
-                ))}
-              </select>
-            </label>
-              {map.email && (
-                <label className="dash-check">
-                  <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} /> {t("issue.notifyAll")}
-                </label>
-              )}
-            {extraFields.map((f) => (
-              <label className="dash-field" key={f.key}>
-                <span>
-                  {t("issue.colField", { field: f.key })}
-                  {f.required ? " *" : ""}
-                </span>
-                <select
-                  value={typeof map.fields[f.key] === "object" ? TEXT_MODE : map.fields[f.key] || ""}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    const next = v === TEXT_MODE ? { text: map.fields[f.key]?.text ?? "" } : v;
-                    setMap({ ...map, fields: { ...map.fields, [f.key]: next } });
-                  }}
-                >
+          {/* 2. Columns */}
+          <div className="dash-step">
+            <span className="dash-step-n">2</span>
+            <div className="dash-step-body">
+              <h3>{t("issue.step.columns")}</h3>
+              <div className="dash-mapping">
+                <span className="dash-mapping-label">{t("issue.map.name")}</span>
+                <select value={map.name} onChange={(e) => setMap({ ...map, name: e.target.value })}>
+                  <option value="">—</option>
+                  {file.headers.map((h) => (
+                    <option key={h}>{h}</option>
+                  ))}
+                </select>
+
+                <span className="dash-mapping-label">{t("issue.map.email")}</span>
+                <select value={map.email} onChange={(e) => setMap({ ...map, email: e.target.value })}>
                   <option value="">{t("issue.none")}</option>
                   {file.headers.map((h) => (
                     <option key={h}>{h}</option>
                   ))}
-                  <option value={TEXT_MODE}>{t("issue.textWithTags")}</option>
                 </select>
-                {typeof map.fields[f.key] === "object" && (
-                  <>
-                    <textarea
-                      rows={2}
-                      value={map.fields[f.key].text}
-                      placeholder={t("issue.textPh", { tag: `{${file.headers[1] || file.headers[0]}}` })}
-                      onChange={(e) => setMap({ ...map, fields: { ...map.fields, [f.key]: { text: e.target.value } } })}
-                    />
-                    <span className="dash-row dash-tags">
-                      {file.headers.map((h) => (
-                        <button
-                          key={h}
-                          type="button"
-                          className="dash-chip"
-                          onClick={() =>
-                            setMap({ ...map, fields: { ...map.fields, [f.key]: { text: `${map.fields[f.key].text}{${h}}` } } })
-                          }
-                        >
-                          {`{${h}}`}
-                        </button>
-                      ))}
+
+                {extraFields.map((f) => (
+                  <Fragment key={f.key}>
+                    <span className="dash-mapping-label">
+                      {t("issue.map.field", { field: f.key })}
+                      {f.required ? " *" : ""}
                     </span>
-                    {file.rows[0] && (
-                      <small className="dash-muted">
-                        {t("issue.textExample")} {fillTags(map.fields[f.key].text, file.rows[0]) || "—"}
-                      </small>
-                    )}
-                  </>
-                )}
-              </label>
-            ))}
+                    <div className="dash-mapping-value">
+                      <select
+                        value={typeof map.fields[f.key] === "object" ? TEXT_MODE : map.fields[f.key] || ""}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          const next = v === TEXT_MODE ? { text: map.fields[f.key]?.text ?? "" } : v;
+                          setMap({ ...map, fields: { ...map.fields, [f.key]: next } });
+                        }}
+                      >
+                        <option value="">{t("issue.none")}</option>
+                        {file.headers.map((h) => (
+                          <option key={h}>{h}</option>
+                        ))}
+                        <option value={TEXT_MODE}>{t("issue.textWithTags")}</option>
+                      </select>
+                      {typeof map.fields[f.key] === "object" && (
+                        <>
+                          <textarea
+                            rows={2}
+                            value={map.fields[f.key].text}
+                            placeholder={t("issue.textPh", { tag: `{${file.headers[2] || file.headers[1] || file.headers[0]}}` })}
+                            onChange={(e) => setMap({ ...map, fields: { ...map.fields, [f.key]: { text: e.target.value } } })}
+                          />
+                          <div className="dash-tags">
+                            <span className="dash-muted dash-small">{t("issue.insertTag")}</span>
+                            {file.headers.map((h) => (
+                              <button
+                                key={h}
+                                type="button"
+                                className="dash-chip"
+                                onClick={() =>
+                                  setMap({ ...map, fields: { ...map.fields, [f.key]: { text: `${map.fields[f.key].text}{${h}}` } } })
+                                }
+                              >
+                                {`{${h}}`}
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </Fragment>
+                ))}
+              </div>
+            </div>
           </div>
 
-          {map.name && (
-            <div className="dash-table-wrap">
-              <table className="dash-table dash-table--compact">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>{t("credentials.col.holder")}</th>
-                    <th>{t("issue.holderEmail")}</th>
-                    <th>{t("credentials.col.status")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {inputs.slice(0, run ? inputs.length : 5).map((inp, i) => {
-                    const r = run?.results[i];
-                    const v = validation?.errors?.find((e) => e.row === i);
-                    return (
-                      <tr key={i}>
-                        <td>{i + 1}</td>
-                        <td>{inp.holder_name}</td>
-                        <td>{inp.holder_email}</td>
-                        <td>
-                          {r ? (
-                            r.url ? (
-                              <a href={r.url} target="_blank" rel="noreferrer">
-                                {t(`run.${r.status}`)}
-                              </a>
-                            ) : (
-                              <span className={r.status === "failed" ? "dash-error" : ""} title={r.error}>
-                                {t(`run.${r.status}`)}
-                                {r.error ? `: ${r.error}` : ""}
-                              </span>
-                            )
-                          ) : v ? (
-                            <span className="dash-error">{v.error}</span>
-                          ) : (
-                            ""
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              {!run && inputs.length > 5 && <p className="dash-muted dash-small">{t("issue.andMore", { n: formatNumber(inputs.length - 5) })}</p>}
+          {/* 3. Options */}
+          {map.email && (
+            <div className="dash-step">
+              <span className="dash-step-n">3</span>
+              <div className="dash-step-body">
+                <h3>{t("issue.step.options")}</h3>
+                <label className="dash-toggle">
+                  <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} />
+                  <span>
+                    <strong>{t("issue.notifyAll")}</strong>
+                    <small className="dash-muted">{t("issue.notifyHelp")}</small>
+                  </span>
+                </label>
+              </div>
             </div>
           )}
 
-          {!run && (
-            <>
-              <p className={count > balance ? "dash-error" : "dash-muted"}>
-                {t("issue.cost", { n: formatNumber(count), balance: formatNumber(balance) })}{" "}
-                {count > balance && <BuyLink />}
-              </p>
-              {validation?.errors?.length > 0 && (
-                <div className="dash-note dash-note--danger">
-                  {t("issue.invalidRows", { n: validation.errors.length })}
-                  <ul>
-                    {validation.errors.slice(0, 10).map((e) => (
-                      <li key={e.row}>
-                        {t("issue.row", { n: e.row + 1 })}: {e.error}
-                      </li>
-                    ))}
-                  </ul>
+          {/* 4. Preview and issue */}
+          {map.name && (
+            <div className="dash-step">
+              <span className="dash-step-n">{map.email ? 4 : 3}</span>
+              <div className="dash-step-body">
+                <h3>{t("issue.step.review")}</h3>
+                <div className="dash-table-wrap dash-preview">
+                  <table className="dash-table dash-table--compact">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>{t("credentials.col.holder")}</th>
+                        {map.email && <th>{t("issue.map.email")}</th>}
+                        {fieldKeys.map((k) => (
+                          <th key={k}>{k}</th>
+                        ))}
+                        {(run || validation?.errors?.length > 0) && <th>{t("credentials.col.status")}</th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {previewRows.map((inp, i) => {
+                        const r = run?.results[i];
+                        const v = validation?.errors?.find((e) => e.row === i);
+                        return (
+                          <tr key={i} className={v ? "is-invalid" : undefined}>
+                            <td className="dash-muted">{i + 1}</td>
+                            <td>{inp.holder_name || <span className="dash-error">—</span>}</td>
+                            {map.email && <td className="dash-muted">{inp.holder_email}</td>}
+                            {fieldKeys.map((k) => (
+                              <td key={k} className="dash-cell-text">
+                                {inp.values?.[k] || <span className="dash-muted">—</span>}
+                              </td>
+                            ))}
+                            {(run || validation?.errors?.length > 0) && (
+                              <td>
+                                {r ? (
+                                  r.url ? (
+                                    <a href={r.url} target="_blank" rel="noreferrer">
+                                      {t(`run.${r.status}`)} ↗
+                                    </a>
+                                  ) : (
+                                    <span className={r.status === "failed" ? "dash-error" : "dash-muted"} title={r.error}>
+                                      {t(`run.${r.status}`)}
+                                    </span>
+                                  )
+                                ) : v ? (
+                                  <span className="dash-error">{v.error}</span>
+                                ) : null}
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  {!run && inputs.length > 5 && (
+                    <p className="dash-muted dash-small dash-preview-more">{t("issue.andMore", { n: formatNumber(inputs.length - 5) })}</p>
+                  )}
                 </div>
-              )}
-              {validation?.error && <p className="dash-error">{validation.error}</p>}
-              <div className="dash-row">
-                <button type="button" className="dash-btn dash-btn--ghost" disabled={!ready || !map.name || !count} onClick={validate}>
-                  {validation?.loading ? t("common.checking") : t("issue.validate")}
-                </button>
-                <button
-                  type="button"
-                  className="dash-btn"
-                  disabled={!ready || !validation || validation.loading || validation.errors?.length > 0 || validation.error || count > balance}
-                  onClick={start}
-                >
-                  {t("issue.issueAll", { n: formatNumber(count) })}
-                </button>
-              </div>
-              {!ready && <small className="dash-muted">{t("issue.fillCommon")}</small>}
-            </>
-          )}
 
-          {run && (
-            <div className="dash-progress">
-              <progress max={count} value={(counts.completed || 0) + (counts.failed || 0)} />
-              <p>
-                {t("issue.progress", {
-                  done: formatNumber(counts.completed || 0),
-                  total: formatNumber(count),
-                  failed: formatNumber(counts.failed || 0),
-                })}
-              </p>
-              {run.running && <p className="dash-muted">{t("issue.keepOpen")}</p>}
-              {run.stoppedFor === "credits" && (
-                <p className="dash-error">
-                  {t("issue.stoppedCredits")} <BuyLink />
-                </p>
-              )}
-              {!run.running && (
-                <div className="dash-row">
-                  {counts.completed > 0 && (
-                    <button type="button" className="dash-btn" onClick={downloadZip} disabled={Boolean(zip)}>
-                      {zip ? t("issue.zipProgress", { done: zip.done, total: zip.total }) : t("issue.downloadZip")}
+                {validation?.errors?.length > 0 && (
+                  <p className="dash-note dash-note--danger">{t("issue.invalidRows", { n: validation.errors.length })}</p>
+                )}
+                {validation?.error && <p className="dash-error">{validation.error}</p>}
+
+                {!run && (
+                  <div className="dash-issue-bar">
+                    <div>
+                      <strong>{t("issue.summary", { n: formatNumber(count) })}</strong>
+                      <div className={count > balance ? "dash-error dash-small" : "dash-muted dash-small"}>
+                        {t("issue.cost", { n: formatNumber(count), balance: formatNumber(balance) })}{" "}
+                        {count > balance && <BuyLink />}
+                      </div>
+                      {!ready && <div className="dash-muted dash-small">{t("issue.fillCommon")}</div>}
+                    </div>
+                    <button type="button" className="dash-btn" disabled={!ready || !count || count > balance || busy} onClick={checkAndIssue}>
+                      {validation?.loading ? t("common.checking") : t("issue.issueAll", { n: formatNumber(count) })}
                     </button>
-                  )}
-                  <button type="button" className="dash-btn dash-btn--ghost" onClick={downloadResults}>
-                    {t("issue.download")}
-                  </button>
-                  {counts.failed > 0 && (
-                    <button type="button" className="dash-btn dash-btn--ghost" onClick={start}>
-                      {t("issue.retryFailed")}
-                    </button>
-                  )}
-                </div>
-              )}
+                  </div>
+                )}
+
+                {run && (
+                  <div className="dash-progress">
+                    <progress max={count} value={(counts.completed || 0) + (counts.failed || 0)} />
+                    <p>
+                      {t("issue.progress", {
+                        done: formatNumber(counts.completed || 0),
+                        total: formatNumber(count),
+                        failed: formatNumber(counts.failed || 0),
+                      })}
+                    </p>
+                    {run.running && <p className="dash-muted">{t("issue.keepOpen")}</p>}
+                    {run.stoppedFor === "credits" && (
+                      <p className="dash-error">
+                        {t("issue.stoppedCredits")} <BuyLink />
+                      </p>
+                    )}
+                    {!run.running && (
+                      <div className="dash-row">
+                        {counts.completed > 0 && (
+                          <button type="button" className="dash-btn" onClick={downloadZip} disabled={Boolean(zip)}>
+                            {zip ? t("issue.zipProgress", { done: zip.done, total: zip.total }) : t("issue.downloadZip")}
+                          </button>
+                        )}
+                        <button type="button" className="dash-btn dash-btn--ghost" onClick={downloadResults}>
+                          {t("issue.download")}
+                        </button>
+                        {counts.failed > 0 && (
+                          <button type="button" className="dash-btn dash-btn--ghost" onClick={start}>
+                            {t("issue.retryFailed")}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </>
