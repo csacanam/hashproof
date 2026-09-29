@@ -658,6 +658,15 @@
   vertical-align: top;
 }
 
+/* The whole certificate fits on screen: its height is capped to what is left
+   under the header, and it keeps its proportions inside that box. */
+.verify-pdf-wrapper .pdf-viewer__canvas {
+  max-height: calc(100vh - 240px);
+  max-height: calc(100dvh - 240px);
+  min-height: 12rem;
+  object-fit: contain;
+}
+
 .pdf-viewer__loading {
   position: absolute;
   top: 50%;

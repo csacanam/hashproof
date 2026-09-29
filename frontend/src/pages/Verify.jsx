@@ -115,8 +115,10 @@ export default function Verify() {
     };
   }, [id]);
 
+  // The PDF does not depend on the three-layer check, which takes seconds: ask
+  // for it at once, so the certificate is ready the moment the page shows.
   useEffect(() => {
-    if (!data || !id) return;
+    if (!id) return;
     let cancelled = false;
     fetch(`${API_URL}/verify/${id}/pdf`)
       .then((res) => {
@@ -130,7 +132,7 @@ export default function Verify() {
         if (!cancelled) setPdfBlob(null);
       });
     return () => { cancelled = true; };
-  }, [data, id]);
+  }, [id]);
 
   const handleDownloadPdf = () => {
     window.open(`${API_URL}/verify/${id}/pdf`, "_blank");
