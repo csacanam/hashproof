@@ -187,13 +187,17 @@ export async function listMembers(entityId) {
  * invitation email; an existing account is added directly and sees the
  * organization the next time it signs in.
  */
-export async function addMember({ entityId, email, role, redirectTo }) {
+export async function addMember({ entityId, email, role, redirectTo, locale }) {
   const clean = String(email || "").trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) throw new Error("email must be a valid email address");
   if (!isValidRole(role)) throw new Error("role must be owner, admin or issuer");
 
   let userId = null;
-  const invited = await supabase.auth.admin.inviteUserByEmail(clean, { redirectTo });
+  // The invitation goes out in the inviter's language: the invitee has none yet.
+  const invited = await supabase.auth.admin.inviteUserByEmail(clean, {
+    redirectTo,
+    data: { locale: locale === "en" ? "en" : "es" },
+  });
   if (invited.data?.user) {
     userId = invited.data.user.id;
   } else {

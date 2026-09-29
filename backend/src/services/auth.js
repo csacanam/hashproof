@@ -9,6 +9,23 @@
  */
 
 import { createClient } from "@supabase/supabase-js";
+import { supabase } from "../supabase.js";
+
+// The email templates pick their language from the user's metadata
+// ({{ .Data.locale }}), falling back to Spanish.
+const LOCALES = new Set(["es", "en"]);
+export function normalizeLocale(value) {
+  const l = String(value || "").slice(0, 2).toLowerCase();
+  return LOCALES.has(l) ? l : null;
+}
+
+/** Remember the language someone uses, for the next email we send them. */
+async function rememberLocale(userId, locale) {
+  const l = normalizeLocale(locale);
+  if (!userId || !l) return;
+  const { error } = await supabase.auth.admin.updateUserById(userId, { user_metadata: { locale: l } });
+  if (error) console.warn("[auth] could not store locale:", error.message);
+}
 
 function isolatedClient() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -27,12 +44,14 @@ function sessionOut(session) {
 }
 
 /** Email a sign-in link (and code, if the template includes it). Creates the account on first use. */
-export async function sendSignInEmail({ email, redirectTo }) {
+export async function sendSignInEmail({ email, redirectTo, locale }) {
   const clean = String(email || "").trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) throw new Error("email must be a valid email address");
   const { error } = await isolatedClient().auth.signInWithOtp({
     email: clean,
-    options: { emailRedirectTo: redirectTo, shouldCreateUser: true },
+    // data only applies when this call creates the account; returning users
+    // get their language stored at sign-in (rememberLocale).
+    options: { emailRedirectTo: redirectTo, shouldCreateUser: true, data: { locale: normalizeLocale(locale) || "es" } },
   });
   if (error) {
     const err = new Error(
@@ -46,7 +65,7 @@ export async function sendSignInEmail({ email, redirectTo }) {
 }
 
 /** Exchange the 6-digit code from the email for a session. */
-export async function verifyEmailCode({ email, token }) {
+export async function verifyEmailCode({ email, token, locale }) {
   const { data, error } = await isolatedClient().auth.verifyOtp({
     email: String(email || "").trim().toLowerCase(),
     token: String(token || "").trim(),
@@ -59,6 +78,7 @@ export async function verifyEmailCode({ email, token }) {
     err.code = "invalid_code";
     throw err;
   }
+  await rememberLocale(out.user.id, locale);
   return out;
 }
 
@@ -71,7 +91,7 @@ const LINK_TYPES = new Set(["magiclink", "signup", "invite", "email"]);
  * point at hashproof.dev/app/auth?token_hash=…&type=… instead of Supabase's own
  * domain, so the link a person sees matches the brand that emailed them.
  */
-export async function verifyEmailLink({ tokenHash, type }) {
+export async function verifyEmailLink({ tokenHash, type, locale }) {
   const t = LINK_TYPES.has(type) ? type : "email";
   const { data, error } = await isolatedClient().auth.verifyOtp({ token_hash: String(tokenHash || ""), type: t });
   const out = sessionOut(data?.session);
@@ -81,6 +101,7 @@ export async function verifyEmailLink({ tokenHash, type }) {
     err.code = "invalid_link";
     throw err;
   }
+  await rememberLocale(out.user.id, locale);
   return out;
 }
 

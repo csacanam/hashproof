@@ -6,7 +6,7 @@ import { useDashboard } from "../useDashboard.js";
 
 /** Sign in or sign up — the same form: the first sign-in creates the account. */
 export default function Login() {
-  const { t, session, reloadMe } = useDashboard();
+  const { t, locale, session, reloadMe } = useDashboard();
   const navigate = useNavigate();
   const location = useLocation();
   const [email, setEmail] = useState("");
@@ -26,7 +26,7 @@ export default function Login() {
       const res = await fetch(`${API_URL}/app/auth/email`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, locale }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.status === 429) {
@@ -53,7 +53,7 @@ export default function Login() {
       const res = await fetch(`${API_URL}/app/auth/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, token: code }),
+        body: JSON.stringify({ email, token: code, locale }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || t("login.error"));

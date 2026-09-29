@@ -1,0 +1,1 @@
+{{ if eq (printf "%v" .Data.locale) "en" }}Confirm your email for HashProof{{ else }}Confirma tu correo en HashProof{{ end }}

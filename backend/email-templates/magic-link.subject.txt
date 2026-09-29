@@ -1,0 +1,1 @@
+{{ if eq (printf "%v" .Data.locale) "en" }}Your sign-in link for HashProof{{ else }}Tu enlace para ingresar a HashProof{{ end }}

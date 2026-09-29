@@ -4,7 +4,7 @@ import { useDashboard } from "../useDashboard.js";
 import { formatDate } from "../format.js";
 
 export default function Team() {
-  const { t, org, orgPath, canManage, role, user, reloadMe } = useDashboard();
+  const { t, locale, org, orgPath, canManage, role, user, reloadMe } = useDashboard();
   const [members, setMembers] = useState(null);
   const [email, setEmail] = useState("");
   const [newRole, setNewRole] = useState("issuer");
@@ -31,7 +31,7 @@ export default function Team() {
     setError("");
     setNotice("");
     try {
-      const out = await api(orgPath("/members"), { method: "POST", body: { email, role: newRole } });
+      const out = await api(orgPath("/members"), { method: "POST", body: { email, role: newRole, locale } });
       setNotice(t("team.added", { email: out.email }));
       setEmail("");
       load();

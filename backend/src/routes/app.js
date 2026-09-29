@@ -113,7 +113,7 @@ export function createAppRouter({ baseUrl, frontendUrl, skipPayment = false }) {
 
   router.post("/auth/email", emailLimit, async (req, res) => {
     try {
-      await sendSignInEmail({ email: req.body?.email, redirectTo: `${frontendUrl}/app/auth` });
+      await sendSignInEmail({ email: req.body?.email, redirectTo: `${frontendUrl}/app/auth`, locale: req.body?.locale });
       return res.json({ sent: true });
     } catch (err) {
       return fail(res, err, { handler: "app/auth/email" });
@@ -122,7 +122,7 @@ export function createAppRouter({ baseUrl, frontendUrl, skipPayment = false }) {
 
   router.post("/auth/verify", emailLimit, async (req, res) => {
     try {
-      return res.json(await verifyEmailCode({ email: req.body?.email, token: req.body?.token }));
+      return res.json(await verifyEmailCode({ email: req.body?.email, token: req.body?.token, locale: req.body?.locale }));
     } catch (err) {
       return fail(res, err, { handler: "app/auth/verify" });
     }
@@ -130,7 +130,7 @@ export function createAppRouter({ baseUrl, frontendUrl, skipPayment = false }) {
 
   router.post("/auth/verify-link", emailLimit, async (req, res) => {
     try {
-      return res.json(await verifyEmailLink({ tokenHash: req.body?.token_hash, type: req.body?.type }));
+      return res.json(await verifyEmailLink({ tokenHash: req.body?.token_hash, type: req.body?.type, locale: req.body?.locale }));
     } catch (err) {
       return fail(res, err, { handler: "app/auth/verify-link" });
     }
@@ -436,7 +436,13 @@ export function createAppRouter({ baseUrl, frontendUrl, skipPayment = false }) {
         return res.status(403).json({ error: "Only an owner can add another owner.", code: "forbidden" });
       }
       return res.status(201).json(
-        await addMember({ entityId: req.entity.id, email: req.body?.email, role, redirectTo: `${frontendUrl}/app/auth` }),
+        await addMember({
+          entityId: req.entity.id,
+          email: req.body?.email,
+          role,
+          redirectTo: `${frontendUrl}/app/auth`,
+          locale: req.body?.locale,
+        }),
       );
     } catch (err) {
       return fail(res, err, { handler: "app/members add" });

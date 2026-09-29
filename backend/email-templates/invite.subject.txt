@@ -1,0 +1,1 @@
+{{ if eq (printf "%v" .Data.locale) "en" }}You're invited to HashProof{{ else }}Te invitaron a HashProof{{ end }}

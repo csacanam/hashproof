@@ -49,7 +49,7 @@ function readLink() {
 }
 
 export default function AuthCallback() {
-  const { t, reloadMe } = useDashboard();
+  const { t, locale, reloadMe } = useDashboard();
   const navigate = useNavigate();
   const [link] = useState(readLink);
   const [failure, setFailure] = useState(link.error ? (link.error === true ? t("callback.invalid") : link.error) : "");
@@ -67,7 +67,7 @@ export default function AuthCallback() {
       fetch(`${API_URL}/app/auth/verify-link`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token_hash: link.tokenHash, type: link.type }),
+        body: JSON.stringify({ token_hash: link.tokenHash, type: link.type, locale }),
       })
         .then(async (res) => {
           const data = await res.json().catch(() => ({}));
