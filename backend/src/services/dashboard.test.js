@@ -149,14 +149,14 @@ describe("readImageInfo", () => {
 });
 
 describe("pricing", () => {
-  it("prices by method: $0.20 by card, $0.10 in crypto", () => {
-    expect(priceCents(50, "stripe")).toBe(1000);
-    expect(priceCents(50, "voulti")).toBe(500);
+  it("prices credits at $0.50 by card and in crypto", () => {
+    expect(priceCents(50, "stripe")).toBe(2500);
+    expect(priceCents(50, "voulti")).toBe(2500);
   });
 
   it("enforces the per-method minimum", () => {
-    expect(() => parseCredits(49, "stripe")).toThrow(/between 50/);
-    expect(parseCredits(50, "stripe")).toBe(50);
+    expect(() => parseCredits(24, "stripe")).toThrow(/between 25/);
+    expect(parseCredits(25, "stripe")).toBe(25);
     expect(() => parseCredits(9, "voulti")).toThrow(/between 10/);
     expect(() => parseCredits("abc", "voulti")).toThrow();
   });

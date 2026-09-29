@@ -5,13 +5,12 @@
  * Credits belong to the organization, and every API key of it and its dashboard
  * spend from that one balance (migration 009), so a purchase names no key.
  *
- * The price follows the payment method, not the credit. Crypto is priced like an
- * issuance on the open API ($0.10). A card payment carries Stripe's fee and is
- * priced at $0.20; Stripe also charges a fixed fee per payment, which is why card
- * purchases have a higher minimum.
- *
- * Per-call x402 payment is untouched: it is how an agent pays for a single
- * issuance inline, and lives on /issueCredential as before.
+ * Credits cost $0.50 whichever way they are paid: what the dashboard sells is
+ * the product around the credential (templates, bulk issuance, revocation, a
+ * team). Paying per call with x402 on /issueCredential stays at $0.10 — that is
+ * the developer path, for agents and scripts that carry their own wallet.
+ * Card purchases have a higher minimum because Stripe charges a fixed fee per
+ * payment.
  *
  * Every purchase is a row in credit_purchases, unique by (method, external_ref),
  * and credits land through complete_credit_purchase — which only credits a
@@ -25,9 +24,9 @@ import { supabase } from "../supabase.js";
 import { sendTelegramAlert } from "../utils/notify.js";
 import { escapeHtml } from "./accounts.js";
 
-export const STRIPE_CREDIT_PRICE_CENTS = 20;
-export const STRIPE_MIN_CREDITS = 50;
-export const VOULTI_CREDIT_PRICE_CENTS = 10;
+export const STRIPE_CREDIT_PRICE_CENTS = 50;
+export const STRIPE_MIN_CREDITS = 25;
+export const VOULTI_CREDIT_PRICE_CENTS = 50;
 export const VOULTI_MIN_CREDITS = 10;
 export const MAX_CREDITS_PER_PURCHASE = 100_000;
 
