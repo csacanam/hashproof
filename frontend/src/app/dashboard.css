@@ -409,14 +409,55 @@
 /* ── Small screens ───────────────────────────────────────── */
 @media (max-width: 860px) {
   .dash { grid-template-columns: 1fr; }
-  .dash-side { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 0.75rem; }
-  .dash-org { flex: 1 1 180px; }
-  .dash-nav { flex-direction: row; overflow-x: auto; width: 100%; }
-  .dash-nav-link.is-active { box-shadow: inset 0 -2px 0 var(--color-accent); }
-  .dash-side-foot { margin-top: 0; flex-direction: row; align-items: center; width: 100%; justify-content: space-between; flex-wrap: wrap; }
+  /* Compact top bar: logo + organization, then the menu, then balance + buy.
+     Everything else in the sidebar waits for a wider screen. */
+  .dash-side {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    height: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    padding: 0.6rem 0.9rem;
+  }
+  .dash-logo img { height: 22px; }
+  .dash-org { flex: 1 1 8rem; min-width: 0; }
+  .dash-org .dash-label, .dash-org-new { display: none; }
+  .dash-org select { padding: 0.4rem 0.6rem !important; font-size: 0.875rem !important; }
+  .dash-nav {
+    order: 3;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    width: 100%;
+    gap: 0;
+    scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(to right, #000 85%, transparent);
+    mask-image: linear-gradient(to right, #000 85%, transparent);
+  }
+  .dash-nav::-webkit-scrollbar { display: none; }
+  .dash-nav-link { white-space: nowrap; padding: 0.4rem 0.7rem; font-size: 0.875rem; }
+  .dash-nav-link.is-active { box-shadow: inset 0 -2px 0 var(--color-accent); background: transparent; }
+  /* The footer's pieces join the bar's own rows. */
+  .dash-side-foot { display: contents; }
+  .dash-user { order: 1; font-size: 0.8rem; }
+  .dash-user span { display: none; }
+  .dash-balance { order: 4; flex: 1 1 auto; display: flex; align-items: baseline; gap: 0.35rem; }
+  .dash-balance .dash-label { display: inline; margin: 0; }
+  .dash-balance strong { font-size: 1rem; margin: 0; }
+  .dash-side-foot .dash-btn--small { order: 5; padding: 0.35rem 0.75rem; font-size: 0.8rem; }
+  .dash-main { padding: 1rem 0.9rem 3rem; }
+  .dash-page-head h1 { font-size: 1.35rem; }
   .dash-editor { grid-template-columns: 1fr; }
   .dash-editor-panel { position: static; }
   .dash-methods { grid-template-columns: 1fr; }
+  /* Tables scroll sideways instead of breaking dates and badges over lines. */
+  .dash-table td, .dash-table th { white-space: nowrap; }
+  .dash-table td:first-child { white-space: normal; min-width: 8rem; }
+  .dash-stats { grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+  .dash-stat strong { font-size: 1.35rem; }
 }
 
 /* ── Bulk issue (CSV) ────────────────────────────────────── */
