@@ -136,7 +136,14 @@ export default function BuyDialog({ open, onClose }) {
             ].map(([key, info, label]) => (
               <label key={key} className={`dash-method${method === key ? " is-active" : ""}${!info.available ? " is-disabled" : ""}`}>
                 <input type="radio" name="method" disabled={!info.available} checked={method === key} onChange={() => setMethod(key)} />
-                <strong>{label}</strong>
+                <strong>
+                  {label}
+                  {key === "crypto" && info.cents_per_credit < pricing.stripe.cents_per_credit && (
+                    <span className="dash-discount">
+                      −{Math.round((1 - info.cents_per_credit / pricing.stripe.cents_per_credit) * 100)}%
+                    </span>
+                  )}
+                </strong>
                 <span>{t("buy.perCredit", { price: formatUsd(info.cents_per_credit) })}</span>
                 <small className="dash-muted">{info.available ? t("buy.min", { n: info.min_credits }) : t("buy.soon")}</small>
               </label>

@@ -253,6 +253,14 @@
 .dash-method input { position: absolute; opacity: 0; pointer-events: none; }
 .dash-method.is-active { border-color: var(--color-accent); box-shadow: 0 0 0 1px var(--color-accent); }
 .dash-method.is-disabled { opacity: 0.5; cursor: not-allowed; }
+.dash-discount {
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: rgba(74, 222, 128, 0.15);
+  color: #4ade80;
+  font-size: 0.75rem;
+}
 .dash-presets { margin-top: 0.4rem; }
 .dash-total { font-size: 1.05rem; margin: 0; }
 .dash-chip {
