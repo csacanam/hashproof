@@ -353,6 +353,13 @@
 .dash-auth-card h1 { font-size: 1.4rem; margin: 0 0 0.35rem; }
 .dash-auth-card > p { margin: 0 0 1.25rem; }
 .dash-auth-foot { font-size: 0.875rem; }
+.dash-auth input.dash-code-input {
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  letter-spacing: 0.35em;
+  text-align: center;
+  padding: 0.7rem 0.5rem;
+}
 
 /* ── Small screens ───────────────────────────────────────── */
 @media (max-width: 860px) {

@@ -105,12 +105,14 @@ export default function Login() {
             <label>
               <span>{t("login.code")}</span>
               <input
+                className="dash-code-input"
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 pattern="[0-9]{6,10}"
+                maxLength={10}
                 value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-                placeholder="123456"
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                placeholder="12345678"
               />
             </label>
             <button className="dash-btn" disabled={busy || code.length < 6}>
