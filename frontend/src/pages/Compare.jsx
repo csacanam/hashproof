@@ -44,10 +44,11 @@ export default function Compare() {
         acceptedAnswer: {
           "@type": "Answer",
           text:
-            `HashProof charges $0.10 per certificate issued, with no minimum, no setup fee and no subscription: ` +
+            `Through its API, HashProof charges $0.10 per certificate issued, with no minimum, no setup fee and no subscription: ` +
             `${OUR_COSTS.v2000} for 2,000 a year, ${OUR_COSTS.v10000} for 10,000, ${OUR_COSTS.v20000} for 20,000. ` +
             `${rival.name} charges: ${t(rival.how)}. ${money(rival.costs.v2000)} for 2,000 a year, ` +
             `${money(rival.costs.v10000)} for 10,000, ${money(rival.costs.v20000)} for 20,000. ` +
+            `In the HashProof dashboard (no code, templates and bulk upload), credits cost $0.45 in crypto or $0.50 by card. ` +
             `Prices verified ${PRICE_CHECK_DATE} against published pricing pages.`,
         },
       },

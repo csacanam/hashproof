@@ -69,10 +69,14 @@ export default function Home() {
           description: t("home.meta.description"),
           url: "https://www.hashproof.dev/",
           brand: { "@type": "Brand", name: "HashProof" },
+          // $0.10 per call through the API; $0.45 (crypto) to $0.50 (card) per
+          // credit in the dashboard.
           offers: {
-            "@type": "Offer",
-            price: "0.10",
+            "@type": "AggregateOffer",
+            lowPrice: "0.10",
+            highPrice: "0.50",
             priceCurrency: "USD",
+            offerCount: 3,
             url: "https://www.hashproof.dev/",
             availability: "https://schema.org/InStock",
             eligibleQuantity: { "@type": "QuantitativeValue", unitText: "credential" },
@@ -107,6 +111,9 @@ export default function Home() {
               rel="noopener noreferrer"
             >
               {t("home.hero.cta.credential")}
+            </Link>
+            <Link to="/app" className="btn btn-secondary">
+              {t("home.hero.cta.start")}
             </Link>
             <a href={`mailto:${CONTACT_EMAIL}`} className="btn btn-secondary">
               {t("home.hero.cta.contact")}
@@ -162,7 +169,7 @@ export default function Home() {
                     <td>
                       {COMPETITOR_SLUGS[row.key] ? (
                         <Link to={`/vs/${COMPETITOR_SLUGS[row.key]}`} className="verify-explorer-link">{row.name}</Link>
-                      ) : row.name}
+                      ) : row.nameKey ? t(row.nameKey) : row.name}
                     </td>
                     <td>{t(`home.pricing.${row.model}`)}</td>
                     {["v2000", "v10000", "v20000"].map((v) => (

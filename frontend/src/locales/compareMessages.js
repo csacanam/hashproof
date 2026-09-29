@@ -30,7 +30,7 @@ export const compareMessages = {
     "cmp.pricing.v10000": "10,000 a year",
     "cmp.pricing.v20000": "20,000 a year",
     "cmp.pricing.ours": "HashProof",
-    "cmp.pricing.ourPlan": "$0.10 per certificate issued",
+    "cmp.pricing.ourPlan": "$0.10 per certificate through the API ($0.45–$0.50 in the dashboard)",
     "cmp.pricing.notPublished": "Not published",
     "cmp.pricing.approx":
       "Figures marked ~ are worked out from the published per-recipient rate; the vendor does not publish a price at that volume.",
@@ -57,7 +57,7 @@ export const compareMessages = {
     "pok.strength.features":
       "There is more product around the certificate: it sends the emails for you, plus learning paths, engagement analytics and an app where recipients keep their credentials.",
     "pok.edge.price":
-      "A congress with 5,000 attendees costs you $500 with us and $1,500 with POK. Neither of us asks for a minimum, so the difference is simply the price.",
+      "A congress with 5,000 attendees costs you $500 through our API and $1,500 with POK. Neither of us asks for a minimum, so the difference is simply the price.",
     "pok.edge.document":
       "If anyone questions a certificate, the person holding it can prove their file is the original — we anchor the PDF's fingerprint. POK anchors the NFT image instead, and that image shows a placeholder where the name should be.",
     "pok.edge.revocation":
@@ -70,9 +70,9 @@ export const compareMessages = {
     "certifier.strength.obadges":
       "Open Badges 3.0, so recipients can import a certificate into LinkedIn or Europass without you integrating anything.",
     "certifier.strength.volume":
-      "If your volume happens to fill one of its plans, it is cheaper than us: 10,000 certificates a year costs $804 there and $1,000 here.",
+      "If your volume happens to fill one of its plans, it is cheaper than us: 10,000 certificates a year costs $804 there and $1,000 through our API — more in our dashboard.",
     "certifier.edge.tier":
-      "You pay for what you issued. A year with 2,000 certificates costs $200 with us; with Certifier the free plan stops at 1,000 and the next jumps to 10,000, so you pay $804 for capacity you never used.",
+      "You pay for what you issued. A year with 2,000 certificates costs $200 through our API; with Certifier the free plan stops at 1,000 and the next jumps to 10,000, so you pay $804 for capacity you never used.",
     "certifier.edge.chain":
       "If you stop paying us, or we disappear, the certificates you already handed out keep working. They live on a public blockchain, not in our database.",
     "certifier.edge.agents":
@@ -130,7 +130,7 @@ export const compareMessages = {
     "cmp.pricing.v10000": "10.000 al año",
     "cmp.pricing.v20000": "20.000 al año",
     "cmp.pricing.ours": "HashProof",
-    "cmp.pricing.ourPlan": "$0,10 por certificado emitido",
+    "cmp.pricing.ourPlan": "$0,10 por certificado vía API ($0,45–$0,50 en el panel)",
     "cmp.pricing.notPublished": "No lo publican",
     "cmp.pricing.approx":
       "Las cifras con ~ salen de la tarifa por receptor publicada; el proveedor no publica precio para ese volumen.",
@@ -157,7 +157,7 @@ export const compareMessages = {
     "pok.strength.features":
       "Trae más producto alrededor del certificado: envía los correos por ti, más rutas de aprendizaje, analítica de participación y una app donde el receptor guarda sus credenciales.",
     "pok.edge.price":
-      "Un congreso de 5.000 asistentes te cuesta $500 con nosotros y $1.500 con POK. Ninguno de los dos pide mínimo, así que la diferencia es sencillamente el precio.",
+      "Un congreso de 5.000 asistentes te cuesta $500 por nuestra API y $1.500 con POK. Ninguno de los dos pide mínimo, así que la diferencia es sencillamente el precio.",
     "pok.edge.document":
       "Si alguien pone en duda un certificado, quien lo tiene puede demostrar que su archivo es el original — anclamos la huella del PDF. POK ancla la imagen del NFT, y esa imagen muestra un marcador donde debería ir el nombre.",
     "pok.edge.revocation":
@@ -170,9 +170,9 @@ export const compareMessages = {
     "certifier.strength.obadges":
       "Open Badges 3.0, así el receptor puede importar el certificado a LinkedIn o Europass sin que tú integres nada.",
     "certifier.strength.volume":
-      "Si tu volumen justo llena uno de sus planes, es más barato que nosotros: 10.000 certificados al año cuestan $804 allá y $1.000 aquí.",
+      "Si tu volumen justo llena uno de sus planes, es más barato que nosotros: 10.000 certificados al año cuestan $804 allá y $1.000 por nuestra API — más en nuestro panel.",
     "certifier.edge.tier":
-      "Pagas lo que emitiste. Un año de 2.000 certificados te cuesta $200 con nosotros; con Certifier el plan gratuito llega a 1.000 y el siguiente salta a 10.000, así que pagas $804 por una capacidad que nunca usaste.",
+      "Pagas lo que emitiste. Un año de 2.000 certificados te cuesta $200 por nuestra API; con Certifier el plan gratuito llega a 1.000 y el siguiente salta a 10.000, así que pagas $804 por una capacidad que nunca usaste.",
     "certifier.edge.chain":
       "Si dejas de pagarnos, o desaparecemos, los certificados que ya entregaste siguen funcionando. Viven en una blockchain pública, no en nuestra base de datos.",
     "certifier.edge.agents":

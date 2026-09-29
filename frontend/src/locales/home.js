@@ -15,11 +15,12 @@ export const homeMessages = {
       "Issue verifiable digital certificates for events, courses and training from $0.10 each. No minimums, no annual fee, no setup cost.",
 
     // Hero
-    "home.hero.title": "Verifiable digital credentials, $0.10 each",
+    "home.hero.title": "Verifiable digital credentials, from $0.10 each",
     "home.hero.lead":
       "Issue certificates for events, courses and training that anyone can verify — anchored on a public blockchain, with no minimums, no annual fee and no setup cost.",
     "home.hero.cta.credential": "See a live certificate →",
     "home.hero.cta.contact": "Talk to us",
+    "home.hero.cta.start": "Start issuing",
     "home.hero.since": "Since March 10, 2026",
     "home.hero.stat.credentials": "Certificates issued",
     "home.hero.stat.entities": "Verified issuers",
@@ -39,8 +40,10 @@ export const homeMessages = {
     "home.pricing.perRecipient": "Per unique recipient",
     "home.pricing.quoted": "Quote only",
     "home.pricing.notPublished": "Not published",
+    "home.pricing.api": "HashProof · API",
+    "home.pricing.dashboard": "HashProof · Dashboard",
     "home.pricing.note":
-      "Notice the middle column: at exactly 10,000 a year Certifier is cheaper than us, because that is the size of its plan. The difference appears when your volume does not happen to match a plan — which is most years.",
+      "Two ways to issue with us. Through the API you pay $0.10 per credential over x402. In the dashboard — templates, spreadsheet uploads, revocation, your team, no code — credits cost $0.45 in crypto or $0.50 by card. Notice the middle column: at exactly 10,000 a year Certifier is cheaper than both, because that is the size of its plan; the difference appears when your volume does not match a plan, which is most years.",
     "home.pricing.compare": "Compare in detail:",
 
     // What the recipient gets
@@ -61,7 +64,7 @@ export const homeMessages = {
     // Developers
     "home.dev.title": "For developers and AI agents",
     "home.dev.lead":
-      "One API call issues a certificate. Pay per credential in USDC over x402 — no API key and no subscription — or use a prepaid key if crypto is not for you.",
+      "One API call issues a certificate. Pay per credential in USDC over x402 — no API key and no subscription — or create a key in the dashboard and spend your organization's credits.",
     "home.dev.docs": "Read the docs",
     "home.dev.mcp": "There is an MCP server too, so an agent can issue on its own.",
 
@@ -77,11 +80,12 @@ export const homeMessages = {
       "Emite certificados digitales verificables para eventos, cursos y formación desde $0,10. Sin mínimos, sin cuota anual y sin costo de implementación.",
 
     // Hero
-    "home.hero.title": "Credenciales digitales verificables, $0,10 cada una",
+    "home.hero.title": "Credenciales digitales verificables, desde $0,10 cada una",
     "home.hero.lead":
       "Emite certificados de eventos, cursos y formación que cualquiera puede verificar — anclados en una blockchain pública, sin mínimos, sin cuota anual y sin costo de implementación.",
     "home.hero.cta.credential": "Ver un certificado real →",
     "home.hero.cta.contact": "Hablemos",
+    "home.hero.cta.start": "Empieza a emitir",
     "home.hero.since": "Desde el 10 de marzo de 2026",
     "home.hero.stat.credentials": "Certificados emitidos",
     "home.hero.stat.entities": "Emisores verificados",
@@ -101,8 +105,10 @@ export const homeMessages = {
     "home.pricing.perRecipient": "Por receptor único",
     "home.pricing.quoted": "Solo cotizado",
     "home.pricing.notPublished": "No lo publican",
+    "home.pricing.api": "HashProof · API",
+    "home.pricing.dashboard": "HashProof · Panel",
     "home.pricing.note":
-      "Fíjate en la columna del medio: a exactamente 10.000 al año Certifier sale más barato que nosotros, porque ese es el tamaño de su plan. La diferencia aparece cuando tu volumen no coincide con un plan — que es casi siempre.",
+      "Hay dos formas de emitir con nosotros. Por API pagas $0,10 por credencial vía x402. En el panel —plantillas, carga desde Excel, revocación, tu equipo, sin programar— los créditos cuestan $0,45 en cripto o $0,50 con tarjeta. Fíjate en la columna del medio: a exactamente 10.000 al año Certifier sale más barato que ambos, porque ese es el tamaño de su plan; la diferencia aparece cuando tu volumen no coincide con un plan, que es casi siempre.",
     "home.pricing.compare": "Comparar en detalle:",
 
     // Qué recibe la persona
@@ -123,7 +129,7 @@ export const homeMessages = {
     // Desarrolladores
     "home.dev.title": "Para desarrolladores y agentes de IA",
     "home.dev.lead":
-      "Una llamada a la API emite un certificado. Paga por credencial en USDC vía x402 —sin API key y sin suscripción— o usa una llave prepago si prefieres no tocar cripto.",
+      "Una llamada a la API emite un certificado. Paga por credencial en USDC vía x402 —sin API key y sin suscripción— o crea una llave en el panel y gasta los créditos de tu organización.",
     "home.dev.docs": "Ver la documentación",
     "home.dev.mcp": "También hay servidor MCP, para que un agente emita por su cuenta.",
 
@@ -148,8 +154,11 @@ export const homeMessages = {
  * is the whole argument — the billing model matters more than the unit price.
  */
 export const PRICING_ROWS = [
-  { key: "hashproof", name: "HashProof", model: "perCredential",
+  { key: "hashproof", nameKey: "home.pricing.api", name: "HashProof · API", model: "perCredential",
     costs: { v2000: "$200", v10000: "$1,000", v20000: "$2,000" }, highlight: true },
+  // Credits in the dashboard: $0.45 in crypto, $0.50 by card.
+  { key: "hashproof-dashboard", nameKey: "home.pricing.dashboard", name: "HashProof · Dashboard", model: "perCredential",
+    costs: { v2000: "$900–$1,000", v10000: "$4,500–$5,000", v20000: "$9,000–$10,000" }, highlight: true },
   { key: "pok", name: "POK · Blockchain Verify", model: "perCredential",
     costs: { v2000: "$600", v10000: "$3,000", v20000: "$3,000" } },
   { key: "certifier", name: "Certifier", model: "perTier",
