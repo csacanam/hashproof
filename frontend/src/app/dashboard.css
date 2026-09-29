@@ -308,11 +308,35 @@
 
 /* ── Templates ───────────────────────────────────────────── */
 .dash-template-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 1rem; }
-.dash-template-card { background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: var(--radius); overflow: hidden; }
-.dash-template-thumb { background: #fff; }
-.dash-template-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.dash-template-meta { padding: 0.75rem 0.9rem; display: flex; flex-direction: column; gap: 0.25rem; }
-.dash-template-meta code { align-self: flex-start; }
+.dash-template-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.dash-template-thumb {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+}
+/* Absolutely placed so a tall design cannot stretch the frame; the shadow is a
+   drop-shadow so it follows the image itself, not the letterboxed box. */
+.dash-template-thumb img {
+  position: absolute;
+  inset: 0.75rem;
+  width: calc(100% - 1.5rem);
+  height: calc(100% - 1.5rem);
+  object-fit: contain;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.4));
+}
+.dash-template-meta { flex: 1; padding: 0.75rem 0.9rem; display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
+.dash-template-meta strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dash-template-meta code { align-self: flex-start; max-width: 100%; }
+.dash-template-meta .dash-row { margin-top: auto; padding-top: 0.35rem; }
+.dash-ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
 
 .dash-editor { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 1rem; align-items: start; }
 .dash-editor-canvas-col { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }

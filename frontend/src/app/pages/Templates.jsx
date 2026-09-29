@@ -56,12 +56,16 @@ function TemplateCard({ tpl, editable, canManage }) {
   const { t } = useDashboard();
   return (
     <div className="dash-template-card">
-      <div className="dash-template-thumb" style={{ aspectRatio: `${tpl.page_width} / ${tpl.page_height}` }}>
+      {/* Same frame for every card, whatever the page's proportions: the
+          design sits inside it, whole, so the grid stays even. */}
+      <div className="dash-template-thumb">
         <img src={tpl.background_url} alt="" loading="lazy" />
       </div>
       <div className="dash-template-meta">
         <strong>{tpl.name}</strong>
-        <code className="dash-small">{tpl.slug}</code>
+        <code className="dash-small dash-ellipsis" title={tpl.slug}>
+          {tpl.slug}
+        </code>
         <span className="dash-muted dash-small">
           {tpl.fields_json.length} {t("templates.fields")} · {formatDate(tpl.created_at)}
         </span>
