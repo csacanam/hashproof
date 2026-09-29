@@ -33,7 +33,7 @@ Two ways to issue:
 
 - **API**: **$0.10 USD per credential**, paid per call in USDC over x402 (no account).
 - **Dashboard** (https://hashproof.dev/app — templates, spreadsheet uploads, revocation, team, API keys):
-  credits cost **$0.22 in crypto** or **$0.25 by card**, and every API key of the
+  credits cost **$0.225 in crypto** or **$0.25 by card**, and every API key of the
   organization spends from that balance.
 
 Through the API, HashProof charges **$0.10 USD per credential issued**. No minimum, no setup fee,

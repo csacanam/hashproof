@@ -94,7 +94,7 @@ describe("dashboard routes", () => {
     const res = await request(app).get("/app/pricing");
     expect(res.status).toBe(200);
     expect(res.body.stripe.cents_per_credit).toBe(25);
-    expect(res.body.crypto.cents_per_credit).toBe(22);
+    expect(res.body.crypto.cents_per_credit).toBe(22.5);
   });
 
   it("requires a session", async () => {

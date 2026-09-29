@@ -156,9 +156,11 @@ describe("readImageInfo", () => {
 });
 
 describe("pricing", () => {
-  it("prices credits at $0.25 by card and $0.22 in crypto", () => {
+  it("prices credits at $0.25 by card and $0.225 in crypto, totals in whole cents", () => {
     expect(priceCents(50, "stripe")).toBe(1250);
-    expect(priceCents(50, "voulti")).toBe(1100);
+    expect(priceCents(50, "voulti")).toBe(1125);
+    expect(priceCents(10, "voulti")).toBe(225);
+    expect(priceCents(11, "voulti")).toBe(248); // 247.5 rounds up
   });
 
   it("enforces the per-method minimum", () => {

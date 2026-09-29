@@ -5,8 +5,8 @@
  * Credits belong to the organization, and every API key of it and its dashboard
  * spend from that one balance (migration 009), so a purchase names no key.
  *
- * Credits cost $0.25 by card and $0.22 in crypto: below the pay-as-you-go price
- * of the closest platform (POK, $0.30), whatever the volume. The ~10% crypto
+ * Credits cost $0.25 by card and $0.225 in crypto: below the pay-as-you-go price
+ * of the closest platform (POK, $0.30), whatever the volume. The 10% crypto
  * discount is roughly what a card costs us that stablecoins do not — Stripe's
  * fee over Voulti's, plus chargeback risk — so it can be explained, and it does
  * not make the card price look inflated.
@@ -29,7 +29,8 @@ import { escapeHtml } from "./accounts.js";
 
 export const STRIPE_CREDIT_PRICE_CENTS = 25;
 export const STRIPE_MIN_CREDITS = 25;
-export const VOULTI_CREDIT_PRICE_CENTS = 22;
+// Fractional on purpose: exactly 10% under the card price. Totals round to the cent.
+export const VOULTI_CREDIT_PRICE_CENTS = 22.5;
 export const VOULTI_MIN_CREDITS = 10;
 export const MAX_CREDITS_PER_PURCHASE = 100_000;
 
@@ -73,8 +74,9 @@ export function parseCredits(value, method) {
   return n;
 }
 
+/** Total in whole cents; a fractional unit price (crypto) rounds half up. */
 export function priceCents(credits, method) {
-  return credits * PRICING[method].cents;
+  return Math.round(credits * PRICING[method].cents);
 }
 
 // ── Stripe ────────────────────────────────────────────────────────────────

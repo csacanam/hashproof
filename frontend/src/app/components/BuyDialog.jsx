@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api.js";
 import { useDashboard } from "../useDashboard.js";
-import { formatNumber, formatUsd } from "../format.js";
+import { formatNumber, formatUnitUsd, formatUsd } from "../format.js";
 import Modal from "./Modal.jsx";
 
 const POLL_MS = 4000;
@@ -58,7 +58,7 @@ export default function BuyDialog({ open, onClose }) {
   const p = method === "stripe" ? pricing.stripe : pricing.crypto;
   const n = Math.trunc(Number(credits) || 0);
   const valid = p.available && n >= p.min_credits && n <= pricing.max_credits_per_purchase;
-  const total = n * p.cents_per_credit;
+  const total = Math.round(n * p.cents_per_credit);
 
   async function payCard() {
     setBusy(true);
@@ -144,7 +144,7 @@ export default function BuyDialog({ open, onClose }) {
                     </span>
                   )}
                 </strong>
-                <span>{t("buy.perCredit", { price: formatUsd(info.cents_per_credit) })}</span>
+                <span>{t("buy.perCredit", { price: formatUnitUsd(info.cents_per_credit) })}</span>
                 <small className="dash-muted">{info.available ? t("buy.min", { n: info.min_credits }) : t("buy.soon")}</small>
               </label>
             ))}

@@ -10,6 +10,13 @@ export function formatUsd(cents) {
   return new Intl.NumberFormat(locale, { style: "currency", currency: "USD" }).format((Number(cents) || 0) / 100);
 }
 
+/** A unit price, which can carry a fraction of a cent ($0.225). */
+export function formatUnitUsd(cents) {
+  return new Intl.NumberFormat(locale, { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 3 }).format(
+    (Number(cents) || 0) / 100,
+  );
+}
+
 export function formatDate(iso, withTime = false) {
   if (!iso) return "—";
   return new Intl.DateTimeFormat(locale, {

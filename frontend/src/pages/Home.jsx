@@ -69,7 +69,7 @@ export default function Home() {
           description: t("home.meta.description"),
           url: "https://www.hashproof.dev/",
           brand: { "@type": "Brand", name: "HashProof" },
-          // $0.10 per call through the API; $0.22 (crypto) to $0.25 (card) per
+          // $0.10 per call through the API; $0.225 (crypto) to $0.25 (card) per
           // credit in the dashboard.
           offers: {
             "@type": "AggregateOffer",

@@ -106,12 +106,12 @@ describe("handleStripeWebhook", () => {
 
 describe("Voulti", () => {
   beforeEach(() => {
-    purchases = [{ id: "pv", method: "voulti", external_ref: "inv_1", status: "pending", credits: 100, entity_id: "e1", amount_usd_cents: 2200 }];
+    purchases = [{ id: "pv", method: "voulti", external_ref: "inv_1", status: "pending", credits: 100, entity_id: "e1", amount_usd_cents: 2250 }];
     balances = {};
   });
 
   const invoice = (fields) =>
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ id: "inv_1", fiat_currency: "USD", amount_fiat: 22, ...fields })));
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ id: "inv_1", fiat_currency: "USD", amount_fiat: 22.5, ...fields })));
 
   it("credits the organization once the invoice is Paid, and only once", async () => {
     invoice({ status: "Paid" });
