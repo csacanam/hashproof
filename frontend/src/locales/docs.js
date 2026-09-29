@@ -76,7 +76,7 @@ export const docsMessages = {
     "docs.auth.apikey.title": "Pay with an API key",
     "docs.auth.apikey.body1": "Send {header1} or {header2}.",
     "docs.auth.apikey.body2":
-      "Each issuance deducts 1 credit and the key belongs to a single issuer entity. If you run out of credits the API returns {code}. Create keys and buy credits ($0.50 by card, $0.25 in crypto) at {dashboard}. Paying per call with x402 stays at $0.10.",
+      "Each issuance deducts 1 credit and the key belongs to a single issuer entity. If you run out of credits the API returns {code}. Create keys and buy credits ($0.50 by card, $0.45 in crypto) at {dashboard}. Paying per call with x402 stays at $0.10.",
 
     // ── issueCredential ──
     "docs.issue.lead":
@@ -311,7 +311,7 @@ export const docsMessages = {
     "docs.auth.apikey.title": "Pagar con API key",
     "docs.auth.apikey.body1": "Envía {header1} o {header2}.",
     "docs.auth.apikey.body2":
-      "Cada emisión descuenta 1 crédito y la key pertenece a una sola entidad emisora. Si te quedas sin créditos, la API responde {code}. Crea llaves y compra créditos ($0.50 con tarjeta, $0.25 en cripto) en {dashboard}. Pagar por llamada con x402 sigue a $0.10.",
+      "Cada emisión descuenta 1 crédito y la key pertenece a una sola entidad emisora. Si te quedas sin créditos, la API responde {code}. Crea llaves y compra créditos ($0.50 con tarjeta, $0.45 en cripto) en {dashboard}. Pagar por llamada con x402 sigue a $0.10.",
 
     // ── issueCredential ──
     "docs.issue.lead":
