@@ -164,6 +164,8 @@ export const appMessages = {
     "issue.keepOpen": "Keep this tab open until it finishes. If it closes, upload the same file again with the same settings: it continues where it stopped, without issuing or charging twice.",
     "issue.stoppedCredits": "Stopped: you ran out of credits.",
     "issue.download": "Download results (CSV)",
+    "issue.downloadZip": "Download the PDFs (ZIP)",
+    "issue.zipProgress": "Preparing ZIP… {done}/{total}",
     "issue.retryFailed": "Continue with the rest",
 
     "run.pending": "Waiting",
@@ -466,6 +468,8 @@ export const appMessages = {
       "Deja esta pestaña abierta hasta que termine. Si se cierra, sube el mismo archivo con la misma configuración: sigue donde quedó, sin emitir ni cobrar dos veces.",
     "issue.stoppedCredits": "Se detuvo: te quedaste sin créditos.",
     "issue.download": "Descargar resultados (CSV)",
+    "issue.downloadZip": "Descargar los PDF (ZIP)",
+    "issue.zipProgress": "Armando el ZIP… {done}/{total}",
     "issue.retryFailed": "Continuar con las que faltan",
 
     "run.pending": "En espera",

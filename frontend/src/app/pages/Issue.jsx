@@ -259,7 +259,8 @@ function CsvIssue({ common, extraFields, ready }) {
   const [file, setFile] = useState(null); // {name, text, headers, rows}
   const [map, setMap] = useState({ name: "", email: "", fields: {} });
   const [validation, setValidation] = useState(null);
-  const [run, setRun] = useState(null); // {results: [{status, url, error}], running}
+  const [run, setRun] = useState(null); // {results: [{status, url, id, error}], running}
+  const [zip, setZip] = useState(null); // {done, total} while the ZIP is being built
   const abortRef = useRef(null);
 
   useEffect(() => () => abortRef.current?.abort(), []);
@@ -340,7 +341,12 @@ function CsvIssue({ common, extraFields, ready }) {
         if (r.status !== "queued") return;
         const job = await waitForJob(r.job, { signal: controller.signal });
         if (!job) return;
-        update(i, job.status === "completed" ? { status: "completed", url: job.credential.verification_url } : { status: "failed", error: job.error });
+        update(
+          i,
+          job.status === "completed"
+            ? { status: "completed", url: job.credential.verification_url, id: job.credential.id }
+            : { status: "failed", error: job.error },
+        );
       }),
     );
     setRun((r) => ({ ...r, running: false, stoppedFor: stopFor }));
@@ -361,6 +367,67 @@ function CsvIssue({ common, extraFields, ready }) {
     a.download = `${file.name.replace(/\.csv$/i, "")}-results.csv`;
     a.click();
     URL.revokeObjectURL(a.href);
+  }
+
+  /**
+   * One PDF per person in a ZIP — what an organizer hands out or attaches to
+   * emails. Fetched from the API (it allows cross-origin reads), a few at a
+   * time. Names are made safe for every OS and de-duplicated, since two people
+   * can share a name.
+   */
+  async function downloadZip() {
+    const done = run.results.map((r, i) => ({ ...r, i })).filter((r) => r.status === "completed" && r.id);
+    if (!done.length) return;
+    setZip({ done: 0, total: done.length });
+    const { default: JSZip } = await import("jszip");
+    const zip = new JSZip();
+    const used = new Map();
+    const missing = [];
+    let next = 0;
+    let finished = 0;
+    async function worker() {
+      while (next < done.length) {
+        const r = done[next++];
+        const base =
+          String(file.rows[r.i][map.name] || `certificado-${r.i + 1}`)
+            .normalize("NFC")
+            .replace(/[\\/:*?"<>|]+/g, " ")
+            .replace(/\s+/g, " ")
+            .trim()
+            .slice(0, 80) || `certificado-${r.i + 1}`;
+        const n = (used.get(base) || 0) + 1;
+        used.set(base, n);
+        // The public PDF route allows 60 reads a minute: on 429, wait as told
+        // and try again, so a large batch comes out complete, only slower.
+        for (let attempt = 0; attempt < 8; attempt++) {
+          try {
+            const res = await publicApi(`/verify/${r.id}/pdf`);
+            if (res.status === 429) {
+              const wait = Number(res.headers.get("retry-after")) || 15;
+              await new Promise((ok) => setTimeout(ok, wait * 1000));
+              continue;
+            }
+            if (res.ok) zip.file(`${base}${n > 1 ? ` (${n})` : ""}.pdf`, await res.arrayBuffer());
+            else missing.push(base);
+          } catch {
+            missing.push(base);
+          }
+          break;
+        }
+        finished++;
+        setZip({ done: finished, total: done.length });
+      }
+    }
+    await Promise.all(Array.from({ length: 4 }, worker));
+    // Say what is not in the ZIP instead of handing over a silently short one.
+    if (missing.length) zip.file("FALTANTES.txt", `${missing.join("\n")}\n`);
+    const blob = await zip.generateAsync({ type: "blob" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `${file.name.replace(/\.csv$/i, "")}-certificados.zip`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    setZip(null);
   }
 
   const count = inputs.length;
@@ -550,7 +617,12 @@ function CsvIssue({ common, extraFields, ready }) {
               )}
               {!run.running && (
                 <div className="dash-row">
-                  <button type="button" className="dash-btn" onClick={downloadResults}>
+                  {counts.completed > 0 && (
+                    <button type="button" className="dash-btn" onClick={downloadZip} disabled={Boolean(zip)}>
+                      {zip ? t("issue.zipProgress", { done: zip.done, total: zip.total }) : t("issue.downloadZip")}
+                    </button>
+                  )}
+                  <button type="button" className="dash-btn dash-btn--ghost" onClick={downloadResults}>
                     {t("issue.download")}
                   </button>
                   {counts.failed > 0 && (
