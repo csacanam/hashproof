@@ -4,7 +4,7 @@ import { api, publicApi } from "../api.js";
 import { useDashboard } from "../useDashboard.js";
 import Modal from "../components/Modal.jsx";
 import PdfViewer from "../../components/PdfViewer.jsx";
-import { qrZone } from "../qr.js";
+import { qrCornerBusyness, qrZone } from "../qr.js";
 
 function overlapsQr(f, pageWidth) {
   const q = qrZone(pageWidth);
@@ -45,6 +45,7 @@ export default function TemplateEditor() {
   const [error, setError] = useState(null);
   const [preview, setPreview] = useState(null);
   const [loaded, setLoaded] = useState(isNew && !search.get("from"));
+  const [qrBusy, setQrBusy] = useState(null); // share of the QR corner that is not plain background
 
   // Load the template being edited, or the one being duplicated.
   useEffect(() => {
@@ -61,6 +62,19 @@ export default function TemplateEditor() {
       })
       .catch((err) => setError({ message: err.message }));
   }, [org?.id, id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Look at the image itself: a seal or signature in the QR corner is painted
+  // into the background, so no field check would catch it.
+  useEffect(() => {
+    if (!bg?.url) return;
+    let cancelled = false;
+    qrCornerBusyness(bg.url, bg.width).then((share) => {
+      if (!cancelled) setQrBusy(share);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [bg?.url, bg?.width]);
 
   if (!canManage) return <div className="dash-page"><p className="dash-muted">{t("common.managersOnly")}</p></div>;
 
@@ -210,6 +224,7 @@ export default function TemplateEditor() {
               />
             )}
             {qrWarnings.length > 0 && <p className="dash-note dash-note--danger">{t("editor.qrOverlap", { fields: qrWarnings.join(", ") })}</p>}
+            {qrBusy !== null && qrBusy > 0.03 && <p className="dash-note dash-note--danger">{t("editor.qrBackground")}</p>}
             {bg && <p className="dash-muted dash-small">{t("editor.hint")}</p>}
           </div>
 

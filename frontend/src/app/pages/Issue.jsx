@@ -3,12 +3,14 @@ import { Link } from "react-router-dom";
 import { api, publicApi } from "../api.js";
 import { useDashboard } from "../useDashboard.js";
 import { formatNumber } from "../format.js";
-import { decodeCsv, digest, guessColumn, parseCsv, toCsv } from "../csv.js";
+import { decodeCsv, digest, fillTags, guessColumn, parseCsv, toCsv } from "../csv.js";
 import BuyLink from "../components/BuyLink.jsx";
 
 const CONTEXT_TYPES = ["event", "course", "diploma", "training", "certification", "membership", "other"];
 const CREDENTIAL_TYPES = ["attendance", "completion", "achievement", "participation", "membership", "certification"];
 const CONCURRENCY = 4;
+const TEXT_MODE = "__text__";
+
 const POLL_MS = 3000;
 
 /** Poll a job until it finishes. */
@@ -281,7 +283,11 @@ function CsvIssue({ common, extraFields, ready }) {
       buildInput(common, {
         holder_name: r[map.name],
         holder_email: map.email ? r[map.email] : "",
-        values: Object.fromEntries(Object.entries(map.fields).filter(([, col]) => col).map(([k, col]) => [k, r[col]])),
+        values: Object.fromEntries(
+          Object.entries(map.fields)
+            .filter(([, src]) => src)
+            .map(([k, src]) => [k, typeof src === "string" ? r[src] : fillTags(src.text, r)]),
+        ),
       }),
     );
   }, [file, map, common]);
@@ -396,12 +402,49 @@ function CsvIssue({ common, extraFields, ready }) {
                   {t("issue.colField", { field: f.key })}
                   {f.required ? " *" : ""}
                 </span>
-                <select value={map.fields[f.key] || ""} onChange={(e) => setMap({ ...map, fields: { ...map.fields, [f.key]: e.target.value } })}>
+                <select
+                  value={typeof map.fields[f.key] === "object" ? TEXT_MODE : map.fields[f.key] || ""}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    const next = v === TEXT_MODE ? { text: map.fields[f.key]?.text ?? "" } : v;
+                    setMap({ ...map, fields: { ...map.fields, [f.key]: next } });
+                  }}
+                >
                   <option value="">{t("issue.none")}</option>
                   {file.headers.map((h) => (
                     <option key={h}>{h}</option>
                   ))}
+                  <option value={TEXT_MODE}>{t("issue.textWithTags")}</option>
                 </select>
+                {typeof map.fields[f.key] === "object" && (
+                  <>
+                    <textarea
+                      rows={2}
+                      value={map.fields[f.key].text}
+                      placeholder={t("issue.textPh", { tag: `{${file.headers[1] || file.headers[0]}}` })}
+                      onChange={(e) => setMap({ ...map, fields: { ...map.fields, [f.key]: { text: e.target.value } } })}
+                    />
+                    <span className="dash-row dash-tags">
+                      {file.headers.map((h) => (
+                        <button
+                          key={h}
+                          type="button"
+                          className="dash-chip"
+                          onClick={() =>
+                            setMap({ ...map, fields: { ...map.fields, [f.key]: { text: `${map.fields[f.key].text}{${h}}` } } })
+                          }
+                        >
+                          {`{${h}}`}
+                        </button>
+                      ))}
+                    </span>
+                    {file.rows[0] && (
+                      <small className="dash-muted">
+                        {t("issue.textExample")} {fillTags(map.fields[f.key].text, file.rows[0]) || "—"}
+                      </small>
+                    )}
+                  </>
+                )}
               </label>
             ))}
           </div>

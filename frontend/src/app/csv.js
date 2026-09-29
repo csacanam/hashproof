@@ -139,3 +139,14 @@ export async function digest(text) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
   return [...new Uint8Array(buf)].slice(0, 12).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
+
+/**
+ * Fill {Column} tags in a text with a row's values — like merge tags in an email
+ * tool. Unknown tags are left as written, so a typo shows up in the preview
+ * instead of silently printing an empty gap on a certificate.
+ */
+export function fillTags(text, row) {
+  return String(text || "")
+    .replace(/\{([^{}]+)\}/g, (m, name) => (Object.prototype.hasOwnProperty.call(row, name.trim()) ? row[name.trim()] : m))
+    .trim();
+}

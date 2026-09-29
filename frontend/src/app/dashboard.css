@@ -262,6 +262,18 @@
   font-size: 0.75rem;
 }
 .dash-presets { margin-top: 0.4rem; }
+.dash-tags { gap: 0.35rem; }
+.dash textarea {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.925rem;
+  resize: vertical;
+}
 .dash-total { font-size: 1.05rem; margin: 0; }
 .dash-chip {
   padding: 0.3rem 0.7rem;
