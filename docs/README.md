@@ -22,6 +22,7 @@
 | Read | Why |
 |------|-----|
 | [ADMIN-GUIDE.md](./ADMIN-GUIDE.md) | How to review and approve entity verification requests, suspend entities, and manage authorized wallets |
+| [STRIPE-SETUP.md](./STRIPE-SETUP.md) | Turning on card payments for credits: keys, webhook, the shared-account filter, a real-payment test, and refunds |
 
 ## Engineering notes (optional)
 
