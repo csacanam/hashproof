@@ -214,6 +214,7 @@
 .dash-table--compact td, .dash-table--compact th { padding: 0.4rem 0.6rem; }
 .dash-table tr.is-revoked td { opacity: 0.55; }
 .dash-actions { white-space: nowrap; text-align: right; }
+.dash-reason { max-width: 16rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 0.2rem; }
 .dash-actions > * + * { margin-left: 0.9rem; }
 .dash-pager { display: flex; justify-content: center; align-items: center; gap: 1rem; }
 

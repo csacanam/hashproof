@@ -105,6 +105,7 @@ export const appMessages = {
     "credentials.col.actions": "Actions",
     "credentials.empty": "No credentials match.",
     "credentials.revoke": "Revoke",
+    "credentials.revocationTx": "Revocation on-chain ↗",
 
     "revoke.title": "Revoke credential",
     "revoke.body": "The credential of {name} for “{context}” will show as revoked to anyone who verifies it.",
@@ -410,6 +411,7 @@ export const appMessages = {
     "credentials.col.actions": "Acciones",
     "credentials.empty": "Ninguna credencial coincide.",
     "credentials.revoke": "Revocar",
+    "credentials.revocationTx": "Revocación en la cadena ↗",
 
     "revoke.title": "Revocar credencial",
     "revoke.body": "La credencial de {name} para “{context}” aparecerá como revocada para cualquiera que la verifique.",

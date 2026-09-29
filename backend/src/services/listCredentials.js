@@ -36,7 +36,7 @@ export async function listCredentials(
   let query = supabase
     .from("credentials")
     .select(
-      `id, credential_type, created_at, expires_at, revoked_at, revocation_reason, tx_hash, issuer_entity_id, platform_entity_id, holder_name:credential_json->credentialSubject->>full_name, ${contextSel}, templates(slug)`,
+      `id, credential_type, created_at, expires_at, revoked_at, revocation_reason, revocation_tx_hash, tx_hash, issuer_entity_id, platform_entity_id, holder_name:credential_json->credentialSubject->>full_name, ${contextSel}, templates(slug)`,
       { count: "exact" },
     )
     .or(`issuer_entity_id.eq.${entityId},platform_entity_id.eq.${entityId}`)
@@ -75,6 +75,7 @@ export async function listCredentials(
       expires_at: c.expires_at,
       revoked_at: c.revoked_at,
       revocation_reason: c.revocation_reason ?? null,
+      revocation_tx_hash: c.revocation_tx_hash ?? null,
       role: c.issuer_entity_id === entityId ? "issuer" : "platform",
       tx_hash: c.tx_hash,
       verification_url: `${root}/verify/${c.id}`,

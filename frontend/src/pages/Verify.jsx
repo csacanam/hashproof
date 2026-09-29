@@ -364,6 +364,12 @@ export default function Verify() {
           <div className="verify-pdf-header">
             <h1>{[credentialName, activity].filter((x) => x && x !== "—").join(" · ") || t("verify.credentialTitle")}</h1>
           </div>
+          {status === "revoked" && (
+            <p className="verify-warning verify-warning--error">
+              <span className="verify-warning-icon">❌</span>
+              <span>{t("verify.warning.revoked")}</span>
+            </p>
+          )}
           <div ref={wrapperRef} className="verify-pdf-wrapper">
             {pdfBlob ? (
               <PdfViewer pdfBlob={pdfBlob} containerRef={wrapperRef} />
@@ -372,6 +378,9 @@ export default function Verify() {
             )}
           </div>
           <div className="verify-pdf-actions">
+            {/* A revoked credential is shown so the reader knows what was
+                withdrawn, but not handed out again: no download, no sharing. */}
+            {status !== "revoked" && (
             <button
               type="button"
               className="btn btn-action"
@@ -384,6 +393,7 @@ export default function Verify() {
               </svg>
               {t("verify.download")}
             </button>
+            )}
             <button
               type="button"
               className="btn btn-action btn-action--verify"
@@ -396,6 +406,7 @@ export default function Verify() {
             </button>
           </div>
 
+          {status !== "revoked" && (
           <div className="verify-share">
             <span className="verify-share-title">{t("verify.share.title")}</span>
             <div className="verify-share-actions">
@@ -447,6 +458,7 @@ export default function Verify() {
               </button>
             </div>
           </div>
+          )}
         </div>
 
         <div ref={verifyCardRef} className="verify-card">

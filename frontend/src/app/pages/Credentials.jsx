@@ -121,16 +121,30 @@ export default function Credentials() {
                   <td>{formatDate(c.issued_at)}</td>
                   <td>
                     <StatusPill status={c.status} />
-                    {c.revocation_reason && <div className="dash-muted dash-small">{c.revocation_reason}</div>}
+                    {c.revocation_reason && (
+                      <div className="dash-muted dash-small dash-reason" title={c.revocation_reason}>
+                        {c.revocation_reason}
+                      </div>
+                    )}
                   </td>
                   <td className="dash-actions">
-                    <a href={`${c.verification_url}/pdf`} target="_blank" rel="noreferrer" className="dash-link">
-                      PDF
-                    </a>
-                    {c.status !== "revoked" && (
-                      <button type="button" className="dash-link dash-link--danger" onClick={() => setRevoking(c)}>
-                        {t("credentials.revoke")}
-                      </button>
+                    {c.status === "revoked" ? (
+                      // Nothing to hand out any more; what is left to show is
+                      // the proof that it was withdrawn.
+                      c.revocation_tx_hash && (
+                        <a href={`https://celoscan.io/tx/${c.revocation_tx_hash}`} target="_blank" rel="noreferrer" className="dash-link">
+                          {t("credentials.revocationTx")}
+                        </a>
+                      )
+                    ) : (
+                      <>
+                        <a href={`${c.verification_url}/pdf`} target="_blank" rel="noreferrer" className="dash-link">
+                          PDF
+                        </a>
+                        <button type="button" className="dash-link dash-link--danger" onClick={() => setRevoking(c)}>
+                          {t("credentials.revoke")}
+                        </button>
+                      </>
                     )}
                   </td>
                 </tr>
