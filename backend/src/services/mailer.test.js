@@ -6,7 +6,6 @@ const base = {
   issuer: "Universidad & Cía",
   context: "Diplomado IA",
   verificationUrl: "https://hashproof.dev/verify/abc",
-  pdfUrl: "https://hashproof.dev/verify/abc/pdf",
 };
 
 describe("credentialEmail", () => {
@@ -24,9 +23,10 @@ describe("credentialEmail", () => {
     expect(text).toContain("Universidad & Cía");
   });
 
-  it("links to the verification page and the PDF", () => {
+  it("links only to the verification page, where the PDF is downloaded", () => {
     const { html, text } = credentialEmail(base);
     expect(html).toContain('href="https://hashproof.dev/verify/abc"');
-    expect(text).toContain("https://hashproof.dev/verify/abc/pdf");
+    expect(html).not.toContain("/pdf");
+    expect(text).not.toContain("/pdf");
   });
 });

@@ -520,7 +520,6 @@ export async function executeIssueCredential(payload) {
       issuer: issuer?.display_name,
       context: context?.title,
       verificationUrl: `${baseUrl}/verify/${credentialId}`,
-      pdfUrl: `${baseUrl}/verify/${credentialId}/pdf`,
     }).catch(() => {});
   }
 

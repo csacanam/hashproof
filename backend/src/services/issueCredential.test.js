@@ -249,7 +249,6 @@ describe("executeIssueCredential", () => {
         issuer: "Test Issuer",
         context: "Blockchain 101",
         verificationUrl: expect.stringMatching(/\/verify\/mock-id$/),
-        pdfUrl: expect.stringMatching(/\/verify\/mock-id\/pdf$/),
       }),
     );
   });
