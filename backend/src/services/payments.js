@@ -19,6 +19,10 @@
  * and credits land through complete_credit_purchase — which only credits a
  * pending row. A webhook delivered twice, a poll racing the webhook, or a user
  * returning to the page twice, credits once.
+ *
+ * A card refund made in Stripe takes the refunded share of the credits back
+ * (refund_credit_purchase, migration 011), never below zero; credits already
+ * spent are reported instead of taken.
  */
 
 import crypto from "node:crypto";
@@ -129,14 +133,16 @@ export async function createStripeCheckout({ entity, user, credits, returnUrl })
 
 /**
  * Handle a Stripe webhook. Verifies the signature against the raw body; only a
- * paid checkout tagged as ours credits anything.
- * @returns {Promise<{ handled: boolean, credited?: boolean, ignored?: string }>}
+ * paid checkout tagged as ours credits anything, and only a refund of one of
+ * our purchases takes credits back.
+ * @returns {Promise<{ handled: boolean, credited?: boolean, withdrawn?: number, ignored?: string }>}
  */
 export async function handleStripeWebhook(rawBody, signature) {
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!secret) throw new Error("STRIPE_WEBHOOK_SECRET not configured");
   const event = stripe().webhooks.constructEvent(rawBody, signature, secret);
 
+  if (event.type === "charge.refunded") return handleStripeRefund(event.data.object);
   if (event.type !== "checkout.session.completed" && event.type !== "checkout.session.async_payment_succeeded") {
     return { handled: false };
   }
@@ -165,7 +171,87 @@ export async function handleStripeWebhook(rawBody, signature) {
     credits,
     amountCents: session.amount_total,
   });
+  // Remember the payment behind the purchase: a refund names the payment, not
+  // the checkout. Not fatal — the refund can still find it through Stripe.
+  if (session.payment_intent) {
+    const { error } = await supabase
+      .from("credit_purchases")
+      .update({ payment_ref: String(session.payment_intent) })
+      .eq("id", result.purchase_id);
+    if (error) console.error("[payments] could not record payment_ref", session.id, error.message);
+  }
   return { handled: true, credited: result.credited };
+}
+
+/**
+ * A charge was refunded, fully or in part. Stripe reports the total refunded so
+ * far, so the credits to withdraw are recomputed from it every time: a repeated
+ * event or a second partial refund never takes back more than was refunded.
+ */
+async function handleStripeRefund(charge) {
+  const paymentIntent = charge.payment_intent ? String(charge.payment_intent) : null;
+  // A charge carries its payment's metadata; another product's refund stops here.
+  if (charge.metadata?.product && charge.metadata.product !== STRIPE_PRODUCT_TAG) {
+    return { handled: false, ignored: "other_product" };
+  }
+  if (!paymentIntent) return { handled: false, ignored: "other_product" };
+
+  const cols = "id, entity_id, credits, amount_usd_cents, status, refunded_credits";
+  let { data: purchase, error } = await supabase
+    .from("credit_purchases")
+    .select(cols)
+    .eq("method", "stripe")
+    .eq("payment_ref", paymentIntent)
+    .maybeSingle();
+  if (error) throw new Error(`database: ${error.message}`);
+
+  if (!purchase) {
+    // Not linked yet (the refund raced the checkout event): ask Stripe which
+    // payment this is, and only follow it if it is ours.
+    const pi = await stripe().paymentIntents.retrieve(paymentIntent);
+    if (pi.metadata?.product !== STRIPE_PRODUCT_TAG) return { handled: false, ignored: "other_product" };
+    const sessions = await stripe().checkout.sessions.list({ payment_intent: paymentIntent, limit: 1 });
+    const sessionId = sessions.data?.[0]?.id;
+    if (sessionId) {
+      ({ data: purchase, error } = await supabase
+        .from("credit_purchases")
+        .select(cols)
+        .eq("method", "stripe")
+        .eq("external_ref", sessionId)
+        .maybeSingle());
+      if (error) throw new Error(`database: ${error.message}`);
+    }
+  }
+  if (!purchase || purchase.status !== "completed") {
+    // Ours, but never credited: nothing to take back. Say so, it is unusual.
+    console.error("[payments] refund for a purchase that was not credited", paymentIntent);
+    sendTelegramAlert("credits_refund", `⚠️ <b>Stripe refund</b> for a purchase that was not credited\n${escapeHtml(paymentIntent)}`).catch(() => {});
+    return { handled: false };
+  }
+
+  const total = Number(charge.amount) || purchase.amount_usd_cents;
+  const refunded = Math.min(Number(charge.amount_refunded) || 0, total);
+  // Round up: a partial refund never leaves a fraction of a credit unpaid.
+  const target = Math.min(purchase.credits, Math.ceil((purchase.credits * refunded) / total));
+
+  const { data, error: rpcErr } = await supabase.rpc("refund_credit_purchase", {
+    p_purchase_id: purchase.id,
+    p_refunded_credits: target,
+  });
+  if (rpcErr) throw new Error(`database: ${rpcErr.message}`);
+
+  const taken = data?.taken ?? 0;
+  const shortfall = data?.shortfall ?? 0;
+  if (taken > 0 || shortfall > 0) {
+    const { data: ent } = await supabase.from("entities").select("display_name").eq("id", purchase.entity_id).maybeSingle();
+    sendTelegramAlert(
+      "credits_refund",
+      `↩️ <b>Credits refunded</b> (stripe)\n${escapeHtml(ent?.display_name || purchase.entity_id)}: ` +
+        `$${(refunded / 100).toFixed(2)} refunded, ${taken.toLocaleString("en-US")} credits withdrawn` +
+        (shortfall > 0 ? `\n⚠️ ${shortfall.toLocaleString("en-US")} credits were already spent and could not be withdrawn` : ""),
+    ).catch(() => {});
+  }
+  return { handled: true, withdrawn: taken, shortfall };
 }
 
 // ── Voulti ────────────────────────────────────────────────────────────────

@@ -13,7 +13,13 @@ vi.mock("../supabase.js", () => {
       eq: (k, v) => ((f[k] = v), b),
       order: () => b,
       limit: () => b,
-      maybeSingle: async () => ({ data: table === "credit_purchases" ? purchases.find((p) => p.method === f.method && p.external_ref === f.external_ref) ?? null : null, error: null }),
+      maybeSingle: async () => ({ data: table === "credit_purchases" ? purchases.find((p) => Object.entries(f).every(([k, v]) => p[k] === v)) ?? null : null, error: null }),
+      update: (patch) => ({
+        eq: async (k, v) => {
+          purchases.filter((p) => p[k] === v).forEach((p) => Object.assign(p, patch));
+          return { error: null };
+        },
+      }),
       single: async () => ({ data: purchases.find((p) => p.method === f.method && p.external_ref === f.external_ref), error: null }),
       insert: (row) => {
         const dup = purchases.find((p) => p.method === row.method && p.external_ref === row.external_ref);
@@ -27,8 +33,17 @@ vi.mock("../supabase.js", () => {
   return {
     supabase: {
       from: q,
-      rpc: async (fn, { p_purchase_id }) => {
+      rpc: async (fn, { p_purchase_id, p_refunded_credits }) => {
         const p = purchases.find((x) => x.id === p_purchase_id);
+        if (fn === "refund_credit_purchase") {
+          // Same rules as the SQL function: cumulative target, never below zero.
+          const delta = Math.min(p_refunded_credits, p.credits) - (p.refunded_credits || 0);
+          if (delta <= 0) return { data: { ok: true, taken: 0, shortfall: 0 }, error: null };
+          const take = Math.min(delta, balances[p.entity_id] || 0);
+          balances[p.entity_id] = (balances[p.entity_id] || 0) - take;
+          p.refunded_credits = Math.min(p_refunded_credits, p.credits);
+          return { data: { ok: true, taken: take, shortfall: delta - take }, error: null };
+        }
         if (p.status !== "pending") return { data: { ok: true, credited: false }, error: null };
         p.status = "completed";
         balances[p.entity_id] = (balances[p.entity_id] || 0) + p.credits;
@@ -54,6 +69,7 @@ const SESSION = {
   id: "cs_test_1",
   payment_status: "paid",
   amount_total: 2500,
+  payment_intent: "pi_1",
   metadata: { product: "hashproof", entity_id: "e1", user_id: "u1", credits: "100" },
 };
 
@@ -101,6 +117,46 @@ describe("handleStripeWebhook", () => {
   it("ignores unpaid sessions and other events", async () => {
     expect((await handleStripeWebhook(...signed({ ...SESSION, payment_status: "unpaid" }))).handled).toBe(false);
     expect((await handleStripeWebhook(...signed(SESSION, "payment_intent.created"))).handled).toBe(false);
+  });
+});
+
+describe("Stripe refunds", () => {
+  const CHARGE = { id: "ch_1", payment_intent: "pi_1", amount: 2500, amount_refunded: 2500, metadata: { product: "hashproof" } };
+  const refund = (c) => handleStripeWebhook(...signed(c, "charge.refunded"));
+
+  beforeEach(async () => {
+    purchases = [];
+    balances = {};
+    await handleStripeWebhook(...signed(SESSION));
+  });
+
+  it("links the purchase to its payment when it credits", () => {
+    expect(purchases[0].payment_ref).toBe("pi_1");
+  });
+
+  it("takes back all the credits of a full refund, once", async () => {
+    expect(await refund(CHARGE)).toEqual({ handled: true, withdrawn: 100, shortfall: 0 });
+    expect(await refund(CHARGE)).toEqual({ handled: true, withdrawn: 0, shortfall: 0 });
+    expect(balances.e1).toBe(0);
+  });
+
+  it("takes back the refunded share of partial refunds, rounding up", async () => {
+    await refund({ ...CHARGE, amount_refunded: 1000 }); // $10 of $25 → 40 credits
+    expect(balances.e1).toBe(60);
+    await refund({ ...CHARGE, amount_refunded: 1010 }); // 40.4 → 41 in total
+    expect(balances.e1).toBe(59);
+  });
+
+  it("never leaves a balance below zero, and reports what was already spent", async () => {
+    balances.e1 = 30;
+    expect(await refund(CHARGE)).toEqual({ handled: true, withdrawn: 30, shortfall: 70 });
+    expect(balances.e1).toBe(0);
+  });
+
+  it("ignores refunds of other products on the shared account", async () => {
+    const out = await refund({ ...CHARGE, payment_intent: "pi_other", metadata: { product: "peewah" } });
+    expect(out).toEqual({ handled: false, ignored: "other_product" });
+    expect(balances.e1).toBe(100);
   });
 });
 

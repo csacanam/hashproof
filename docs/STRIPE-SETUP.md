@@ -22,6 +22,15 @@ external_ref)` and `complete_credit_purchase()` only credits a `pending` row, so
 a webhook delivered twice, or retried after a timeout, adds nothing the second
 time.
 
+Refunds take the credits back. When a payment is refunded in Stripe (fully or in
+part), Stripe sends `charge.refunded` with the total refunded so far; the backend
+withdraws that share of the purchase's credits (`credits × amount_refunded /
+amount`, rounded up) from the organization's balance through
+`refund_credit_purchase()`. The share is recomputed from the total each time, so
+a repeated event or several partial refunds never withdraw more than was
+refunded. The balance never goes below zero: credits already spent cannot be
+withdrawn, and the backend sends an alert saying how many.
+
 ## Sharing a Stripe account with other products
 
 Every Checkout Session HashProof creates carries
@@ -51,12 +60,14 @@ along with `entity_id` and `credits`.
 ## Steps to activate
 
 1. **Keys.** In Stripe (live mode), use a secret or restricted key that can
-   create Checkout Sessions. A restricted key needs *Checkout Sessions: write*;
-   inline `price_data` works without *Products* permission.
+   create Checkout Sessions. A restricted key needs *Checkout Sessions: write*
+   and *PaymentIntents: read* (to recognise a refund that arrives before its
+   purchase is linked); inline `price_data` works without *Products* permission.
 2. **Webhook endpoint.** Dashboard → Developers → Webhooks → *Add endpoint*:
    - URL: `https://api.hashproof.dev/stripe/webhook`
-   - Events: `checkout.session.completed` and
-     `checkout.session.async_payment_succeeded` (only these two).
+   - Events: `checkout.session.completed`,
+     `checkout.session.async_payment_succeeded` and `charge.refunded` (only
+     these three).
 
    Or from the command line:
 
@@ -65,7 +76,8 @@ along with `entity_id` and `credits`.
      -u "$STRIPE_SECRET_KEY:" \
      -d url="https://api.hashproof.dev/stripe/webhook" \
      -d "enabled_events[]=checkout.session.completed" \
-     -d "enabled_events[]=checkout.session.async_payment_succeeded"
+     -d "enabled_events[]=checkout.session.async_payment_succeeded" \
+     -d "enabled_events[]=charge.refunded"
    ```
 
    Copy the endpoint's signing secret (`whsec_…`).
@@ -94,20 +106,13 @@ one real purchase of the minimum (25 credits, $6.25):
    delivery should show `200` with `"credited": true`.
 4. *Resend* that delivery from Stripe: it should return `200` with
    `"credited": false`, and the balance must not change.
-5. Refund the payment from Stripe if it was only a test (see below: the credits
-   are not taken back automatically yet).
+5. Refund the payment from Stripe. The `charge.refunded` delivery should show
+   `200` with `"withdrawn": 25`, the balance should drop by 25, and the row in
+   `credit_purchases` should show `refunded_credits = 25`.
 
-## Not done yet: refunds
-
-A refund made in Stripe does not remove the credits it paid for. Until that is
-automated, after refunding a card purchase, take the credits back by hand in the
-database (`entities.credits_balance` of that organization) and note it on the
-`credit_purchases` row.
-
-To automate it: subscribe the endpoint to `charge.refunded`, read the tagged
-metadata from the PaymentIntent, and deduct `credits × amount_refunded /
-amount` from the organization — never below zero, and alerting when the
-balance cannot cover it because the credits were already spent.
+Chargebacks (disputes) are not handled automatically: if one is lost, withdraw
+the credits by calling `refund_credit_purchase(<purchase id>, <credits>)` in the
+database.
 
 ## Where the code is
 
@@ -117,5 +122,8 @@ balance cannot cover it because the credits were already spent.
 - `backend/src/routes/app.js` — `POST /app/organizations/:id/purchases/stripe`
 - `backend/database/migrations/008_accounts.sql`, `009_organization_balance.sql`
   — `credit_purchases` and `complete_credit_purchase()`
+- `backend/database/migrations/011_credit_refunds.sql` — `payment_ref`,
+  `refunded_credits` and `refund_credit_purchase()`
 - `backend/src/services/payments.test.js` — signature, once-only crediting,
-  amount check, other products' events ignored
+  amount check, refunds (full, partial, repeated, already spent), other
+  products' events ignored
