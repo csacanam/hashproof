@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { api, downloadFile } from "../api.js";
+import { api } from "../api.js";
 import { useDashboard } from "../useDashboard.js";
 import { formatDate, formatNumber, formatUnitUsd, formatUsd } from "../format.js";
 import BuyLink from "../components/BuyLink.jsx";
 
 /** Balance, prices, and every purchase with its receipt. */
 export default function Billing() {
-  const { t, org, orgPath, locale, overview, refreshOverview } = useDashboard();
+  const { t, org, orgPath, overview, refreshOverview } = useDashboard();
   const [purchases, setPurchases] = useState(null);
   const [used, setUsed] = useState(null);
   const [pricing, setPricing] = useState(null);
@@ -52,12 +52,21 @@ export default function Billing() {
   );
   const bought = completed.reduce((sum, p) => sum + p.credits - (p.refunded_credits || 0), 0);
 
-  async function download(p, kind) {
+  // The documents are the provider's (Stripe's invoice and receipt, Voulti's
+  // paid invoice): ask for the link, then open it in a tab opened inside the
+  // click, before any await, so it is not blocked.
+  async function open(p, kind) {
+    const tab = window.open("about:blank", "_blank");
     setDownloading(`${p.id}:${kind}`);
     setError("");
     try {
-      await downloadFile(orgPath(`/purchases/${p.id}/${kind}?lang=${locale}`), `HashProof-${documentNumber(kind, p.id)}.pdf`);
+      const docs = await api(orgPath(`/purchases/${p.id}/documents`));
+      const url = docs[DOC_FIELD[kind]];
+      if (!url) throw new Error(t("billing.docUnavailable"));
+      if (tab) tab.location.href = url;
+      else window.location.assign(url);
     } catch (err) {
+      tab?.close();
       setError(err.message);
     } finally {
       setDownloading(null);
@@ -157,7 +166,6 @@ export default function Billing() {
               <thead>
                 <tr>
                   <th>{t("dev.col.date")}</th>
-                  <th>{t("billing.col.invoice")}</th>
                   <th>{t("dev.col.method")}</th>
                   <th>{t("dev.col.credits")}</th>
                   <th>{t("dev.col.amount")}</th>
@@ -171,9 +179,6 @@ export default function Billing() {
                   return (
                     <tr key={p.id}>
                       <td>{formatDate(p.completed_at || p.created_at, true)}</td>
-                      <td>
-                        <code>{p.status === "completed" ? documentNumber("invoice", p.id) : "—"}</code>
-                      </td>
                       <td>{t(`buy.method.${p.method}`)}</td>
                       <td>
                         {formatNumber(p.credits)}
@@ -189,14 +194,14 @@ export default function Billing() {
                       </td>
                       <td className="dash-actions">
                         {p.status === "completed" &&
-                          ["invoice", "receipt"].map((kind) => (
+                          (DOCS[p.method] ?? []).map((kind) => (
                             <button
                               key={kind}
                               className="dash-link"
                               disabled={downloading === `${p.id}:${kind}`}
-                              onClick={() => download(p, kind)}
+                              onClick={() => open(p, kind)}
                             >
-                              {downloading === `${p.id}:${kind}` ? t("common.loading") : t(`billing.download.${kind}`)}
+                              {downloading === `${p.id}:${kind}` ? t("common.loading") : t(`billing.doc.${kind}`)}
                             </button>
                           ))}
                       </td>
@@ -225,7 +230,6 @@ function purchaseStatus(p) {
   return "completed";
 }
 
-/** Same numbers the backend prints on the documents. */
-function documentNumber(kind, id) {
-  return `${kind === "invoice" ? "INV" : "RCT"}-${String(id).replace(/-/g, "").slice(0, 8).toUpperCase()}`;
-}
+// What each provider issues for a purchase, and the field that links to it.
+const DOCS = { stripe: ["invoice", "receipt"], voulti: ["payment", "transaction"] };
+const DOC_FIELD = { invoice: "invoice_pdf", receipt: "receipt_url", payment: "invoice_url", transaction: "tx_url" };

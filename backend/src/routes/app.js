@@ -47,13 +47,13 @@ import {
   VOULTI_MIN_CREDITS,
   createVoultiInvoice,
   getPurchase,
+  getPurchaseDocuments,
   isVoultiConfigured,
   syncVoultiInvoice,
   createStripeCheckout,
   isStripeConfigured,
   listPurchases,
 } from "../services/payments.js";
-import { getBillingDocument } from "../services/receipts.js";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_VALIDATE_ROWS = 5000;
@@ -433,23 +433,16 @@ export function createAppRouter({ baseUrl, frontendUrl, skipPayment = false }) {
     }
   });
 
-  // The invoice or the receipt of a completed purchase, as PDF.
-  org.get("/purchases/:purchaseId/:kind(invoice|receipt)", async (req, res) => {
+  // Links to a completed purchase's invoice and receipt, as the provider issued them.
+  org.get("/purchases/:purchaseId/documents", async (req, res) => {
     try {
       if (!UUID_RE.test(req.params.purchaseId)) throw new Error("Purchase not found");
-      const file = await getBillingDocument({
-        entity: req.entity,
-        purchaseId: req.params.purchaseId,
-        kind: req.params.kind,
-        locale: req.query.lang === "es" ? "es" : "en",
-      });
-      if (!file) throw new Error("Purchase not found");
-      res.set("Content-Type", "application/pdf");
-      res.set("Content-Disposition", `attachment; filename="${file.filename}"`);
+      const docs = await getPurchaseDocuments(req.entity.id, req.params.purchaseId);
+      if (!docs) throw new Error("Purchase not found");
       res.set("Cache-Control", "private, no-store");
-      return res.send(file.pdf);
+      return res.json(docs);
     } catch (err) {
-      return fail(res, err, { handler: "app/purchase document" });
+      return fail(res, err, { handler: "app/purchase documents" });
     }
   });
 

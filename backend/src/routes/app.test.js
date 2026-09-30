@@ -58,19 +58,18 @@ vi.mock("../services/dashboardKeys.js", () => ({
   getEntityKey: vi.fn(async (e, k) => ({ id: k, entity_id: e, name: "prod", credits_balance: 10, revoked_at: null })),
   revokeEntityKey: vi.fn(),
 }));
+const DOCS = { method: "stripe", invoice_url: "https://invoice.stripe.com/i/x", invoice_pdf: "https://pay.stripe.com/invoice/x/pdf", receipt_url: "https://pay.stripe.com/receipts/x" };
+const getPurchaseDocuments = vi.fn(async (entityId, purchaseId) =>
+  entityId === ORG && purchaseId === "33333333-3333-4333-8333-333333333333" ? DOCS : null,
+);
 const createVoultiInvoice = vi.fn(async () => ({ purchase_id: "p1", invoice_id: "inv_1", url: "https://voulti.com/checkout/inv_1" }));
 vi.mock("../services/payments.js", async (orig) => ({
   ...(await orig()),
   createVoultiInvoice: (...a) => createVoultiInvoice(...a),
   listPurchases: vi.fn(async () => []),
+  getPurchaseDocuments: (...a) => getPurchaseDocuments(...a),
 }));
 
-const getBillingDocument = vi.fn(async ({ purchaseId, kind }) =>
-  purchaseId === "33333333-3333-4333-8333-333333333333"
-    ? { filename: `HashProof-${kind === "invoice" ? "INV" : "RCT"}-33333333.pdf`, pdf: Buffer.from("%PDF-1.3") }
-    : null,
-);
-vi.mock("../services/receipts.js", () => ({ getBillingDocument: (...a) => getBillingDocument(...a) }));
 
 const { createAppRouter } = await import("./app.js");
 
@@ -190,29 +189,25 @@ describe("dashboard routes", () => {
     expect(createVoultiInvoice).not.toHaveBeenCalled();
   });
 
-  it("gives any member the invoice and the receipt of the organization's own paid purchase", async () => {
-    for (const [kind, prefix] of [["invoice", "INV"], ["receipt", "RCT"]]) {
-      const res = await request(app)
-        .get(`/app/organizations/${ORG}/purchases/33333333-3333-4333-8333-333333333333/${kind}?lang=es`)
-        .set("Authorization", `Bearer ${tok("issuer")}`);
-      expect(res.status).toBe(200);
-      expect(res.headers["content-type"]).toBe("application/pdf");
-      expect(res.headers["content-disposition"]).toContain(`HashProof-${prefix}-33333333.pdf`);
-      expect(getBillingDocument.mock.calls.at(-1)[0]).toMatchObject({ kind, locale: "es", entity: { id: ORG } });
-    }
+  it("gives any member the provider's invoice and receipt links of a paid purchase", async () => {
+    const res = await request(app)
+      .get(`/app/organizations/${ORG}/purchases/33333333-3333-4333-8333-333333333333/documents`)
+      .set("Authorization", `Bearer ${tok("issuer")}`);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(DOCS);
   });
 
   it("has no receipt for someone else's or an unpaid purchase", async () => {
-    getBillingDocument.mockClear();
+    getPurchaseDocuments.mockClear();
     const other = await request(app)
-      .get(`/app/organizations/${ORG}/purchases/44444444-4444-4444-8444-444444444444/receipt`)
+      .get(`/app/organizations/${ORG}/purchases/44444444-4444-4444-8444-444444444444/documents`)
       .set("Authorization", `Bearer ${tok("owner")}`);
     expect(other.status).toBe(404);
     const stranger = await request(app)
-      .get(`/app/organizations/${ORG}/purchases/33333333-3333-4333-8333-333333333333/receipt`)
+      .get(`/app/organizations/${ORG}/purchases/33333333-3333-4333-8333-333333333333/documents`)
       .set("Authorization", `Bearer ${tok("stranger")}`);
     expect(stranger.status).toBe(404);
-    expect(getBillingDocument).toHaveBeenCalledTimes(1);
+    expect(getPurchaseDocuments).toHaveBeenCalledTimes(1);
   });
 
   it("says card payments are unavailable until Stripe is configured", async () => {

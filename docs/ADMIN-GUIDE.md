@@ -191,7 +191,7 @@ curl -X PATCH https://your-api-url/admin/api-keys/{key_id} \
 
 ## Dashboard (/app)
 
-Organizations sign in at `https://hashproof.dev/app`, create their organization (an `unverified` entity with them as owner), issue from the browser, manage API keys under Developers, and buy credits and download each purchase's invoice and receipt (PDF, English or Spanish) under Billing. The seller block on those documents comes from `BILLING_LEGAL_NAME` and `BILLING_ADDRESS` (address lines separated by `|`); without them it reads "HashProof". The public API is unchanged; the dashboard uses its own routes under `/app` with a Supabase Auth session.
+Organizations sign in at `https://hashproof.dev/app`, create their organization (an `unverified` entity with them as owner), issue from the browser, manage API keys under Developers, and buy credits under Billing. HashProof does not issue its own invoices: Billing links to the provider's documents — Stripe's invoice and receipt for card purchases, and the paid Voulti invoice and its on-chain transaction for crypto purchases. The public API is unchanged; the dashboard uses its own routes under `/app` with a Supabase Auth session.
 
 ### One-time setup
 

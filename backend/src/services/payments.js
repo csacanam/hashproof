@@ -112,6 +112,12 @@ export async function createStripeCheckout({ entity, user, credits, returnUrl })
     client_reference_id: entity.id,
     metadata: { ...tags, user_id: user.id },
     payment_intent_data: { description: `HashProof credits — ${entity.display_name}`, metadata: tags },
+    // Stripe issues the invoice (and the charge its receipt): the buyer
+    // downloads both from Billing, as in any app that charges through Stripe.
+    invoice_creation: {
+      enabled: true,
+      invoice_data: { description: `HashProof credits — ${entity.display_name}`, metadata: tags },
+    },
     success_url: `${returnUrl}${returnUrl.includes("?") ? "&" : "?"}purchase=success&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${returnUrl}${returnUrl.includes("?") ? "&" : "?"}purchase=cancelled`,
   });
@@ -416,6 +422,53 @@ async function recordAndComplete({ method, externalRef, entityId, userId, credit
     ).catch(() => {});
   }
   return { credited: data?.credited === true, purchase_id: row.id };
+}
+
+const EXPLORERS = {
+  celo: "https://celoscan.io",
+  arbitrum: "https://arbiscan.io",
+  polygon: "https://polygonscan.com",
+  base: "https://basescan.org",
+  bsc: "https://bscscan.com",
+};
+
+/**
+ * Where to see a completed purchase's documents, as the payment provider
+ * issued them — we do not issue our own. By card: Stripe's invoice (page and
+ * PDF) and the charge's receipt. In crypto: the paid invoice on Voulti and the
+ * transaction on the chain it was paid on. Null for a purchase that is not the
+ * organization's or not paid; any link the provider does not have is null.
+ */
+export async function getPurchaseDocuments(entityId, purchaseId) {
+  const purchase = await getPurchase(entityId, purchaseId);
+  if (!purchase || purchase.status !== "completed") return null;
+
+  if (purchase.method === "stripe") {
+    const session = await stripe().checkout.sessions.retrieve(purchase.external_ref, {
+      expand: ["invoice", "payment_intent.latest_charge"],
+    });
+    const invoice = session.invoice && typeof session.invoice === "object" ? session.invoice : null;
+    const charge = session.payment_intent?.latest_charge;
+    return {
+      method: "stripe",
+      invoice_url: invoice?.hosted_invoice_url ?? null,
+      invoice_pdf: invoice?.invoice_pdf ?? null,
+      receipt_url: (typeof charge === "object" && charge?.receipt_url) || null,
+    };
+  }
+
+  if (purchase.method === "voulti") {
+    const res = await fetch(`${VOULTI_API}/invoices/${encodeURIComponent(purchase.external_ref)}`);
+    const inv = res.ok ? await res.json().catch(() => null) : null;
+    const explorer = EXPLORERS[inv?.paid_network];
+    return {
+      method: "voulti",
+      invoice_url: `${VOULTI_CHECKOUT}/${purchase.external_ref}`,
+      tx_url: explorer && inv?.paid_tx_hash ? `${explorer}/tx/${inv.paid_tx_hash}` : null,
+    };
+  }
+
+  return { method: purchase.method };
 }
 
 const PURCHASE_COLS =

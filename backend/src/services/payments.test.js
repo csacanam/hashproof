@@ -56,7 +56,7 @@ vi.mock("../utils/notify.js", () => ({ sendTelegramAlert: vi.fn(async () => true
 
 process.env.STRIPE_SECRET_KEY = "sk_test_x";
 process.env.STRIPE_WEBHOOK_SECRET = "whsec_test";
-const { handleStripeWebhook, syncVoultiInvoice, verifyVoultiSignature } = await import("./payments.js");
+const { handleStripeWebhook, syncVoultiInvoice, verifyVoultiSignature, getPurchaseDocuments } = await import("./payments.js");
 const stripe = new Stripe("sk_test_x");
 
 function signed(session, type = "checkout.session.completed") {
@@ -190,6 +190,22 @@ describe("Voulti", () => {
     invoice({ status: "Paid", fiat_currency: "COP" });
     expect((await syncVoultiInvoice("inv_1")).credited).toBe(false);
     expect(balances.e1).toBeUndefined();
+  });
+
+  it("links a paid crypto purchase to its Voulti invoice and its transaction", async () => {
+    invoice({ status: "Paid" });
+    await syncVoultiInvoice("inv_1");
+    invoice({ status: "Paid", paid_network: "celo", paid_tx_hash: "0xabc" });
+    expect(await getPurchaseDocuments("e1", "pv")).toEqual({
+      method: "voulti",
+      invoice_url: "https://voulti.com/checkout/inv_1",
+      tx_url: "https://celoscan.io/tx/0xabc",
+    });
+    expect(await getPurchaseDocuments("e2", "pv")).toBeNull();
+  });
+
+  it("has no documents for an unpaid purchase", async () => {
+    expect(await getPurchaseDocuments("e1", "pv")).toBeNull();
   });
 
   it("ignores invoices that are not ours", async () => {
