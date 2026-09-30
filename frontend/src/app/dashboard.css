@@ -89,6 +89,8 @@
   font-size: 0.9rem;
 }
 .dash-banner--danger { border-color: rgba(248, 113, 113, 0.4); background: rgba(248, 113, 113, 0.1); }
+a.dash-balance { color: inherit; text-decoration: none; }
+a.dash-balance:hover strong { text-decoration: underline; }
 .dash-banner--ok { border-color: rgba(74, 222, 128, 0.4); background: rgba(74, 222, 128, 0.08); }
 
 .dash-note {

@@ -10,6 +10,7 @@ const NAV = [
   { to: "/app/issue", key: "nav.issue" },
   { to: "/app/credentials", key: "nav.credentials" },
   { to: "/app/templates", key: "nav.templates" },
+  { to: "/app/billing", key: "nav.billing" },
   { to: "/app/developers", key: "nav.developers" },
   { to: "/app/team", key: "nav.team" },
 ];
@@ -59,11 +60,11 @@ export default function AppShell() {
         </nav>
 
         <div className="dash-side-foot">
-          <div className="dash-balance">
+          <Link to="/app/billing" className="dash-balance">
             <span className="dash-label">{t("nav.balance")}</span>
             <strong>{overview ? formatNumber(overview.balance) : "—"}</strong>
             <span className="dash-muted">{t("nav.credits")}</span>
-          </div>
+          </Link>
           <BuyLink className="dash-btn dash-btn--small" />
           <div className="dash-user">
             <span title={user?.email}>{user?.email}</span>

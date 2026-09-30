@@ -66,7 +66,7 @@ export default function BuyDialog({ open, onClose }) {
     try {
       const out = await api(orgPath("/purchases/stripe"), {
         method: "POST",
-        body: { credits: n, return_url: `${window.location.origin}/app/developers` },
+        body: { credits: n, return_url: `${window.location.origin}/app/billing` },
       });
       window.location.assign(out.url);
     } catch (err) {

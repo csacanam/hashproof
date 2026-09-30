@@ -191,7 +191,7 @@ curl -X PATCH https://your-api-url/admin/api-keys/{key_id} \
 
 ## Dashboard (/app)
 
-Organizations sign in at `https://hashproof.dev/app`, create their organization (an `unverified` entity with them as owner), issue from the browser, and manage API keys and credits under Developers. The public API is unchanged; the dashboard uses its own routes under `/app` with a Supabase Auth session.
+Organizations sign in at `https://hashproof.dev/app`, create their organization (an `unverified` entity with them as owner), issue from the browser, manage API keys under Developers, and buy credits and download receipts under Billing. The public API is unchanged; the dashboard uses its own routes under `/app` with a Supabase Auth session.
 
 ### One-time setup
 

@@ -53,6 +53,7 @@ import {
   isStripeConfigured,
   listPurchases,
 } from "../services/payments.js";
+import { getReceipt } from "../services/receipts.js";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_VALIDATE_ROWS = 5000;
@@ -71,7 +72,7 @@ function fail(res, err, context) {
 
 /** Where Stripe may send the browser back to: our own frontend only. */
 function safeReturnUrl(value, frontendUrl) {
-  const fallback = `${frontendUrl}/app/developers`;
+  const fallback = `${frontendUrl}/app/billing`;
   try {
     const u = new URL(String(value || ""));
     const allowed = new URL(frontendUrl);
@@ -406,7 +407,7 @@ export function createAppRouter({ baseUrl, frontendUrl, skipPayment = false }) {
           entity: req.entity,
           user: req.user,
           credits: req.body?.credits,
-          returnUrl: `${frontendUrl}/app/developers?purchase=crypto`,
+          returnUrl: `${frontendUrl}/app/billing?purchase=crypto`,
         }));
     } catch (err) {
       return fail(res, err, { handler: "app/purchases crypto" });
@@ -429,6 +430,25 @@ export function createAppRouter({ baseUrl, frontendUrl, skipPayment = false }) {
       return res.json({ ...out, provider_status: providerStatus, balance: await getEntityBalance(req.entity.id) });
     } catch (err) {
       return fail(res, err, { handler: "app/purchase status" });
+    }
+  });
+
+  // A PDF receipt for a completed purchase.
+  org.get("/purchases/:purchaseId/receipt", async (req, res) => {
+    try {
+      if (!UUID_RE.test(req.params.purchaseId)) throw new Error("Purchase not found");
+      const receipt = await getReceipt({
+        entity: req.entity,
+        purchaseId: req.params.purchaseId,
+        locale: req.query.lang === "es" ? "es" : "en",
+      });
+      if (!receipt) throw new Error("Purchase not found");
+      res.set("Content-Type", "application/pdf");
+      res.set("Content-Disposition", `attachment; filename="${receipt.filename}"`);
+      res.set("Cache-Control", "private, no-store");
+      return res.send(receipt.pdf);
+    } catch (err) {
+      return fail(res, err, { handler: "app/purchase receipt" });
     }
   });
 

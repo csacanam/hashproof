@@ -10,6 +10,7 @@ import Credentials from "./pages/Credentials.jsx";
 import Templates from "./pages/Templates.jsx";
 import TemplateEditor from "./pages/TemplateEditor.jsx";
 import Developers from "./pages/Developers.jsx";
+import Billing from "./pages/Billing.jsx";
 import Team from "./pages/Team.jsx";
 import "./dashboard.css";
 
@@ -28,6 +29,7 @@ export default function DashboardRoutes() {
           <Route path="templates" element={<Templates />} />
           <Route path="templates/new" element={<TemplateEditor />} />
           <Route path="templates/:id" element={<TemplateEditor />} />
+          <Route path="billing" element={<Billing />} />
           <Route path="developers" element={<Developers />} />
           <Route path="team" element={<Team />} />
         </Route>

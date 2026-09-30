@@ -124,6 +124,27 @@ export async function api(path, { method = "GET", body, raw, retry = true } = {}
   return data;
 }
 
+/** Download a file from the dashboard API (a receipt, say) and save it. */
+export async function downloadFile(path, filename, retry = true) {
+  const token = await accessToken();
+  const res = await fetch(`${API_URL}/app${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  if (res.status === 401 && retry && session?.refresh_token) {
+    if (await refresh()) return downloadFile(path, filename, false);
+  }
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new ApiError(data?.error || `Request failed (${res.status})`, res.status, data);
+  }
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
 /** The public API (verification, previews, job status). */
 export async function publicApi(path, init) {
   return fetch(`${API_URL}${path}`, init);

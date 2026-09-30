@@ -418,11 +418,14 @@ async function recordAndComplete({ method, externalRef, entityId, userId, credit
   return { credited: data?.credited === true, purchase_id: row.id };
 }
 
+const PURCHASE_COLS =
+  "id, method, credits, amount_usd_cents, status, external_ref, created_at, completed_at, refunded_credits, refunded_at";
+
 /** Purchases of an entity, newest first. */
 export async function listPurchases(entityId) {
   const { data, error } = await supabase
     .from("credit_purchases")
-    .select("id, method, credits, amount_usd_cents, status, external_ref, created_at, completed_at")
+    .select(PURCHASE_COLS)
     .eq("entity_id", entityId)
     .order("created_at", { ascending: false })
     .limit(100);
@@ -434,7 +437,7 @@ export async function listPurchases(entityId) {
 export async function getPurchase(entityId, purchaseId) {
   const { data, error } = await supabase
     .from("credit_purchases")
-    .select("id, method, credits, amount_usd_cents, status, external_ref, created_at, completed_at")
+    .select(PURCHASE_COLS)
     .eq("entity_id", entityId)
     .eq("id", purchaseId)
     .maybeSingle();

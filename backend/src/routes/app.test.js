@@ -65,6 +65,11 @@ vi.mock("../services/payments.js", async (orig) => ({
   listPurchases: vi.fn(async () => []),
 }));
 
+const getReceipt = vi.fn(async ({ purchaseId }) =>
+  purchaseId === "33333333-3333-4333-8333-333333333333" ? { filename: "hashproof-HP-33333333.pdf", pdf: Buffer.from("%PDF-1.3") } : null,
+);
+vi.mock("../services/receipts.js", () => ({ getReceipt: (...a) => getReceipt(...a) }));
+
 const { createAppRouter } = await import("./app.js");
 
 function makeApp() {
@@ -181,6 +186,29 @@ describe("dashboard routes", () => {
       .send({ credits: 25 });
     expect(res.status).toBe(403);
     expect(createVoultiInvoice).not.toHaveBeenCalled();
+  });
+
+  it("gives any member the receipt of the organization's own paid purchase", async () => {
+    const res = await request(app)
+      .get(`/app/organizations/${ORG}/purchases/33333333-3333-4333-8333-333333333333/receipt?lang=es`)
+      .set("Authorization", `Bearer ${tok("issuer")}`);
+    expect(res.status).toBe(200);
+    expect(res.headers["content-type"]).toBe("application/pdf");
+    expect(res.headers["content-disposition"]).toContain("hashproof-HP-33333333.pdf");
+    expect(getReceipt.mock.calls.at(-1)[0]).toMatchObject({ locale: "es", entity: { id: ORG } });
+  });
+
+  it("has no receipt for someone else's or an unpaid purchase", async () => {
+    getReceipt.mockClear();
+    const other = await request(app)
+      .get(`/app/organizations/${ORG}/purchases/44444444-4444-4444-8444-444444444444/receipt`)
+      .set("Authorization", `Bearer ${tok("owner")}`);
+    expect(other.status).toBe(404);
+    const stranger = await request(app)
+      .get(`/app/organizations/${ORG}/purchases/33333333-3333-4333-8333-333333333333/receipt`)
+      .set("Authorization", `Bearer ${tok("stranger")}`);
+    expect(stranger.status).toBe(404);
+    expect(getReceipt).toHaveBeenCalledTimes(1);
   });
 
   it("says card payments are unavailable until Stripe is configured", async () => {

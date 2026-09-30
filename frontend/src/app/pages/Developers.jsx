@@ -1,49 +1,31 @@
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { api, API_URL } from "../api.js";
 import { useDashboard } from "../useDashboard.js";
-import { formatDate, formatNumber, formatUsd } from "../format.js";
+import { formatDate, formatNumber } from "../format.js";
 import Modal from "../components/Modal.jsx";
 
 export default function Developers() {
-  const { t, org, orgPath, canManage, overview, refreshOverview } = useDashboard();
+  const { t, org, orgPath, canManage, overview } = useDashboard();
   const [keys, setKeys] = useState(null);
-  const [purchases, setPurchases] = useState([]);
   const [newKey, setNewKey] = useState(null);
   const [creating, setCreating] = useState(false);
   const [revoking, setRevoking] = useState(null);
   const [error, setError] = useState("");
   const [tick, setTick] = useState(0);
-  const [search, setSearch] = useSearchParams();
+  const [search] = useSearchParams();
   const load = () => setTick((n) => n + 1);
 
   useEffect(() => {
     if (!org) return;
     let cancelled = false;
-    Promise.all([api(orgPath("/keys")), api(orgPath("/purchases"))])
-      .then(([k, p]) => {
-        if (cancelled) return;
-        setKeys(k);
-        setPurchases(p);
-      })
+    api(orgPath("/keys"))
+      .then((k) => !cancelled && setKeys(k))
       .catch((err) => !cancelled && setError(err.message));
     return () => {
       cancelled = true;
     };
   }, [org?.id, tick, overview?.balance]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Back from Stripe: the webhook credits the organization, usually within seconds.
-  const purchase = search.get("purchase");
-  useEffect(() => {
-    if (purchase !== "success" && purchase !== "crypto") return;
-    const timers = [1500, 4000, 9000].map((ms) =>
-      setTimeout(() => {
-        load();
-        refreshOverview();
-      }, ms),
-    );
-    return () => timers.forEach(clearTimeout);
-  }, [purchase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const apiKeys = keys?.filter((k) => k.kind === "api") ?? [];
   const panelKey = keys?.find((k) => k.kind === "panel");
@@ -54,6 +36,10 @@ export default function Developers() {
     setCreating(false);
     load();
   }
+
+  // Payments started before Billing existed still come back here.
+  const purchase = search.get("purchase");
+  if (purchase) return <Navigate to={`/app/billing?purchase=${encodeURIComponent(purchase)}`} replace />;
 
   return (
     <div className="dash-page">
@@ -71,34 +57,16 @@ export default function Developers() {
         )}
       </header>
 
-      {purchase === "success" && (
-        <div className="dash-banner dash-banner--ok" role="status">
-          {t("dev.purchaseSuccess")}{" "}
-          <button className="dash-link" onClick={() => setSearch({})}>
-            ×
-          </button>
-        </div>
-      )}
-      {purchase === "crypto" && (
-        <div className="dash-banner dash-banner--ok" role="status">
-          {t("dev.cryptoReturn")}{" "}
-          <button className="dash-link" onClick={() => setSearch({})}>
-            ×
-          </button>
-        </div>
-      )}
-      {purchase === "cancelled" && (
-        <div className="dash-banner" role="status">
-          {t("dev.purchaseCancelled")}
-        </div>
-      )}
       {error && <p className="dash-error">{error}</p>}
 
       <section className="dash-card">
         <div className="dash-card-head">
           <div>
             <h2>{t("dev.keys")}</h2>
-            <p className="dash-muted">{t("dev.keysHelp", { balance: formatNumber(overview?.balance ?? 0) })}</p>
+            <p className="dash-muted">
+              {t("dev.keysHelp", { balance: formatNumber(overview?.balance ?? 0) })}{" "}
+              <Link to="/app/billing">{t("dev.seeBilling")}</Link>
+            </p>
           </div>
         </div>
         <div className="dash-table-wrap">
@@ -170,38 +138,6 @@ export default function Developers() {
   }'`}</pre>
         </details>
         <p className="dash-muted dash-small">{t("dev.x402Note")}</p>
-      </section>
-
-      <section className="dash-card">
-        <h2>{t("dev.purchases")}</h2>
-        {purchases.length === 0 ? (
-          <p className="dash-muted">{t("dev.noPurchases")}</p>
-        ) : (
-          <div className="dash-table-wrap">
-            <table className="dash-table">
-              <thead>
-                <tr>
-                  <th>{t("dev.col.date")}</th>
-                  <th>{t("dev.col.method")}</th>
-                  <th>{t("dev.col.credits")}</th>
-                  <th>{t("dev.col.amount")}</th>
-                  <th>{t("credentials.col.status")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {purchases.map((p) => (
-                  <tr key={p.id}>
-                    <td>{formatDate(p.created_at, true)}</td>
-                    <td>{t(`buy.method.${p.method}`)}</td>
-                    <td>{formatNumber(p.credits)}</td>
-                    <td>{formatUsd(p.amount_usd_cents)}</td>
-                    <td>{t(`purchase.${p.status}`)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </section>
 
       <CreateKeyDialog open={creating} onClose={() => setCreating(false)} onCreate={createKey} />

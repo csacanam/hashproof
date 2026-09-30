@@ -12,7 +12,7 @@ card option as "coming soon", and crypto (Voulti) keeps working.
    credits, priced inline (no Stripe Product needed). It records a `pending` row
    in `credit_purchases` keyed by the session id.
 3. The payer completes Checkout on Stripe and comes back to
-   `/app/developers?purchase=success`. **Returning does not credit anything.**
+   `/app/billing?purchase=success`. **Returning does not credit anything.**
 4. Stripe calls `POST https://api.hashproof.dev/stripe/webhook`. The backend
    verifies the signature on the raw body and, for a paid session tagged as
    HashProof's, completes the purchase: the organization's balance goes up.
@@ -100,7 +100,7 @@ Live keys do not accept Stripe's test cards, so the full path is verified with
 one real purchase of the minimum (25 credits, $6.25):
 
 1. Buy 25 credits by card from the dashboard.
-2. Back on Developers, the balance should rise by 25 within seconds, and the
+2. Back on Billing, the balance should rise by 25 within seconds, and the
    purchase should show as *Completed*.
 3. In Stripe → Developers → Webhooks → the endpoint → *Event deliveries*, the
    delivery should show `200` with `"credited": true`.
