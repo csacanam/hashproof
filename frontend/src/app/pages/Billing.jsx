@@ -52,11 +52,11 @@ export default function Billing() {
   );
   const bought = completed.reduce((sum, p) => sum + p.credits - (p.refunded_credits || 0), 0);
 
-  async function receipt(p) {
-    setDownloading(p.id);
+  async function download(p, kind) {
+    setDownloading(`${p.id}:${kind}`);
     setError("");
     try {
-      await downloadFile(orgPath(`/purchases/${p.id}/receipt?lang=${locale}`), `hashproof-${receiptNumber(p.id)}.pdf`);
+      await downloadFile(orgPath(`/purchases/${p.id}/${kind}?lang=${locale}`), `HashProof-${documentNumber(kind, p.id)}.pdf`);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -157,7 +157,7 @@ export default function Billing() {
               <thead>
                 <tr>
                   <th>{t("dev.col.date")}</th>
-                  <th>{t("billing.col.receipt")}</th>
+                  <th>{t("billing.col.invoice")}</th>
                   <th>{t("dev.col.method")}</th>
                   <th>{t("dev.col.credits")}</th>
                   <th>{t("dev.col.amount")}</th>
@@ -172,7 +172,7 @@ export default function Billing() {
                     <tr key={p.id}>
                       <td>{formatDate(p.completed_at || p.created_at, true)}</td>
                       <td>
-                        <code>{p.status === "completed" ? receiptNumber(p.id) : "—"}</code>
+                        <code>{p.status === "completed" ? documentNumber("invoice", p.id) : "—"}</code>
                       </td>
                       <td>{t(`buy.method.${p.method}`)}</td>
                       <td>
@@ -188,11 +188,17 @@ export default function Billing() {
                         <span className={`dash-pill dash-pill--${PILL[status]}`}>{t(`purchase.${status}`)}</span>
                       </td>
                       <td className="dash-actions">
-                        {p.status === "completed" && (
-                          <button className="dash-link" disabled={downloading === p.id} onClick={() => receipt(p)}>
-                            {downloading === p.id ? t("common.loading") : t("billing.receipt")}
-                          </button>
-                        )}
+                        {p.status === "completed" &&
+                          ["invoice", "receipt"].map((kind) => (
+                            <button
+                              key={kind}
+                              className="dash-link"
+                              disabled={downloading === `${p.id}:${kind}`}
+                              onClick={() => download(p, kind)}
+                            >
+                              {downloading === `${p.id}:${kind}` ? t("common.loading") : t(`billing.download.${kind}`)}
+                            </button>
+                          ))}
                       </td>
                     </tr>
                   );
@@ -219,7 +225,7 @@ function purchaseStatus(p) {
   return "completed";
 }
 
-/** Same number the backend prints on the receipt. */
-function receiptNumber(id) {
-  return `HP-${String(id).replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+/** Same numbers the backend prints on the documents. */
+function documentNumber(kind, id) {
+  return `${kind === "invoice" ? "INV" : "RCT"}-${String(id).replace(/-/g, "").slice(0, 8).toUpperCase()}`;
 }

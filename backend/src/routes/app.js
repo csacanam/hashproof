@@ -53,7 +53,7 @@ import {
   isStripeConfigured,
   listPurchases,
 } from "../services/payments.js";
-import { getReceipt } from "../services/receipts.js";
+import { getBillingDocument } from "../services/receipts.js";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_VALIDATE_ROWS = 5000;
@@ -433,22 +433,23 @@ export function createAppRouter({ baseUrl, frontendUrl, skipPayment = false }) {
     }
   });
 
-  // A PDF receipt for a completed purchase.
-  org.get("/purchases/:purchaseId/receipt", async (req, res) => {
+  // The invoice or the receipt of a completed purchase, as PDF.
+  org.get("/purchases/:purchaseId/:kind(invoice|receipt)", async (req, res) => {
     try {
       if (!UUID_RE.test(req.params.purchaseId)) throw new Error("Purchase not found");
-      const receipt = await getReceipt({
+      const file = await getBillingDocument({
         entity: req.entity,
         purchaseId: req.params.purchaseId,
+        kind: req.params.kind,
         locale: req.query.lang === "es" ? "es" : "en",
       });
-      if (!receipt) throw new Error("Purchase not found");
+      if (!file) throw new Error("Purchase not found");
       res.set("Content-Type", "application/pdf");
-      res.set("Content-Disposition", `attachment; filename="${receipt.filename}"`);
+      res.set("Content-Disposition", `attachment; filename="${file.filename}"`);
       res.set("Cache-Control", "private, no-store");
-      return res.send(receipt.pdf);
+      return res.send(file.pdf);
     } catch (err) {
-      return fail(res, err, { handler: "app/purchase receipt" });
+      return fail(res, err, { handler: "app/purchase document" });
     }
   });
 
