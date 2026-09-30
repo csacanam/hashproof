@@ -2702,6 +2702,120 @@
   font-size: 0.92rem;
 }
 
+/* Hero: one button, the sample certificate as a plain link under it */
+.hero .hero-actions { margin-bottom: 0.75rem; }
+
+@media (min-width: 480px) {
+  .hero .hero-actions .btn-primary { align-self: flex-start; }
+}
+
+.hero .hero-secondary {
+  margin: 0 0 2rem;
+  font-size: 0.9rem;
+}
+
+.hero-secondary a,
+.home-text-link {
+  color: var(--color-accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.hero-secondary a:hover,
+.home-text-link:hover { text-decoration: underline; }
+
+/* How it works */
+.home-steps {
+  list-style: none;
+  margin: 1.25rem 0 0 !important;
+  padding: 0;
+  display: grid;
+  gap: 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .home-steps { grid-template-columns: repeat(3, 1fr); gap: 2rem; }
+}
+
+.home-step {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  margin: 0 !important;
+}
+
+.home-step-num {
+  flex-shrink: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  border: 1px solid var(--color-accent);
+  color: var(--color-accent);
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The dashboard's price, before the comparison */
+.home-plan {
+  margin-top: 1.25rem;
+  padding: 1.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: rgba(34, 211, 238, 0.04);
+  max-width: 30rem;
+}
+
+.home-plan .home-plan-price {
+  margin: 0;
+  font-size: 2.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+  line-height: 1.1;
+}
+
+.home-plan-unit {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.home-plan .home-plan-alt {
+  margin: 0.5rem 0 1rem;
+  font-size: 0.9rem;
+}
+
+.section .home-plan-list {
+  margin: 0 0 1.5rem 1.1rem;
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.home-plan-list li::marker { color: var(--color-accent); }
+
+@media (min-width: 480px) {
+  .home-plan .btn-primary { display: inline-flex; }
+}
+
+.section .home-compare-title { margin-top: 2.5rem; }
+
+/* Header: the primary action as a small button */
+.home-nav-btn {
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.45rem 0.85rem;
+  border-radius: var(--radius);
+  background: var(--color-accent);
+  color: #0a0a0b;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.home-nav-btn:hover { opacity: 0.85; color: #0a0a0b; }
+
 /* Comparison pages */
 .compare-list {
   margin: 1rem 0 0;

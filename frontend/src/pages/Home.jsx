@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import ResponsiveCode from "../components/ResponsiveCode.jsx";
 import SiteHeader from "../components/SiteHeader.jsx";
 import SiteFooter from "../components/SiteFooter.jsx";
 import { getPreferredLocale, createTranslator } from "../i18n.js";
@@ -20,19 +19,6 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4022";
 // Issued by Peewah, to the person who runs it — so the sample on the front
 // page is nobody else's data.
 const DEMO_CREDENTIAL_ID = "e313fd8d-c964-4b9c-ad1a-d21ca920ae75";
-const CONTACT_EMAIL = "hi@hashproof.dev";
-
-const ISSUE_EXAMPLE = `curl -X POST https://api.hashproof.dev/issueCredential \\
-  -H "Authorization: Bearer YOUR_API_KEY" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "issuer":   { "display_name": "Your Org", "slug": "your-org" },
-    "platform": { "display_name": "Your Org", "slug": "your-org" },
-    "holder":   { "full_name": "Ada Lovelace" },
-    "context":  { "type": "event", "title": "Annual Conference 2026" },
-    "credential_type": "attendance",
-    "title": "Certificate of Attendance"
-  }'`;
 
 export default function Home() {
   const locale = useMemo(() => getPreferredLocale(), []);
@@ -48,6 +34,8 @@ export default function Home() {
 
   // Figures come through verbatim; anything else is a translation key.
   const label = (v) => (/^[$~]/.test(v) ? v : t(`home.pricing.${v}`));
+
+  const steps = ["account", "design", "send"];
 
   const value = [
     { key: "share", icon: "↗" },
@@ -97,28 +85,27 @@ export default function Home() {
       <SiteHeader />
 
       <main>
-        {/* Opens with what it is and what it costs. It used to open with "one
-            API call" — the how — for an audience that never arrived. */}
+        {/* One primary action. The audience is whoever runs the event or the
+            course, not a developer: they need to know what they get, what it
+            costs, and where to start. */}
         <section className="hero">
           <h1>{t("home.hero.title")}</h1>
           <p className="hero-lead">{t("home.hero.lead")}</p>
 
           <div className="hero-actions">
+            <Link to="/app" className="btn btn-primary">
+              {t("home.hero.cta.start")}
+            </Link>
+          </div>
+          <p className="hero-secondary">
             <Link
               to={`/verify/${DEMO_CREDENTIAL_ID}`}
-              className="btn btn-primary"
               target="_blank"
               rel="noopener noreferrer"
             >
               {t("home.hero.cta.credential")}
             </Link>
-            <Link to="/app" className="btn btn-secondary">
-              {t("home.hero.cta.start")}
-            </Link>
-            <a href={`mailto:${CONTACT_EMAIL}`} className="btn btn-secondary">
-              {t("home.hero.cta.contact")}
-            </a>
-          </div>
+          </p>
 
           {stats && (
             <div className="hero-stats">
@@ -146,10 +133,57 @@ export default function Home() {
           )}
         </section>
 
-        {/* The strongest argument we have, and one nobody else publishes —
-            Accredible does not even quote a price. */}
+        <section className="section">
+          <h2>{t("home.how.title")}</h2>
+          <ol className="home-steps">
+            {steps.map((key, i) => (
+              <li key={key} className="home-step">
+                <span className="home-step-num" aria-hidden>{i + 1}</span>
+                <div>
+                  <p className="home-value-title">{t(`home.how.${key}.title`)}</p>
+                  <p className="home-value-desc">{t(`home.how.${key}.body`)}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <section className="section">
+          <h2>{t("home.value.title")}</h2>
+          <div className="home-value">
+            {value.map(({ key, icon }) => (
+              <div key={key} className="home-value-item">
+                <span className="home-value-icon" aria-hidden>{icon}</span>
+                <div>
+                  <p className="home-value-title">{t(`home.value.${key}.title`)}</p>
+                  <p className="home-value-desc">{t(`home.value.${key}.body`)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* The price first, plainly; the comparison — the strongest argument
+            we have, and one nobody else publishes — right under it. */}
         <section className="section">
           <h2>{t("home.pricing.title")}</h2>
+          <div className="home-plan">
+            <p className="home-plan-price">
+              {t("home.pricing.plan.price")}
+              <span className="home-plan-unit">{t("home.pricing.plan.unit")}</span>
+            </p>
+            <p className="home-plan-alt">{t("home.pricing.plan.crypto")}</p>
+            <ul className="home-plan-list">
+              <li>{t("home.pricing.plan.noMinimum")}</li>
+              <li>{t("home.pricing.plan.noFee")}</li>
+              <li>{t("home.pricing.plan.included")}</li>
+            </ul>
+            <Link to="/app" className="btn btn-primary">
+              {t("home.hero.cta.start")}
+            </Link>
+          </div>
+
+          <h3 className="home-compare-title">{t("home.pricing.compareTitle")}</h3>
           <p className="section-p">{t("home.pricing.lead")}</p>
 
           <div className="pricing-scroll">
@@ -184,42 +218,13 @@ export default function Home() {
           <p className="pricing-note">{t("home.pricing.note")}</p>
         </section>
 
-        <section className="section">
-          <h2>{t("home.value.title")}</h2>
-          <div className="home-value">
-            {value.map(({ key, icon }) => (
-              <div key={key} className="home-value-item">
-                <span className="home-value-icon" aria-hidden>{icon}</span>
-                <div>
-                  <p className="home-value-title">{t(`home.value.${key}.title`)}</p>
-                  <p className="home-value-desc">{t(`home.value.${key}.body`)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
         {/* Still the product, just no longer the pitch. */}
         <section className="section">
           <h2>{t("home.dev.title")}</h2>
           <p className="section-p">{t("home.dev.lead")}</p>
-          <ResponsiveCode code={ISSUE_EXAMPLE} />
-          <p className="section-p">{t("home.dev.mcp")}</p>
-          <div className="hero-actions">
-            <Link to="/docs" className="btn btn-secondary">
-              {t("home.dev.docs")}
-            </Link>
-          </div>
-        </section>
-
-        <section className="section">
-          <h2>{t("home.contact.title")}</h2>
-          <p className="section-p">{t("home.contact.body")}</p>
-          <div className="hero-actions">
-            <a href={`mailto:${CONTACT_EMAIL}`} className="btn btn-primary">
-              {CONTACT_EMAIL}
-            </a>
-          </div>
+          <Link to="/docs" className="home-text-link">
+            {t("home.dev.docs")}
+          </Link>
         </section>
       </main>
 

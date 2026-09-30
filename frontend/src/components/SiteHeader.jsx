@@ -24,18 +24,15 @@ export default function SiteHeader({ plain } = {}) {
       </Link>
       {!plain && (
         <nav className="home-nav">
-          <a
-            href="https://github.com/csacanam/hashproof"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="home-nav-link"
-          >
-            GitHub
-          </a>
           <Link to="/docs" className="home-nav-link">Docs</Link>
-          <Link to="/app" className="home-nav-link home-nav-link--cta">
-            {hasSession() ? (es ? "Panel" : "Dashboard") : es ? "Ingresar" : "Sign in"}
-          </Link>
+          {hasSession() ? (
+            <Link to="/app" className="home-nav-btn">{es ? "Panel" : "Dashboard"}</Link>
+          ) : (
+            <>
+              <Link to="/app" className="home-nav-link">{es ? "Ingresar" : "Sign in"}</Link>
+              <Link to="/app" className="home-nav-btn">{es ? "Crear cuenta" : "Create account"}</Link>
+            </>
+          )}
         </nav>
       )}
     </header>
