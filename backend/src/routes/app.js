@@ -433,7 +433,7 @@ export function createAppRouter({ baseUrl, frontendUrl, skipPayment = false }) {
     }
   });
 
-  // Links to a completed purchase's invoice and receipt, as the provider issued them.
+  // Links to a completed purchase's documents, as the provider issued them.
   org.get("/purchases/:purchaseId/documents", async (req, res) => {
     try {
       if (!UUID_RE.test(req.params.purchaseId)) throw new Error("Purchase not found");

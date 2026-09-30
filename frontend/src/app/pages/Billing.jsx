@@ -52,8 +52,8 @@ export default function Billing() {
   );
   const bought = completed.reduce((sum, p) => sum + p.credits - (p.refunded_credits || 0), 0);
 
-  // The documents are the provider's (Stripe's invoice and receipt, Voulti's
-  // paid invoice): ask for the link, then open it in a tab opened inside the
+  // The documents are the provider's (Stripe's receipt, Voulti's paid
+  // invoice): ask for the link, then open it in a tab opened inside the
   // click, before any await, so it is not blocked.
   async function open(p, kind) {
     const tab = window.open("about:blank", "_blank");
@@ -231,5 +231,5 @@ function purchaseStatus(p) {
 }
 
 // What each provider issues for a purchase, and the field that links to it.
-const DOCS = { stripe: ["invoice", "receipt"], voulti: ["payment", "transaction"] };
-const DOC_FIELD = { invoice: "invoice_pdf", receipt: "receipt_url", payment: "invoice_url", transaction: "tx_url" };
+const DOCS = { stripe: ["receipt"], voulti: ["payment", "transaction"] };
+const DOC_FIELD = { receipt: "receipt_url", payment: "invoice_url", transaction: "tx_url" };

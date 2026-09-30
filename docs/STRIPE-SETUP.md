@@ -13,11 +13,9 @@ card option as "coming soon", and crypto (Voulti) keeps working.
    in `credit_purchases` keyed by the session id.
 3. The payer completes Checkout on Stripe and comes back to
    `/app/billing?purchase=success`. **Returning does not credit anything.**
-   Checkout is created with `invoice_creation` on, so Stripe issues an invoice
-   for the payment; Billing links to that invoice's PDF and to the charge's
-   receipt (`GET /app/organizations/:id/purchases/:purchaseId/documents`).
-   HashProof issues no documents of its own. Stripe bills post-payment invoices
-   under its Invoicing pricing.
+   Billing links to the charge's Stripe receipt
+   (`GET /app/organizations/:id/purchases/:purchaseId/documents`). HashProof
+   issues no documents of its own, and Checkout does not create Stripe invoices.
 4. Stripe calls `POST https://api.hashproof.dev/stripe/webhook`. The backend
    verifies the signature on the raw body and, for a paid session tagged as
    HashProof's, completes the purchase: the organization's balance goes up.
@@ -66,8 +64,8 @@ along with `entity_id` and `credits`.
 
 1. **Keys.** In Stripe (live mode), use a secret or restricted key that can
    create Checkout Sessions. A restricted key needs *Checkout Sessions: write*
-   and read access to *PaymentIntents*, *Charges* and *Invoices* (refunds that
-   arrive before their purchase is linked, and the invoice and receipt links); inline `price_data` works without *Products* permission.
+   and read access to *PaymentIntents* and *Charges* (refunds that arrive
+   before their purchase is linked, and the receipt link); inline `price_data` works without *Products* permission.
 2. **Webhook endpoint.** Dashboard → Developers → Webhooks → *Add endpoint*:
    - URL: `https://api.hashproof.dev/stripe/webhook`
    - Events: `checkout.session.completed`,
@@ -107,8 +105,7 @@ one real purchase of the minimum (25 credits, $6.25):
 1. Buy 25 credits by card from the dashboard.
 2. Back on Billing, the balance should rise by 25 within seconds, and the
    purchase should show as *Completed*.
-3. In Billing, *Download invoice* and *Download receipt* open Stripe's documents
-   for that purchase.
+3. In Billing, *Download receipt* opens Stripe's receipt for that purchase.
 4. In Stripe → Developers → Webhooks → the endpoint → *Event deliveries*, the
    delivery should show `200` with `"credited": true`.
 5. *Resend* that delivery from Stripe: it should return `200` with

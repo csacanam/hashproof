@@ -112,12 +112,6 @@ export async function createStripeCheckout({ entity, user, credits, returnUrl })
     client_reference_id: entity.id,
     metadata: { ...tags, user_id: user.id },
     payment_intent_data: { description: `HashProof credits — ${entity.display_name}`, metadata: tags },
-    // Stripe issues the invoice (and the charge its receipt): the buyer
-    // downloads both from Billing, as in any app that charges through Stripe.
-    invoice_creation: {
-      enabled: true,
-      invoice_data: { description: `HashProof credits — ${entity.display_name}`, metadata: tags },
-    },
     success_url: `${returnUrl}${returnUrl.includes("?") ? "&" : "?"}purchase=success&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${returnUrl}${returnUrl.includes("?") ? "&" : "?"}purchase=cancelled`,
   });
@@ -434,9 +428,9 @@ const EXPLORERS = {
 
 /**
  * Where to see a completed purchase's documents, as the payment provider
- * issued them — we do not issue our own. By card: Stripe's invoice (page and
- * PDF) and the charge's receipt. In crypto: the paid invoice on Voulti and the
- * transaction on the chain it was paid on. Null for a purchase that is not the
+ * issued them — we do not issue our own. By card: the charge's Stripe receipt.
+ * In crypto: the paid invoice on Voulti and the transaction on the chain it was
+ * paid on. Null for a purchase that is not the
  * organization's or not paid; any link the provider does not have is null.
  */
 export async function getPurchaseDocuments(entityId, purchaseId) {
@@ -445,16 +439,10 @@ export async function getPurchaseDocuments(entityId, purchaseId) {
 
   if (purchase.method === "stripe") {
     const session = await stripe().checkout.sessions.retrieve(purchase.external_ref, {
-      expand: ["invoice", "payment_intent.latest_charge"],
+      expand: ["payment_intent.latest_charge"],
     });
-    const invoice = session.invoice && typeof session.invoice === "object" ? session.invoice : null;
     const charge = session.payment_intent?.latest_charge;
-    return {
-      method: "stripe",
-      invoice_url: invoice?.hosted_invoice_url ?? null,
-      invoice_pdf: invoice?.invoice_pdf ?? null,
-      receipt_url: (typeof charge === "object" && charge?.receipt_url) || null,
-    };
+    return { method: "stripe", receipt_url: (typeof charge === "object" && charge?.receipt_url) || null };
   }
 
   if (purchase.method === "voulti") {

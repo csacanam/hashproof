@@ -58,7 +58,7 @@ vi.mock("../services/dashboardKeys.js", () => ({
   getEntityKey: vi.fn(async (e, k) => ({ id: k, entity_id: e, name: "prod", credits_balance: 10, revoked_at: null })),
   revokeEntityKey: vi.fn(),
 }));
-const DOCS = { method: "stripe", invoice_url: "https://invoice.stripe.com/i/x", invoice_pdf: "https://pay.stripe.com/invoice/x/pdf", receipt_url: "https://pay.stripe.com/receipts/x" };
+const DOCS = { method: "stripe", receipt_url: "https://pay.stripe.com/receipts/x" };
 const getPurchaseDocuments = vi.fn(async (entityId, purchaseId) =>
   entityId === ORG && purchaseId === "33333333-3333-4333-8333-333333333333" ? DOCS : null,
 );
@@ -189,7 +189,7 @@ describe("dashboard routes", () => {
     expect(createVoultiInvoice).not.toHaveBeenCalled();
   });
 
-  it("gives any member the provider's invoice and receipt links of a paid purchase", async () => {
+  it("gives any member the provider's receipt link of a paid purchase", async () => {
     const res = await request(app)
       .get(`/app/organizations/${ORG}/purchases/33333333-3333-4333-8333-333333333333/documents`)
       .set("Authorization", `Bearer ${tok("issuer")}`);
