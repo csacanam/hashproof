@@ -38,7 +38,7 @@ import { Buffer } from "node:buffer";
 import { randomUUID } from "node:crypto";
 import { sendError, classifyError } from "./utils/errors.js";
 import { sendTelegramAlert } from "./utils/notify.js";
-import { generateCredentialPdf } from "./services/generatePdf.js";
+import { generateCredentialPdf, fitFontSize } from "./services/generatePdf.js";
 import { getCredentialMeta } from "./services/getCredentialMeta.js";
 import { getStoredPdf, storePdf } from "./services/pdfStore.js";
 import {
@@ -650,7 +650,8 @@ export function createApp(options = {}) {
         const bold = f.bold === true;
         const italic = f.italic === true;
         const fontName = bold && italic ? "Helvetica-BoldOblique" : bold ? "Helvetica-Bold" : italic ? "Helvetica-Oblique" : "Helvetica";
-        doc.font(fontName).fontSize(fontSize).fillColor(fontColor).text(text, x, y, {
+        doc.font(fontName);
+        doc.fontSize(fitFontSize(doc, text, f, fontSize, w)).fillColor(fontColor).text(text, x, y, {
           width: w,
           align,
           ellipsis: true,
@@ -767,7 +768,8 @@ export function createApp(options = {}) {
         const bold = f.bold === true;
         const italic = f.italic === true;
         const fontName = bold && italic ? "Helvetica-BoldOblique" : bold ? "Helvetica-Bold" : italic ? "Helvetica-Oblique" : "Helvetica";
-        doc.font(fontName).fontSize(fontSize).fillColor(fontColor).text(text, x, y, {
+        doc.font(fontName);
+        doc.fontSize(fitFontSize(doc, text, f, fontSize, w)).fillColor(fontColor).text(text, x, y, {
           width: w,
           align,
           ellipsis: true,
