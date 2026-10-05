@@ -5,25 +5,13 @@ import { useDashboard } from "../useDashboard.js";
 import { formatNumber } from "../format.js";
 import { decodeCsv, digest, fillTags, guessColumn, parseCsv, toCsv } from "../csv.js";
 import BuyLink from "../components/BuyLink.jsx";
+import { waitForJob } from "../jobs.js";
 import { issueDate, resolveText, templateVariables } from "../textFields.js";
 import { getPreferredLocale } from "../../i18n.js";
 
 const CONTEXT_TYPES = ["event", "course", "diploma", "training", "certification", "membership", "other"];
 const CREDENTIAL_TYPES = ["attendance", "completion", "achievement", "participation", "membership", "certification"];
 const CONCURRENCY = 4;
-
-const POLL_MS = 3000;
-
-/** Poll a job until it finishes. */
-async function waitForJob(jobId, { signal } = {}) {
-  for (;;) {
-    if (signal?.aborted) return null;
-    const res = await publicApi(`/issuanceJobs/${jobId}`);
-    const job = await res.json().catch(() => null);
-    if (job && (job.status === "completed" || job.status === "failed")) return job;
-    await new Promise((r) => setTimeout(r, POLL_MS));
-  }
-}
 
 export default function Issue() {
   const { t, org, orgPath, overview } = useDashboard();

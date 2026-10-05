@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api.js";
 import { useDashboard } from "../useDashboard.js";
 import { formatDate, formatNumber } from "../format.js";
 import StatusPill from "../components/StatusPill.jsx";
 import Modal from "../components/Modal.jsx";
+import BuyLink from "../components/BuyLink.jsx";
+import { waitForJob } from "../jobs.js";
 
 const PAGE = 50;
 
@@ -17,6 +19,8 @@ export default function Credentials() {
   const [error, setError] = useState("");
   const [revoking, setRevoking] = useState(null);
   const [sending, setSending] = useState(null);
+  const [reissuing, setReissuing] = useState(null);
+  const [revokeReason, setRevokeReason] = useState("");
 
   // Debounce typing so every keystroke isn't a request.
   useEffect(() => {
@@ -133,6 +137,9 @@ export default function Credentials() {
                     <EmailStatus credential={c} />
                   </td>
                   <td className="dash-actions">
+                    <button type="button" className="dash-link" onClick={() => setReissuing(c)}>
+                      {t("credentials.reissue")}
+                    </button>
                     {c.status === "revoked" ? (
                       // Nothing to hand out any more; what is left to show is
                       // the proof that it was withdrawn.
@@ -149,7 +156,14 @@ export default function Credentials() {
                         <button type="button" className="dash-link" onClick={() => setSending(c)}>
                           {c.email_status ? t("credentials.resend") : t("credentials.send")}
                         </button>
-                        <button type="button" className="dash-link dash-link--danger" onClick={() => setRevoking(c)}>
+                        <button
+                          type="button"
+                          className="dash-link dash-link--danger"
+                          onClick={() => {
+                            setRevokeReason("");
+                            setRevoking(c);
+                          }}
+                        >
                           {t("credentials.revoke")}
                         </button>
                       </>
@@ -185,8 +199,26 @@ export default function Credentials() {
         }}
       />
 
+      {reissuing && (
+        <ReissueDialog
+          key={reissuing.id}
+          credential={reissuing}
+          onClose={() => setReissuing(null)}
+          onIssued={() => {
+            reload();
+            refreshOverview();
+          }}
+          onRevokeOriginal={(original, copy) => {
+            setReissuing(null);
+            setRevokeReason(t("reissue.revokeReason", { url: copy.verification_url }));
+            setRevoking(original);
+          }}
+        />
+      )}
+
       <RevokeDialog
         credential={revoking}
+        initialReason={revokeReason}
         onClose={() => setRevoking(null)}
         onDone={() => {
           setRevoking(null);
@@ -280,7 +312,7 @@ function SendDialog({ credential, onClose, onDone }) {
 }
 
 /** Revocation is permanent, so the name has to be typed, not just clicked through. */
-function RevokeDialog({ credential, onClose, onDone }) {
+function RevokeDialog({ credential, initialReason = "", onClose, onDone }) {
   const { t, orgPath } = useDashboard();
   const [typed, setTyped] = useState("");
   const [reason, setReason] = useState("");
@@ -289,9 +321,9 @@ function RevokeDialog({ credential, onClose, onDone }) {
 
   useEffect(() => {
     setTyped("");
-    setReason("");
+    setReason(initialReason);
     setError("");
-  }, [credential?.id]);
+  }, [credential?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const expected = (credential?.holder_name || "").trim();
   const matches = typed.trim().toLowerCase() === expected.toLowerCase() && expected !== "";
@@ -335,6 +367,127 @@ function RevokeDialog({ credential, onClose, onDone }) {
           </button>
         </div>
       </div>
+    </Modal>
+  );
+}
+
+/**
+ * Issue a new credential copied from this one: same template, background,
+ * event, title and values. The values can be corrected first; the design
+ * cannot change. Revoking the original is offered afterwards, never implied.
+ */
+function ReissueDialog({ credential, onClose, onIssued, onRevokeOriginal }) {
+  const { t, orgPath } = useDashboard();
+  const [source, setSource] = useState(null);
+  const [name, setName] = useState("");
+  const [values, setValues] = useState({});
+  const [state, setState] = useState(null); // {phase, job, error, code}
+  // One key per dialog: a double click or a retry yields one credential. The
+  // dialog is mounted per credential, so a new one starts with a new key.
+  const keyRef = useRef(crypto.randomUUID());
+
+  useEffect(() => {
+    let cancelled = false;
+    api(orgPath(`/credentials/${credential.id}/reissue`))
+      .then((d) => {
+        if (cancelled) return;
+        setSource(d);
+        setName(d.holder_name);
+        setValues(d.values);
+      })
+      .catch((err) => !cancelled && setState({ phase: "failed", error: err.message }));
+    return () => {
+      cancelled = true;
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function submit(e) {
+    e.preventDefault();
+    setState({ phase: "queueing" });
+    try {
+      const out = await api(orgPath(`/credentials/${credential.id}/reissue`), {
+        method: "POST",
+        body: { holder_name: name, values, idempotency_key: keyRef.current },
+      });
+      setState({ phase: "waiting" });
+      const job = await waitForJob(out.job_id);
+      setState({ phase: job?.status === "completed" ? "done" : "failed", job });
+      onIssued();
+    } catch (err) {
+      setState({ phase: "failed", error: err.message, code: err.code });
+    }
+  }
+
+  // holder_name follows the recipient's name unless the original set it apart.
+  const fields = source
+    ? Object.keys(source.values).filter((k) => !(k === "holder_name" && source.name_follows_holder))
+    : [];
+  const busy = state?.phase === "queueing" || state?.phase === "waiting";
+  const copy = state?.phase === "done" ? state.job.credential : null;
+
+  return (
+    <Modal open onClose={onClose} title={t("reissue.title")}>
+      {copy ? (
+        <div className="dash-form">
+          <p>{t("reissue.done", { name })}</p>
+          <div className="dash-row">
+            <a href={copy.verification_url} target="_blank" rel="noreferrer" className="dash-btn">
+              {t("issue.done.view")}
+            </a>
+            <a href={copy.pdf_url} target="_blank" rel="noreferrer" className="dash-btn dash-btn--ghost">
+              PDF
+            </a>
+          </div>
+          {credential.status !== "revoked" && (
+            <>
+              <p className="dash-note">{t("reissue.originalStillActive")}</p>
+              <div className="dash-row">
+                <button type="button" className="dash-btn dash-btn--ghost" onClick={onClose}>
+                  {t("reissue.keepOriginal")}
+                </button>
+                <button type="button" className="dash-btn dash-btn--danger" onClick={() => onRevokeOriginal(credential, copy)}>
+                  {t("reissue.revokeOriginal")}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      ) : (
+        <form className="dash-form" onSubmit={submit}>
+          <p>{t("reissue.body", { context: credential?.context_title ?? "" })}</p>
+          {!source && !state && <p className="dash-muted">{t("common.loading")}</p>}
+          {source?.expired && <p className="dash-note dash-note--danger">{t("reissue.expired")}</p>}
+          {source && !source.expired && (
+            <>
+              <label className="dash-field">
+                <span>{t("issue.holderName")}</span>
+                <input required value={name} onChange={(e) => setName(e.target.value)} />
+              </label>
+              {fields.map((k) => (
+                <label className="dash-field" key={k}>
+                  <span>{t("issue.map.field", { field: k })}</span>
+                  <input value={values[k] ?? ""} onChange={(e) => setValues({ ...values, [k]: e.target.value })} />
+                </label>
+              ))}
+              <p className="dash-muted">{t("issue.costOne")}</p>
+            </>
+          )}
+          {state?.phase === "failed" && (
+            <p className="dash-error">
+              {state.error || state.job?.error || t("issue.failed")}{" "}
+              {state.code === "insufficient_credits" && <BuyLink />}
+            </p>
+          )}
+          <div className="dash-row">
+            <button type="button" className="dash-btn dash-btn--ghost" onClick={onClose} disabled={busy}>
+              {t("common.cancel")}
+            </button>
+            <button className="dash-btn" disabled={!source || source.expired || !name.trim() || busy}>
+              {state?.phase === "waiting" ? t("issue.waiting") : busy ? t("common.sending") : t("reissue.confirm")}
+            </button>
+          </div>
+        </form>
+      )}
     </Modal>
   );
 }

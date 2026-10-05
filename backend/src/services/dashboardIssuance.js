@@ -11,6 +11,7 @@ import { validateIssuancePayload } from "./issueCredential.js";
 import { createIssuanceJob } from "./issuanceJobs.js";
 import { deductCredit, refundCredit } from "./apiKeys.js";
 import { ensurePanelKey } from "./accounts.js";
+import { supabase } from "../supabase.js";
 
 const CONTEXT_TYPES = ["event", "course", "diploma", "training", "certification", "membership", "other"];
 const CREDENTIAL_TYPES = ["attendance", "completion", "achievement", "participation", "membership", "certification"];
@@ -95,6 +96,11 @@ export function buildPayload(entity, input) {
  * charges nothing.
  */
 export async function issueFromDashboard({ entity, input, idempotencyKey }) {
+  return queuePayload({ entity, payload: buildPayload(entity, input), idempotencyKey });
+}
+
+/** Charge one credit and queue the payload; refunds when nothing new was queued. */
+async function queuePayload({ entity, payload, idempotencyKey }) {
   if (entity.status === "suspended") {
     throw new DashboardIssueError("This organization is suspended and cannot issue credentials.", {
       status: 403,
@@ -102,7 +108,6 @@ export async function issueFromDashboard({ entity, input, idempotencyKey }) {
     });
   }
 
-  const payload = buildPayload(entity, input);
   const key = idempotencyKey ? `panel:${String(idempotencyKey).slice(0, MAX_KEY_LEN)}` : null;
   const panelKey = await ensurePanelKey(entity.id);
 
@@ -133,4 +138,106 @@ export async function issueFromDashboard({ entity, input, idempotencyKey }) {
   if (!created) await refundCredit(panelKey.id);
 
   return { job_id: job.id, status: job.status, created, remaining: created ? deduct.remaining : deduct.remaining + 1 };
+}
+
+/**
+ * Reissuing: a new credential that is a copy of one already issued.
+ *
+ * Everything that shapes the certificate comes from the original — template,
+ * background, event or course, title, type, expiry and the holder's stored
+ * email — so the copy matches what the organization issued before. Only the
+ * values the original already had can be corrected; nothing can be added and
+ * the design cannot change. The original stays as it is: revoking it is a
+ * separate, explicit step.
+ */
+const REISSUE_SELECT =
+  "id, issuer_entity_id, template_id, credential_type, expires_at, revoked_at, background_url_override, " +
+  "credential_json, contexts(type, title, external_id, description, starts_at, ends_at), credential_holder_contacts(email)";
+
+/** The original credential, only if this organization issued it. */
+export async function loadReissueSource(entity, credentialId) {
+  const { data, error } = await supabase.from("credentials").select(REISSUE_SELECT).eq("id", credentialId).maybeSingle();
+  if (error) throw new DashboardIssueError("Could not load the credential. Retry in a few seconds.", { status: 503, code: "database_unavailable" });
+  if (!data || data.issuer_entity_id !== entity.id) {
+    throw new DashboardIssueError("Credential not found", { status: 404, code: "not_found" });
+  }
+  return data;
+}
+
+function one(rel) {
+  return Array.isArray(rel) ? rel[0] ?? null : rel ?? null;
+}
+
+/** What the reissue form shows: the original's own values, ready to correct. */
+export function describeReissue(source) {
+  const subject = source.credential_json?.credentialSubject ?? {};
+  const { full_name: fullName = "", ...values } = subject;
+  return {
+    id: source.id,
+    holder_name: fullName,
+    values,
+    // holder_name on the certificate follows the holder's name unless the
+    // original set it to something else.
+    name_follows_holder: values.holder_name === undefined || values.holder_name === fullName,
+    context_title: one(source.contexts)?.title ?? source.credential_json?.context?.title ?? "",
+    title: source.credential_json?.name ?? "",
+    revoked: Boolean(source.revoked_at),
+    expired: Boolean(source.expires_at && new Date(source.expires_at).getTime() <= Date.now()),
+  };
+}
+
+/**
+ * Build the payload for the copy. Pure. `edits` may carry `holder_name` and
+ * `values`; any key the original did not have is ignored.
+ */
+export function buildReissuePayload(entity, source, edits = {}) {
+  const form = describeReissue(source);
+  if (form.expired) throw new DashboardIssueError("This credential has expired; a copy would be issued already expired.");
+
+  const holderName = String(edits.holder_name ?? form.holder_name).trim();
+  if (!holderName) throw new DashboardIssueError("holder_name is required");
+
+  const values = { ...form.values };
+  for (const [k, v] of Object.entries(edits.values || {})) {
+    if (!Object.prototype.hasOwnProperty.call(values, k)) continue;
+    const text = String(v ?? "").trim();
+    if (text) values[k] = text;
+  }
+  if (form.name_follows_holder && edits.values?.holder_name === undefined) values.holder_name = holderName;
+
+  const ctx = one(source.contexts) ?? {};
+  const context = { type: ctx.type || "event", title: form.context_title };
+  for (const k of ["external_id", "description", "starts_at", "ends_at"]) if (ctx[k]) context[k] = ctx[k];
+
+  const holder = { full_name: holderName };
+  const email = one(source.credential_holder_contacts)?.email;
+  if (email) holder.email = email;
+
+  const payload = {
+    issuer_entity_id: entity.id,
+    issuer: { display_name: entity.display_name, slug: entity.slug },
+    platform: { display_name: entity.display_name, slug: entity.slug },
+    holder,
+    context,
+    credential_type: source.credential_type,
+    title: form.title,
+    values,
+    ...(source.template_id && { template_id: source.template_id }),
+    ...(source.background_url_override && { background_url_override: source.background_url_override }),
+    ...(source.expires_at && { expires_at: new Date(source.expires_at).toISOString() }),
+  };
+
+  try {
+    validateIssuancePayload(payload);
+  } catch (err) {
+    throw new DashboardIssueError(err.message);
+  }
+  return payload;
+}
+
+/** Queue the copy of `credentialId`. Same charging and idempotency as any issue. */
+export async function reissueFromDashboard({ entity, credentialId, edits, idempotencyKey }) {
+  const source = await loadReissueSource(entity, credentialId);
+  const payload = buildReissuePayload(entity, source, edits);
+  return queuePayload({ entity, payload, idempotencyKey });
 }

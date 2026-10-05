@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("../supabase.js", () => ({ supabase: {} }));
+const supabaseMock = {};
+vi.mock("../supabase.js", () => ({ supabase: supabaseMock }));
 
 const deductCredit = vi.fn();
 const refundCredit = vi.fn();
@@ -17,7 +18,9 @@ vi.mock("./accounts.js", async (orig) => ({
 }));
 vi.mock("../utils/notify.js", () => ({ sendTelegramAlert: vi.fn(async () => true) }));
 
-const { buildPayload, issueFromDashboard } = await import("./dashboardIssuance.js");
+const { buildPayload, issueFromDashboard, buildReissuePayload, describeReissue, reissueFromDashboard } = await import(
+  "./dashboardIssuance.js"
+);
 const { validateLayout, readImageInfo } = await import("./dashboardTemplates.js");
 const { parseCredits, priceCents } = await import("./payments.js");
 const { normalizeSlug } = await import("./accounts.js");
@@ -100,6 +103,111 @@ describe("issueFromDashboard", () => {
 
   it("validates before charging", async () => {
     await expect(issueFromDashboard({ entity: ENTITY, input: { ...INPUT, title: "" } })).rejects.toMatchObject({ status: 400 });
+    expect(deductCredit).not.toHaveBeenCalled();
+  });
+});
+
+const ORIGINAL = {
+  id: "c0ffee00-0000-4000-8000-000000000001",
+  issuer_entity_id: "e1",
+  template_id: "tpl-1",
+  credential_type: "attendance",
+  expires_at: null,
+  revoked_at: null,
+  background_url_override: "https://cdn.example.com/event-bg.png",
+  credential_json: {
+    name: "Certificado de Asistencia",
+    context: { title: "VI Curso" },
+    credentialSubject: {
+      full_name: "JUAN CASTRO",
+      holder_name: "JUAN CASTRO",
+      extra: "1001346453",
+      details: "Attended VI Curso",
+    },
+  },
+  contexts: { type: "event", title: "VI Curso", external_id: null, description: null, starts_at: null, ends_at: null },
+  credential_holder_contacts: [],
+};
+
+describe("buildReissuePayload", () => {
+  it("copies everything that shapes the certificate from the original", () => {
+    const p = buildReissuePayload(ENTITY, ORIGINAL);
+    expect(p).toEqual({
+      issuer_entity_id: "e1",
+      issuer: { display_name: "Acme University", slug: "acme-university" },
+      platform: { display_name: "Acme University", slug: "acme-university" },
+      holder: { full_name: "JUAN CASTRO" },
+      context: { type: "event", title: "VI Curso" },
+      credential_type: "attendance",
+      title: "Certificado de Asistencia",
+      values: { holder_name: "JUAN CASTRO", extra: "1001346453", details: "Attended VI Curso" },
+      template_id: "tpl-1",
+      background_url_override: "https://cdn.example.com/event-bg.png",
+    });
+  });
+
+  it("corrects existing values and keeps holder_name on the corrected name", () => {
+    const p = buildReissuePayload(ENTITY, ORIGINAL, { holder_name: "Juan Castro", values: { extra: "999" } });
+    expect(p.holder.full_name).toBe("Juan Castro");
+    expect(p.values).toEqual({ holder_name: "Juan Castro", extra: "999", details: "Attended VI Curso" });
+  });
+
+  it("ignores keys the original did not have and blank corrections", () => {
+    const p = buildReissuePayload(ENTITY, ORIGINAL, { values: { injected: "x", details: "  " } });
+    expect(p.values).toEqual({
+      holder_name: "JUAN CASTRO",
+      extra: "1001346453",
+      details: "Attended VI Curso",
+    });
+  });
+
+  it("keeps the event's identifier and the holder's stored email, without emailing", () => {
+    const p = buildReissuePayload(ENTITY, {
+      ...ORIGINAL,
+      credential_holder_contacts: [{ email: "juan@example.com" }],
+      contexts: { ...ORIGINAL.contexts, external_id: "evt-9" },
+    });
+    expect(p.holder).toEqual({ full_name: "JUAN CASTRO", email: "juan@example.com" });
+    expect(p.context.external_id).toBe("evt-9");
+    expect(p.notify_holder).toBeUndefined();
+  });
+
+  it("refuses an expired original", () => {
+    expect(() => buildReissuePayload(ENTITY, { ...ORIGINAL, expires_at: "2000-01-01T00:00:00Z" })).toThrow(/expired/);
+  });
+
+  it("describes the form without full_name among the values", () => {
+    const d = describeReissue(ORIGINAL);
+    expect(d.holder_name).toBe("JUAN CASTRO");
+    expect(d.values).toEqual({ holder_name: "JUAN CASTRO", extra: "1001346453", details: "Attended VI Curso" });
+    expect(d.name_follows_holder).toBe(true);
+  });
+});
+
+describe("reissueFromDashboard", () => {
+  function mockOriginal(row) {
+    supabaseMock.from = () => ({
+      select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: row, error: null }) }) }),
+    });
+  }
+
+  beforeEach(() => {
+    deductCredit.mockReset().mockResolvedValue({ ok: true, remaining: 9 });
+    refundCredit.mockReset();
+    createIssuanceJob.mockReset().mockResolvedValue({ job: { id: "job-2", status: "pending" }, created: true });
+  });
+
+  it("queues the copy and charges one credit", async () => {
+    mockOriginal(ORIGINAL);
+    const out = await reissueFromDashboard({ entity: ENTITY, credentialId: ORIGINAL.id, idempotencyKey: "k1" });
+    expect(out).toMatchObject({ job_id: "job-2", created: true });
+    expect(createIssuanceJob.mock.calls[0][0].payload.background_url_override).toBe("https://cdn.example.com/event-bg.png");
+    expect(createIssuanceJob.mock.calls[0][0].idempotencyKey).toBe("panel:k1");
+  });
+
+  it("does not reveal or copy another organization's credential", async () => {
+    mockOriginal({ ...ORIGINAL, issuer_entity_id: "someone-else" });
+    await expect(reissueFromDashboard({ entity: ENTITY, credentialId: ORIGINAL.id })).rejects.toMatchObject({ status: 404 });
     expect(deductCredit).not.toHaveBeenCalled();
   });
 });

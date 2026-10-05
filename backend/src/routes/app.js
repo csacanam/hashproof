@@ -26,7 +26,13 @@ import {
 import { listCredentials } from "../services/listCredentials.js";
 import { revokeCredential } from "../services/revokeCredential.js";
 import { resendCredentialEmail } from "../services/holderNotify.js";
-import { buildPayload, issueFromDashboard } from "../services/dashboardIssuance.js";
+import {
+  buildPayload,
+  describeReissue,
+  issueFromDashboard,
+  loadReissueSource,
+  reissueFromDashboard,
+} from "../services/dashboardIssuance.js";
 import {
   createTemplate,
   listTemplates,
@@ -264,6 +270,34 @@ export function createAppRouter({ baseUrl, frontendUrl, skipPayment = false }) {
       );
     } catch (err) {
       return fail(res, err, { handler: "app/credentials notify" });
+    }
+  });
+
+  // Reissue: a new credential copied from one this organization issued.
+  org.get("/credentials/:credentialId/reissue", async (req, res) => {
+    try {
+      if (!UUID_RE.test(req.params.credentialId)) throw new Error("Credential not found");
+      return res.json(describeReissue(await loadReissueSource(req.entity, req.params.credentialId)));
+    } catch (err) {
+      return fail(res, err, { handler: "app/reissue source" });
+    }
+  });
+
+  org.post("/credentials/:credentialId/reissue", async (req, res) => {
+    try {
+      if (!UUID_RE.test(req.params.credentialId)) throw new Error("Credential not found");
+      const out = await reissueFromDashboard({
+        entity: req.entity,
+        credentialId: req.params.credentialId,
+        edits: { holder_name: req.body?.holder_name, values: req.body?.values },
+        idempotencyKey: req.body?.idempotency_key || null,
+      });
+      return res.status(out.created ? 202 : 200).json({
+        ...out,
+        status_url: `${baseUrl.replace(/\/$/, "")}/issuanceJobs/${out.job_id}`,
+      });
+    } catch (err) {
+      return fail(res, err, { handler: "app/reissue", entity_id: req.entity.id });
     }
   });
 
