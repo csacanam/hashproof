@@ -31,6 +31,34 @@ export async function generateCredentialPdf(credentialId, baseUrl) {
   });
 }
 
+/** Smallest a one-line field may shrink to, relative to its designed size. */
+const MIN_FIT_RATIO = 0.6;
+
+/**
+ * Font size at which a one-line field fits its width.
+ *
+ * A value longer than the designer planned for (a long full name) used to wrap
+ * onto a second line and land on top of the field below. One-line fields now
+ * shrink to fit instead, down to MIN_FIT_RATIO; past that they wrap as before.
+ *
+ * Fields meant to hold several lines keep their size and wrap: text zones, and
+ * fields whose height leaves room for at least two lines (the default
+ * template's `details`).
+ */
+export function fitFontSize(doc, text, field, fontSize, width) {
+  const multiline = typeof field.text === "string" || Number(field.height) >= fontSize * 2;
+  if (multiline) return fontSize;
+
+  const minSize = Math.max(6, Math.floor(fontSize * MIN_FIT_RATIO));
+  let size = fontSize;
+  doc.fontSize(size);
+  while (size > minSize && doc.widthOfString(text) > width) {
+    size -= 1;
+    doc.fontSize(size);
+  }
+  return size;
+}
+
 /**
  * Render the PDF from data already in hand, without reading the database.
  *
@@ -103,7 +131,8 @@ export async function renderCredentialPdf({ credentialJson, template, background
           ...(f.underline === true && { underline: true }),
           ...(f.strike === true && { strike: true }),
         };
-        doc.font(fontName).fontSize(fontSize).fillColor(fontColor).text(text, x, y, textOpts);
+        doc.font(fontName);
+        doc.fontSize(fitFontSize(doc, text, f, fontSize, w)).fillColor(fontColor).text(text, x, y, textOpts);
       }
 
       // Scale QR from a reference size (360px at 3508px width, ~20% larger) so it looks good on any page size
