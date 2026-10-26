@@ -31,6 +31,7 @@ import { requireCaller } from "./middleware/caller.js";
 import { revokeCredential } from "./services/revokeCredential.js";
 import { listCredentials } from "./services/listCredentials.js";
 import { createAppRouter } from "./routes/app.js";
+import { createQuotesRouter } from "./routes/quotes.js";
 import { addMember, ensurePanelKey } from "./services/accounts.js";
 import { handleStripeWebhook, syncVoultiInvoice, verifyVoultiSignature } from "./services/payments.js";
 import { applySendgridEvents, verifySendgridSignature } from "./services/holderNotify.js";
@@ -77,7 +78,7 @@ export function createApp(options = {}) {
   app.set("trust proxy", 1);
   app.use(cors({
     origin: true,
-    exposedHeaders: ["PAYMENT-REQUIRED", "payment-required", "X-PAYMENT-RESPONSE"],
+    exposedHeaders: ["PAYMENT-REQUIRED", "payment-required", "X-PAYMENT-RESPONSE", "X-Quote-Number"],
   }));
   // Stripe signs the exact bytes it sent, so this route reads the raw body and
   // has to be registered before the JSON parser.
@@ -1304,6 +1305,9 @@ export function createApp(options = {}) {
       return sendError(res, err, { handler: "credentials revoke", credential_id: req.params.id });
     }
   });
+
+  // ── Public quote calculator ────────────────────────────────────────────
+  app.use("/quotes", createQuotesRouter());
 
   // ── Dashboard (session auth) ───────────────────────────────────────────
   app.use(

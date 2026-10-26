@@ -7,6 +7,7 @@ import Compare from "./pages/Compare.jsx";
 import Docs from "./pages/Docs.jsx";
 import EntityVerification from "./pages/EntityVerification.jsx";
 import Preview from "./pages/Preview.jsx";
+import Quote from "./pages/Quote.jsx";
 
 const DashboardRoutes = lazy(() => import("./app/DashboardRoutes.jsx"));
 
@@ -56,6 +57,7 @@ function App() {
       <Route path="/docs" element={<Docs />} />
       <Route path="/entity-verification" element={<EntityVerification />} />
       <Route path="/preview/:slug" element={<Preview />} />
+      <Route path="/quote" element={<Quote />} />
       <Route
         path="/app/*"
         element={

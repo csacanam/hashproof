@@ -112,3 +112,64 @@ export async function sendCredentialEmail({ to, locale, holder, issuer, context,
     return { ok: false, messageId: null, error: "Could not reach SendGrid" };
   }
 }
+
+/**
+ * Email a quote to whoever asked for it, PDF attached. Replies go to us, so
+ * "reply to accept" reaches a person. QUOTE_BCC, when set, gets a copy.
+ */
+export async function sendQuoteEmail({ to, quote, pdf, copy, demoUrl }) {
+  if (!isMailerConfigured()) {
+    console.warn("[mailer] SENDGRID_API_KEY/SENDGRID_FROM not set; quote email skipped");
+    return { ok: false, error: "Email is not configured" };
+  }
+  const E = copy.email;
+  const total = quote.totalLabel;
+  const name = quote.client.name;
+  const html = `<!doctype html><html><body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:32px 16px;"><tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:16px;overflow:hidden;">
+<tr><td style="background:#0a0a0b;padding:24px 32px;"><img src="https://www.hashproof.dev/hashproof-logo.png" alt="HashProof" height="30" style="display:block;height:30px;border:0;"></td></tr>
+<tr><td style="height:3px;background:#22d3ee;"></td></tr>
+<tr><td style="padding:28px 32px 32px;font-size:15px;line-height:1.6;color:#3f3f46;">
+<p style="margin:0 0 12px;color:#0a0a0b;font-weight:600;">${esc(E.hello(name))}</p>
+<p style="margin:0 0 20px;">${esc(E.body)}</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0b;border-radius:12px;margin:0 0 20px;"><tr>
+<td style="padding:16px 20px;color:#a1a1aa;font-size:12px;letter-spacing:1px;text-transform:uppercase;">${esc(E.totalLabel)} · ${esc(quote.number)}</td>
+<td style="padding:16px 20px;color:#22d3ee;font-size:20px;font-weight:700;text-align:right;">${esc(total)}</td>
+</tr></table>
+<p style="margin:0 0 24px;">${esc(E.reply)}</p>
+<p style="margin:0;"><a href="${esc(demoUrl)}" style="display:inline-block;background:#0a0a0b;color:#ffffff;text-decoration:none;font-weight:700;padding:12px 20px;border-radius:10px;">${esc(E.cta)}</a></p>
+</td></tr></table>
+<p style="font-size:12px;color:#a1a1aa;margin:16px 0 0;">${esc(copy.footer)}</p>
+</td></tr></table></body></html>`;
+  const text = [E.hello(name), "", E.body, "", `${E.totalLabel} (${quote.number}): ${total}`, "", E.reply, "", `${E.cta}: ${demoUrl}`].join("\n");
+  const bcc = String(process.env.QUOTE_BCC || "").trim();
+  try {
+    const res = await fetch(SENDGRID_URL, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        personalizations: [{ to: [{ email: to }], ...(bcc && bcc.toLowerCase() !== to && { bcc: [{ email: bcc }] }) }],
+        from: { email: process.env.SENDGRID_FROM, name: "HashProof" },
+        reply_to: { email: process.env.QUOTE_REPLY_TO || "hi@hashproof.dev" },
+        subject: E.subject(quote),
+        content: [
+          { type: "text/plain", value: text },
+          { type: "text/html", value: html },
+        ],
+        attachments: [
+          { content: pdf.toString("base64"), filename: `HashProof-${quote.number}.pdf`, type: "application/pdf", disposition: "attachment" },
+        ],
+        tracking_settings: { click_tracking: { enable: false } },
+      }),
+    });
+    if (!res.ok) {
+      console.error("[mailer] SendGrid refused a quote email:", res.status, (await res.text()).slice(0, 300));
+      return { ok: false, error: `SendGrid ${res.status}` };
+    }
+    return { ok: true, error: null };
+  } catch (err) {
+    console.error("[mailer] quote email failed:", err.message);
+    return { ok: false, error: "Could not reach SendGrid" };
+  }
+}

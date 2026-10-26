@@ -24,6 +24,7 @@ export default function SiteHeader({ plain } = {}) {
       </Link>
       {!plain && (
         <nav className="home-nav">
+          <Link to="/quote" className="home-nav-link home-nav-link--wide">{es ? "Cotizar" : "Pricing"}</Link>
           <Link to="/docs" className="home-nav-link">Docs</Link>
           {hasSession() ? (
             <Link to="/app" className="home-nav-btn">{es ? "Panel" : "Dashboard"}</Link>

@@ -2827,3 +2827,10 @@
 .compare-list li { margin-bottom: 0.85rem; }
 
 .compare-list--ours li::marker { color: var(--color-accent); }
+
+/* Links that only fit next to the buttons on wider screens. */
+@media (max-width: 480px) {
+  .home-nav-link--wide {
+    display: none;
+  }
+}
