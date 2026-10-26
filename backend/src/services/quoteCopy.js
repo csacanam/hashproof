@@ -34,7 +34,6 @@ export const QUOTE_COPY = {
     terms: [
       "Los créditos no vencen: si emites menos certificados, los que sobran quedan para tu próximo evento.",
       "Cada certificado se paga una sola vez. Sin suscripción ni cobros por verificación.",
-      "Para aceptarla, escríbenos a hi@hashproof.dev con el número de la cotización y te enviamos las instrucciones de pago.",
     ],
     whyTitle: "Por qué HashProof",
     why: [
@@ -64,7 +63,6 @@ export const QUOTE_COPY = {
       hello: (name) => `Hola, ${name}:`,
       body: "Adjuntamos la cotización que generaste en HashProof, con el detalle de precios, cómo funciona y ejemplos de certificados.",
       totalLabel: "Total",
-      reply: "Para aceptarla o hacer cambios, solo responde este correo.",
       cta: "Ver cómo se verifica un certificado",
     },
   },
@@ -99,7 +97,6 @@ export const QUOTE_COPY = {
     terms: [
       "Credits never expire: if you issue fewer certificates, the rest carry over to your next event.",
       "Each certificate is paid once. No subscription, no fees for verification.",
-      "To accept, write to hi@hashproof.dev with the quote number and we will send you payment instructions.",
     ],
     whyTitle: "Why HashProof",
     why: [
@@ -129,7 +126,6 @@ export const QUOTE_COPY = {
       hello: (name) => `Hi ${name},`,
       body: "Attached is the quote you generated on HashProof, with the pricing, how it works and sample certificates.",
       totalLabel: "Total",
-      reply: "To accept it or ask for changes, just reply to this email.",
       cta: "See how a certificate is verified",
     },
   },

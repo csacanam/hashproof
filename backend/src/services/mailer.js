@@ -114,8 +114,8 @@ export async function sendCredentialEmail({ to, locale, holder, issuer, context,
 }
 
 /**
- * Email a quote to whoever asked for it, PDF attached. Replies go to us, so
- * "reply to accept" reaches a person. QUOTE_BCC, when set, gets a copy.
+ * Email a quote to whoever asked for it, PDF attached. Replies go to us.
+ * QUOTE_BCC, when set, gets a copy.
  */
 export async function sendQuoteEmail({ to, quote, pdf, copy, demoUrl }) {
   if (!isMailerConfigured()) {
@@ -137,12 +137,11 @@ export async function sendQuoteEmail({ to, quote, pdf, copy, demoUrl }) {
 <td style="padding:16px 20px;color:#a1a1aa;font-size:12px;letter-spacing:1px;text-transform:uppercase;">${esc(E.totalLabel)} · ${esc(quote.number)}</td>
 <td style="padding:16px 20px;color:#22d3ee;font-size:20px;font-weight:700;text-align:right;">${esc(total)}</td>
 </tr></table>
-<p style="margin:0 0 24px;">${esc(E.reply)}</p>
 <p style="margin:0;"><a href="${esc(demoUrl)}" style="display:inline-block;background:#0a0a0b;color:#ffffff;text-decoration:none;font-weight:700;padding:12px 20px;border-radius:10px;">${esc(E.cta)}</a></p>
 </td></tr></table>
 <p style="font-size:12px;color:#a1a1aa;margin:16px 0 0;">${esc(copy.footer)}</p>
 </td></tr></table></body></html>`;
-  const text = [E.hello(name), "", E.body, "", `${E.totalLabel} (${quote.number}): ${total}`, "", E.reply, "", `${E.cta}: ${demoUrl}`].join("\n");
+  const text = [E.hello(name), "", E.body, "", `${E.totalLabel} (${quote.number}): ${total}`, "", `${E.cta}: ${demoUrl}`].join("\n");
   const bcc = String(process.env.QUOTE_BCC || "").trim();
   try {
     const res = await fetch(SENDGRID_URL, {
