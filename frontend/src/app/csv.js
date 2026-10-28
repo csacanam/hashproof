@@ -99,6 +99,11 @@ function splitRows(src, delimiter) {
   return { delimiter, rows: rows.filter((r) => r.some((c) => c.trim() !== "")) };
 }
 
+/** Rows of cells (from a spreadsheet) into the shape parseCsv returns. */
+export function parseRows(rows) {
+  return finish(rows.map((r) => r.map((c) => String(c ?? ""))).filter((r) => r.some((c) => c.trim() !== "")));
+}
+
 function finish(nonEmpty) {
   if (!nonEmpty.length) return { headers: [], rows: [], hasHeader: false };
 
@@ -115,12 +120,12 @@ function finish(nonEmpty) {
   };
 }
 
-export function toCsv(headers, rows) {
+export function toCsv(headers, rows, delimiter = ",") {
   const esc = (v) => {
     const s = String(v ?? "");
-    return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    return /[",\n;\t]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
-  return [headers.map(esc).join(","), ...rows.map((r) => headers.map((h) => esc(r[h])).join(","))].join("\n");
+  return [headers.map(esc).join(delimiter), ...rows.map((r) => headers.map((h) => esc(r[h])).join(delimiter))].join("\n");
 }
 
 const NAME_HEADERS = ["name", "full name", "full_name", "fullname", "nombre", "nombre completo", "nombres", "holder_name", "participante", "asistente"];

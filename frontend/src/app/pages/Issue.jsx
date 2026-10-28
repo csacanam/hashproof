@@ -7,12 +7,14 @@ import { decodeCsv, digest, fillTags, guessColumn, parseCsv, toCsv } from "../cs
 import BuyLink from "../components/BuyLink.jsx";
 import TemplateLayout from "../components/TemplateLayout.jsx";
 import { waitForJob } from "../jobs.js";
+import { downloadCsvTemplate, downloadXlsxTemplate, isXlsx, readXlsx, sheetTemplate } from "../sheet.js";
 import { issueDate, resolveText, templateVariables } from "../textFields.js";
 import { getPreferredLocale } from "../../i18n.js";
 
 const CONTEXT_TYPES = ["event", "course", "diploma", "training", "certification", "membership", "other"];
 const CREDENTIAL_TYPES = ["attendance", "completion", "achievement", "participation", "membership", "certification"];
 const CONCURRENCY = 4;
+const SHEET_ACCEPT = ".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 export default function Issue() {
   const { t, org, orgPath, overview } = useDashboard();
@@ -270,6 +272,7 @@ function CsvIssue({ common, extraFields, textFields, ready }) {
   const [zip, setZip] = useState(null); // {done, total} while the ZIP is being built
   const [dragging, setDragging] = useState(false);
   const [notify, setNotify] = useState(true);
+  const [fileError, setFileError] = useState("");
   const abortRef = useRef(null);
 
   useEffect(() => () => abortRef.current?.abort(), []);
@@ -312,8 +315,26 @@ function CsvIssue({ common, extraFields, textFields, ready }) {
 
   async function loadFile(f) {
     if (!f) return;
-    const text = decodeCsv(await f.arrayBuffer());
-    const parsed = parseCsv(text);
+    if (/\.xls$/i.test(f.name)) {
+      setFileError(t("issue.sheet.oldExcel"));
+      return;
+    }
+    setFileError("");
+    let text;
+    let parsed;
+    try {
+      if (isXlsx(f)) {
+        parsed = await readXlsx(await f.arrayBuffer());
+        // What identifies the batch (see start): the rows as read.
+        text = JSON.stringify([parsed.headers, parsed.rows]);
+      } else {
+        text = decodeCsv(await f.arrayBuffer());
+        parsed = parseCsv(text);
+      }
+    } catch {
+      setFileError(t("issue.sheet.unreadable"));
+      return;
+    }
     setFile({ name: f.name, text, ...parsed });
     const fields = {};
     for (const fld of extraFields) {
@@ -388,7 +409,7 @@ function CsvIssue({ common, extraFields, textFields, ready }) {
     const blob = new Blob([toCsv(["name", "email", "status", "verification_url", "error"], rows)], { type: "text/csv" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `${file.name.replace(/\.csv$/i, "")}-results.csv`;
+    a.download = `${file.name.replace(/\.(csv|xlsx)$/i, "")}-results.csv`;
     a.click();
     URL.revokeObjectURL(a.href);
   }
@@ -471,6 +492,8 @@ function CsvIssue({ common, extraFields, textFields, ready }) {
         <span className="dash-step-n">1</span>
         <div className="dash-step-body">
           <h3>{t("issue.step.file")}</h3>
+          {!file && <SheetTemplate extraFields={extraFields} />}
+          {fileError && <p className="dash-error">{fileError}</p>}
           {!file ? (
             <label
               className={`dash-drop${dragging ? " is-over" : ""}`}
@@ -485,13 +508,13 @@ function CsvIssue({ common, extraFields, textFields, ready }) {
                 loadFile(e.dataTransfer.files?.[0]);
               }}
             >
-              <input type="file" accept=".csv,text/csv" onChange={onFile} disabled={run?.running} />
+              <input type="file" accept={SHEET_ACCEPT} onChange={onFile} disabled={run?.running} />
               <strong>{t("issue.drop.title")}</strong>
               <span className="dash-muted">{t("issue.csvHelp")}</span>
             </label>
           ) : (
             <div className="dash-file">
-              <span className="dash-file-icon" aria-hidden>CSV</span>
+              <span className="dash-file-icon" aria-hidden>{/\.xlsx$/i.test(file.name) ? "XLSX" : "CSV"}</span>
               <div>
                 <strong>{file.name}</strong>
                 <div className="dash-muted dash-small">{t("issue.rows", { n: formatNumber(file.rows.length) })}</div>
@@ -499,7 +522,7 @@ function CsvIssue({ common, extraFields, textFields, ready }) {
               {!run?.running && (
                 <label className="dash-link dash-file-change">
                   {t("issue.changeFile")}
-                  <input type="file" accept=".csv,text/csv" onChange={onFile} hidden />
+                  <input type="file" accept={SHEET_ACCEPT} onChange={onFile} hidden />
                 </label>
               )}
             </div>
@@ -867,6 +890,56 @@ function Design({ templates, template, slug, onTemplate, background, onBackgroun
           {error && <small className="dash-error">{error}</small>}
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * The file to fill in, built from the chosen template: the name, the email and
+ * one column per field, with two example rows. Its headers match what the
+ * column step recognizes, so a filled-in file maps itself.
+ */
+function SheetTemplate({ extraFields }) {
+  const { t, locale } = useDashboard();
+  const sheet = useMemo(() => sheetTemplate(extraFields, locale), [extraFields, locale]);
+  const base = locale === "en" ? "certificates" : "certificados";
+  return (
+    <div className="dash-sheet">
+      <div className="dash-sheet-head">
+        <div>
+          <strong>{t("issue.sheet.title")}</strong>
+          <span className="dash-muted dash-small">{t("issue.sheet.body")}</span>
+        </div>
+        <div className="dash-row">
+          <button type="button" className="dash-btn dash-btn--ghost" onClick={() => downloadXlsxTemplate(sheet, `${base}.xlsx`)}>
+            Excel
+          </button>
+          <button type="button" className="dash-btn dash-btn--ghost" onClick={() => downloadCsvTemplate(sheet, locale, `${base}.csv`)}>
+            CSV
+          </button>
+        </div>
+      </div>
+      <div className="dash-table-wrap">
+        <table className="dash-table dash-sheet-table">
+          <thead>
+            <tr>
+              {sheet.headers.map((h) => (
+                <th key={h}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {sheet.rows.map((r, i) => (
+              <tr key={i}>
+                {sheet.headers.map((h) => (
+                  <td key={h}>{r[h]}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <small className="dash-muted">{t("issue.sheet.note")}</small>
     </div>
   );
 }
