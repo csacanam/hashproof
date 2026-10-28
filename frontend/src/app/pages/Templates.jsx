@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { api } from "../api.js";
 import { useDashboard } from "../useDashboard.js";
 import { formatDate } from "../format.js";
+import TemplateLayout from "../components/TemplateLayout.jsx";
 
 export default function Templates() {
   const { t, org, orgPath, canManage } = useDashboard();
@@ -34,6 +35,8 @@ export default function Templates() {
       </header>
       {error && <p className="dash-error">{error}</p>}
 
+      <Explainer sample={own[0] ?? catalog[0]} />
+
       <h2 className="dash-section-title">{t("templates.yours")}</h2>
       {list && own.length === 0 && <p className="dash-muted">{t("templates.noneYet")}</p>}
       <div className="dash-template-grid">
@@ -59,23 +62,24 @@ function TemplateCard({ tpl, editable, canManage }) {
       {/* Same frame for every card, whatever the page's proportions: the
           design sits inside it, whole, so the grid stays even. */}
       <div className="dash-template-thumb">
-        <img src={tpl.background_url} alt="" loading="lazy" />
+        <TemplateLayout template={tpl} />
+        {tpl.in_use && (
+          <span className="dash-badge dash-badge--corner" title={t("templates.inUseHelp")}>
+            {t("templates.inUse")}
+          </span>
+        )}
       </div>
       <div className="dash-template-meta">
-        <strong>
-          {tpl.name}
-          {tpl.in_use && (
-            <span className="dash-badge" title={t("templates.inUseHelp")}>
-              {t("templates.inUse")}
-            </span>
-          )}
-        </strong>
+        <strong title={tpl.name}>{tpl.name}</strong>
         <code className="dash-small dash-ellipsis" title={tpl.slug}>
           {tpl.slug}
         </code>
-        <span className="dash-muted dash-small">
-          {tpl.fields_json.length} {t("templates.fields")} · {formatDate(tpl.created_at)}
-        </span>
+        <div className="dash-template-fields" title={t("templates.fieldsHelp")}>
+          {tpl.fields_json.map((f, i) => (
+            <code key={`${f.key}-${i}`}>{f.key === "holder_name" ? t("layout.holder") : typeof f.text === "string" ? t("templates.textZone") : f.key}</code>
+          ))}
+        </div>
+        <span className="dash-muted dash-small">{formatDate(tpl.created_at)}</span>
         <div className="dash-row">
           {editable && !tpl.in_use ? (
             <Link to={`/app/templates/${tpl.id}`} className="dash-link">
@@ -90,5 +94,43 @@ function TemplateCard({ tpl, editable, canManage }) {
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * What a template is, shown rather than told: the same fields over the
+ * template's background and over another one.
+ */
+function Explainer({ sample }) {
+  const { t } = useDashboard();
+  return (
+    <section className="dash-card dash-explainer">
+      <div>
+        <h2>{t("templates.what.title")}</h2>
+        <ol className="dash-muted">
+          <li>
+            <strong>{t("templates.what.fields")}</strong> {t("templates.what.fieldsBody")}
+          </li>
+          <li>
+            <strong>{t("templates.what.background")}</strong> {t("templates.what.backgroundBody")}
+          </li>
+          <li>
+            <strong>{t("templates.what.new")}</strong> {t("templates.what.newBody")}
+          </li>
+        </ol>
+      </div>
+      {sample && (
+        <div className="dash-explainer-demo">
+          <figure>
+            <TemplateLayout template={sample} />
+            <figcaption>{t("templates.what.demoTemplate")}</figcaption>
+          </figure>
+          <figure>
+            <TemplateLayout template={sample} plain />
+            <figcaption>{t("templates.what.demoEvent")}</figcaption>
+          </figure>
+        </div>
+      )}
+    </section>
   );
 }

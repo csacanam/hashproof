@@ -5,6 +5,7 @@ import { useDashboard } from "../useDashboard.js";
 import { formatNumber } from "../format.js";
 import { decodeCsv, digest, fillTags, guessColumn, parseCsv, toCsv } from "../csv.js";
 import BuyLink from "../components/BuyLink.jsx";
+import TemplateLayout from "../components/TemplateLayout.jsx";
 import { waitForJob } from "../jobs.js";
 import { issueDate, resolveText, templateVariables } from "../textFields.js";
 import { getPreferredLocale } from "../../i18n.js";
@@ -63,37 +64,15 @@ export default function Issue() {
 
       <section className="dash-card">
         <h2>{t("issue.what")}</h2>
+        <Design
+          templates={templates}
+          template={template}
+          slug={common.template_slug}
+          onTemplate={(slug) => setCommon({ ...common, template_slug: slug, background: null })}
+          background={common.background}
+          onBackground={(background) => setCommon((c) => ({ ...c, background }))}
+        />
         <div className="dash-grid-2">
-          <label className="dash-field">
-            <span>{t("issue.template")}</span>
-            <select value={common.template_slug} onChange={(e) => setCommon({ ...common, template_slug: e.target.value, background: null })}>
-              {templates === null && <option>{t("common.loading")}</option>}
-              {templates?.some((x) => x.own) && (
-                <optgroup label={t("issue.yourTemplates")}>
-                  {templates.filter((x) => x.own).map((x) => (
-                    <option key={x.id} value={x.slug}>
-                      {x.name}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-              <optgroup label={t("issue.catalog")}>
-                {templates?.filter((x) => !x.own).map((x) => (
-                  <option key={x.id} value={x.slug}>
-                    {x.name}
-                  </option>
-                ))}
-              </optgroup>
-            </select>
-            <small>
-              <Link to="/app/templates/new">{t("issue.newTemplate")}</Link>
-            </small>
-          </label>
-          <EventBackground
-            template={template}
-            value={common.background}
-            onChange={(background) => setCommon((c) => ({ ...c, background }))}
-          />
           <label className="dash-field">
             <span>{t("issue.contextTitle")}</span>
             <input value={common.context_title} onChange={(e) => setCommon({ ...common, context_title: e.target.value })} placeholder={t("issue.contextTitlePh")} />
@@ -782,18 +761,17 @@ function CsvIssue({ common, extraFields, textFields, ready }) {
 const MAX_RATIO_DRIFT = 0.02;
 
 /**
- * This event's background, over the template's. The template keeps the layout;
- * the image can change for every event without a new template. It must have
- * the template's proportions, since it is drawn over the same page.
+ * What the certificate will look like: the template (where each text goes)
+ * over a background — the template's own, or one uploaded for this event,
+ * which needs no new template. Shown as the layout, not just the image.
  */
-function EventBackground({ template, value, onChange }) {
+function Design({ templates, template, slug, onTemplate, background, onBackground }) {
   const { t, orgPath } = useDashboard();
+  const [mode, setMode] = useState(background ? "event" : "template");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  async function pick(e) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
+  async function upload(file) {
     if (!file || !template) return;
     setError("");
     if (!["image/png", "image/jpeg"].includes(file.type)) {
@@ -809,7 +787,7 @@ function EventBackground({ template, value, onChange }) {
         setError(t("issue.bg.ratio", { size: `${template.page_width} × ${template.page_height}` }));
         return;
       }
-      onChange({ url: out.url, width: out.width, height: out.height });
+      onBackground({ url: out.url, width: out.width, height: out.height });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -817,29 +795,78 @@ function EventBackground({ template, value, onChange }) {
     }
   }
 
-  const shown = value?.url || template?.background_url;
+  function choose(next) {
+    setMode(next);
+    setError("");
+    if (next === "template") onBackground(null);
+  }
+
   return (
-    <div className="dash-field">
-      <span>{t("issue.bg.label")}</span>
-      <div className="dash-file">
-        {shown && <img className="dash-file-thumb" src={shown} alt="" />}
-        <div>
-          <strong>{value ? t("issue.bg.own") : t("issue.bg.template")}</strong>
-          <div className="dash-muted dash-small">{t("issue.bg.help")}</div>
-        </div>
-        <div className="dash-file-change">
-          <label className="dash-link">
-            {busy ? t("editor.uploading") : value ? t("editor.changeImage") : t("issue.bg.upload")}
-            <input type="file" accept="image/png,image/jpeg" onChange={pick} disabled={busy || !template} hidden />
-          </label>
-          {value && (
-            <button type="button" className="dash-link" onClick={() => onChange(null)}>
-              {t("issue.bg.reset")}
+    <div className="dash-design">
+      <div className="dash-design-preview">
+        {template ? <TemplateLayout template={template} backgroundUrl={background?.url} /> : <div className="dash-layout dash-layout--empty" />}
+        <small className="dash-muted">{t("issue.design.legend")}</small>
+      </div>
+
+      <div className="dash-design-controls">
+        <label className="dash-field">
+          <span>{t("issue.template")}</span>
+          <select value={slug} onChange={(e) => onTemplate(e.target.value)}>
+            {templates === null && <option>{t("common.loading")}</option>}
+            {templates?.some((x) => x.own) && (
+              <optgroup label={t("issue.yourTemplates")}>
+                {templates.filter((x) => x.own).map((x) => (
+                  <option key={x.id} value={x.slug}>
+                    {x.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            <optgroup label={t("issue.catalog")}>
+              {templates?.filter((x) => !x.own).map((x) => (
+                <option key={x.id} value={x.slug}>
+                  {x.name}
+                </option>
+              ))}
+            </optgroup>
+          </select>
+          <small className="dash-muted">
+            {t("issue.design.templateHelp")} <Link to="/app/templates">{t("issue.design.manage")}</Link>
+          </small>
+        </label>
+
+        <div className="dash-field">
+          <span>{t("issue.bg.label")}</span>
+          <div className="dash-segmented" role="radiogroup">
+            <button type="button" role="radio" aria-checked={mode === "template"} className={mode === "template" ? "is-active" : ""} onClick={() => choose("template")}>
+              {t("issue.bg.template")}
             </button>
-          )}
+            <button type="button" role="radio" aria-checked={mode === "event"} className={mode === "event" ? "is-active" : ""} onClick={() => choose("event")}>
+              {t("issue.bg.own")}
+            </button>
+          </div>
+          {mode === "event" &&
+            (background ? (
+              <div className="dash-design-file">
+                <span>{t("issue.bg.ready")}</span>
+                <label className="dash-link">
+                  {busy ? t("editor.uploading") : t("editor.changeImage")}
+                  <input type="file" accept="image/png,image/jpeg" hidden disabled={busy} onChange={(e) => { upload(e.target.files?.[0]); e.target.value = ""; }} />
+                </label>
+              </div>
+            ) : (
+              <label className={`dash-drop dash-drop--compact${busy ? " is-busy" : ""}`}>
+                <input type="file" accept="image/png,image/jpeg" disabled={busy || !template} onChange={(e) => { upload(e.target.files?.[0]); e.target.value = ""; }} />
+                <strong>{busy ? t("editor.uploading") : t("issue.bg.upload")}</strong>
+                <span className="dash-muted">
+                  {template ? t("issue.bg.size", { size: `${template.page_width} × ${template.page_height}` }) : ""}
+                </span>
+              </label>
+            ))}
+          <small className="dash-muted">{mode === "event" ? t("issue.bg.help") : t("issue.bg.templateHelp")}</small>
+          {error && <small className="dash-error">{error}</small>}
         </div>
       </div>
-      {error && <small className="dash-error">{error}</small>}
     </div>
   );
 }
