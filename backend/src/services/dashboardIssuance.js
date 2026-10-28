@@ -12,6 +12,7 @@ import { createIssuanceJob } from "./issuanceJobs.js";
 import { deductCredit, refundCredit } from "./apiKeys.js";
 import { ensurePanelKey } from "./accounts.js";
 import { supabase } from "../supabase.js";
+import { isOwnBackgroundUrl } from "./dashboardTemplates.js";
 
 const CONTEXT_TYPES = ["event", "course", "diploma", "training", "certification", "membership", "other"];
 const CREDENTIAL_TYPES = ["attendance", "completion", "achievement", "participation", "membership", "certification"];
@@ -64,6 +65,16 @@ export function buildPayload(entity, input) {
     expiresAt = d.toISOString();
   }
 
+  // The event's own background, over the template's. Only an image this
+  // organization uploaded: the certificate is drawn and anchored with it.
+  let background;
+  if (input.background_url) {
+    if (!isOwnBackgroundUrl(entity.id, input.background_url)) {
+      throw new DashboardIssueError("background_url must be an image uploaded to this organization");
+    }
+    background = input.background_url;
+  }
+
   const payload = {
     issuer_entity_id: entity.id,
     issuer: { display_name: entity.display_name, slug: entity.slug },
@@ -74,6 +85,7 @@ export function buildPayload(entity, input) {
     title: String(input.title ?? "").trim(),
     values,
     ...(input.template_slug && { template_slug: String(input.template_slug) }),
+    ...(background && { background_url_override: background }),
     // Email the credential to the holder once it is issued: asked for per issue.
     ...(input.notify_holder === true && holder.email && {
       notify_holder: true,

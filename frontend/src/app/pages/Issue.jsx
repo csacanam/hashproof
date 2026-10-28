@@ -24,6 +24,7 @@ export default function Issue() {
     credential_type: "attendance",
     title: "",
     expires_at: "",
+    background: null, // {url, width, height}: this event's own background
   });
 
   useEffect(() => {
@@ -65,7 +66,7 @@ export default function Issue() {
         <div className="dash-grid-2">
           <label className="dash-field">
             <span>{t("issue.template")}</span>
-            <select value={common.template_slug} onChange={(e) => setCommon({ ...common, template_slug: e.target.value })}>
+            <select value={common.template_slug} onChange={(e) => setCommon({ ...common, template_slug: e.target.value, background: null })}>
               {templates === null && <option>{t("common.loading")}</option>}
               {templates?.some((x) => x.own) && (
                 <optgroup label={t("issue.yourTemplates")}>
@@ -88,6 +89,11 @@ export default function Issue() {
               <Link to="/app/templates/new">{t("issue.newTemplate")}</Link>
             </small>
           </label>
+          <EventBackground
+            template={template}
+            value={common.background}
+            onChange={(background) => setCommon((c) => ({ ...c, background }))}
+          />
           <label className="dash-field">
             <span>{t("issue.contextTitle")}</span>
             <input value={common.context_title} onChange={(e) => setCommon({ ...common, context_title: e.target.value })} placeholder={t("issue.contextTitlePh")} />
@@ -156,6 +162,7 @@ function buildInput(common, row, notify, textFields = []) {
   }
   return {
     template_slug: common.template_slug,
+    ...(common.background && { background_url: common.background.url }),
     context_type: common.context_type,
     context_title: common.context_title,
     credential_type: common.credential_type,
@@ -767,5 +774,72 @@ function CsvIssue({ common, extraFields, textFields, ready }) {
         </>
       )}
     </section>
+  );
+}
+
+// How far an event background's proportions may stray from the template's
+// before the design would visibly stretch.
+const MAX_RATIO_DRIFT = 0.02;
+
+/**
+ * This event's background, over the template's. The template keeps the layout;
+ * the image can change for every event without a new template. It must have
+ * the template's proportions, since it is drawn over the same page.
+ */
+function EventBackground({ template, value, onChange }) {
+  const { t, orgPath } = useDashboard();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function pick(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !template) return;
+    setError("");
+    if (!["image/png", "image/jpeg"].includes(file.type)) {
+      setError(t("editor.backgroundType"));
+      return;
+    }
+    setBusy(true);
+    try {
+      const out = await api(orgPath("/backgrounds"), { method: "POST", raw: file });
+      const want = template.page_width / template.page_height;
+      const got = out.width / out.height;
+      if (Math.abs(got - want) / want > MAX_RATIO_DRIFT) {
+        setError(t("issue.bg.ratio", { size: `${template.page_width} × ${template.page_height}` }));
+        return;
+      }
+      onChange({ url: out.url, width: out.width, height: out.height });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const shown = value?.url || template?.background_url;
+  return (
+    <div className="dash-field">
+      <span>{t("issue.bg.label")}</span>
+      <div className="dash-file">
+        {shown && <img className="dash-file-thumb" src={shown} alt="" />}
+        <div>
+          <strong>{value ? t("issue.bg.own") : t("issue.bg.template")}</strong>
+          <div className="dash-muted dash-small">{t("issue.bg.help")}</div>
+        </div>
+        <div className="dash-file-change">
+          <label className="dash-link">
+            {busy ? t("editor.uploading") : value ? t("editor.changeImage") : t("issue.bg.upload")}
+            <input type="file" accept="image/png,image/jpeg" onChange={pick} disabled={busy || !template} hidden />
+          </label>
+          {value && (
+            <button type="button" className="dash-link" onClick={() => onChange(null)}>
+              {t("issue.bg.reset")}
+            </button>
+          )}
+        </div>
+      </div>
+      {error && <small className="dash-error">{error}</small>}
+    </div>
   );
 }

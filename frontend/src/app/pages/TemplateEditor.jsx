@@ -61,6 +61,7 @@ export default function TemplateEditor() {
   const [loaded, setLoaded] = useState(isNew && !search.get("from"));
   const [qrBusy, setQrBusy] = useState(null); // share of the QR corner that is not plain background
   const [dragging, setDragging] = useState(false);
+  const [inUse, setInUse] = useState(false);
 
   // Load the template being edited, or the one being duplicated.
   useEffect(() => {
@@ -73,6 +74,7 @@ export default function TemplateEditor() {
         setName(id ? tpl.name : `${tpl.name} (copy)`);
         setBg({ url: tpl.background_url, width: tpl.page_width, height: tpl.page_height });
         setFields(tpl.fields_json.map((f) => ({ ...f })));
+        setInUse(Boolean(id && tpl.in_use));
         setLoaded(true);
       })
       .catch((err) => setError({ message: err.message }));
@@ -218,11 +220,17 @@ export default function TemplateEditor() {
           <button type="button" className="dash-btn dash-btn--ghost" disabled={!bg || !fields.length || busy} onClick={showPreview}>
             {busy === "preview" ? t("common.loading") : t("editor.preview")}
           </button>
-          <button type="button" className="dash-btn" disabled={!bg || !fields.length || !name.trim() || busy} onClick={save}>
+          <button type="button" className="dash-btn" disabled={inUse || !bg || !fields.length || !name.trim() || busy} onClick={save}>
             {busy === "save" ? t("common.saving") : t("common.save")}
           </button>
         </div>
       </header>
+
+      {inUse && (
+        <p className="dash-note">
+          {t("editor.inUse")} <Link to={`/app/templates/new?from=${id}`}>{t("templates.duplicate")}</Link>
+        </p>
+      )}
 
       {error && (
         <p className="dash-error">

@@ -31,9 +31,24 @@ export async function listTemplates(entityId) {
     .or(`entity_id.eq.${entityId},visibility.eq.public`)
     .order("created_at", { ascending: false });
   if (error) throw new Error(`database: ${error.message}`);
-  return (data || [])
-    .map((t) => ({ ...t, own: t.entity_id === entityId }))
-    .sort((a, b) => Number(b.own) - Number(a.own));
+  const list = (data || []).map((t) => ({ ...t, own: t.entity_id === entityId }));
+  // A template that has issued is fixed (see updateTemplate); say so up front
+  // instead of letting someone edit it and fail on save.
+  await Promise.all(
+    list.filter((t) => t.own).map(async (t) => {
+      t.in_use = (await countIssued(t.id)) > 0;
+    }),
+  );
+  return list.sort((a, b) => Number(b.own) - Number(a.own));
+}
+
+async function countIssued(templateId) {
+  const { count, error } = await supabase
+    .from("credentials")
+    .select("id", { count: "exact", head: true })
+    .eq("template_id", templateId);
+  if (error) throw new Error(`database: ${error.message}`);
+  return count ?? 0;
 }
 
 /** Validate and normalize a layout. Throws with a message naming the field at fault. */
@@ -121,12 +136,7 @@ export async function createTemplate({ entity, name, slug, background_url, page_
 export async function updateTemplate({ entityId, templateId, name, background_url, page_width, page_height, fields_json }) {
   const current = await getOwnTemplate(entityId, templateId);
 
-  const { count, error: countErr } = await supabase
-    .from("credentials")
-    .select("id", { count: "exact", head: true })
-    .eq("template_id", current.id);
-  if (countErr) throw new Error(`database: ${countErr.message}`);
-  if ((count ?? 0) > 0) {
+  if ((await countIssued(current.id)) > 0) {
     const err = new Error("This template has issued credentials and can no longer change. Duplicate it to make a new version.");
     err.status = 409;
     err.code = "template_in_use";
@@ -172,6 +182,17 @@ function validateBackgroundUrl(value) {
   } catch {
     throw new Error("background_url must be an https URL");
   }
+}
+
+/**
+ * Whether `url` is a background this organization uploaded. Issuing with an
+ * event's own background only takes these: our storage, under its folder.
+ */
+export function isOwnBackgroundUrl(entityId, url) {
+  if (typeof url !== "string" || !entityId) return false;
+  const { data } = supabase.storage.from(BACKGROUND_BUCKET).getPublicUrl(`${entityId}/`);
+  const prefix = data?.publicUrl;
+  return Boolean(prefix) && url.startsWith(prefix) && !url.slice(prefix.length).includes("/") && !url.includes("..");
 }
 
 /**

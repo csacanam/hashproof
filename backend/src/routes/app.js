@@ -363,9 +363,10 @@ export function createAppRouter({ baseUrl, frontendUrl, skipPayment = false }) {
     }
   });
 
+  // Anyone who can issue can upload: an event's background is chosen when
+  // issuing, not only in the template editor.
   org.post(
     "/backgrounds",
-    managersOnly,
     express.raw({ type: ["image/png", "image/jpeg"], limit: "8mb" }),
     async (req, res) => {
       try {

@@ -62,7 +62,14 @@ function TemplateCard({ tpl, editable, canManage }) {
         <img src={tpl.background_url} alt="" loading="lazy" />
       </div>
       <div className="dash-template-meta">
-        <strong>{tpl.name}</strong>
+        <strong>
+          {tpl.name}
+          {tpl.in_use && (
+            <span className="dash-badge" title={t("templates.inUseHelp")}>
+              {t("templates.inUse")}
+            </span>
+          )}
+        </strong>
         <code className="dash-small dash-ellipsis" title={tpl.slug}>
           {tpl.slug}
         </code>
@@ -70,7 +77,7 @@ function TemplateCard({ tpl, editable, canManage }) {
           {tpl.fields_json.length} {t("templates.fields")} · {formatDate(tpl.created_at)}
         </span>
         <div className="dash-row">
-          {editable ? (
+          {editable && !tpl.in_use ? (
             <Link to={`/app/templates/${tpl.id}`} className="dash-link">
               {t("common.edit")}
             </Link>

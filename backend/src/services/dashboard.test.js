@@ -50,6 +50,22 @@ describe("buildPayload", () => {
     expect(p.holder.email).toBe("ana@x.co");
   });
 
+  it("takes an event background only from this organization's uploads", () => {
+    supabaseMock.storage = {
+      from: () => ({ getPublicUrl: (path) => ({ data: { publicUrl: `https://sb.test/storage/v1/object/public/backgrounds/${path}` } }) }),
+    };
+    const own = "https://sb.test/storage/v1/object/public/backgrounds/e1/abc.png";
+    expect(buildPayload(ENTITY, { ...INPUT, background_url: own }).background_url_override).toBe(own);
+    expect(buildPayload(ENTITY, INPUT).background_url_override).toBeUndefined();
+    for (const bad of [
+      "https://evil.example/bg.png",
+      "https://sb.test/storage/v1/object/public/backgrounds/other-org/abc.png",
+      "https://sb.test/storage/v1/object/public/backgrounds/e1/../other/abc.png",
+    ]) {
+      expect(() => buildPayload(ENTITY, { ...INPUT, background_url: bad })).toThrow(/uploaded to this organization/);
+    }
+  });
+
   it("rejects missing fields with a message naming them", () => {
     expect(() => buildPayload(ENTITY, { ...INPUT, holder_name: " " })).toThrow("holder_name is required");
     expect(() => buildPayload(ENTITY, { ...INPUT, context_title: "" })).toThrow(/context/);
